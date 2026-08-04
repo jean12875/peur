@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="VEILLE — un jeu qui n'oublie jamais que tu es parti.">
+<title>VEILLE</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+  :root{
+    color-scheme: dark;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:#000; overflow:hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    user-select:none; -webkit-user-select:none;
+    touch-action:none;
+    overscroll-behavior:none;
+  }
+  #app{
+    position:fixed; inset:0; width:100vw; height:100dvh;
+    background:#000;
+  }
+  canvas{ position:absolute; inset:0; display:block; }
+
+  #veil{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    padding:8vh 6vw; gap:1.1em;
+    color:#cfcfcf; letter-spacing:0.04em;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.92) 75%);
+    transition:opacity 1.4s ease;
+    z-index:10;
+  }
+  #veil.hidden{ opacity:0; pointer-events:none; }
+
+  .title{
+    font-size:clamp(2.4rem, 9vw, 4.4rem);
+    font-weight:200;
+    letter-spacing:0.35em;
+    margin:0 0 0.1em 0;
+    color:#e6e6e6;
+    text-shadow:0 0 18px rgba(255,255,255,0.08);
+  }
+  .glitchtext{ position:relative; display:inline-block; }
+
+  .flavor{
+    font-size:clamp(0.85rem, 2.6vw, 1.05rem);
+    font-weight:300; color:#8a8a8a; max-width:34em; line-height:1.6em;
+    min-height:3.2em;
+  }
+  .stat{
+    font-size:0.78rem; color:#5c5c5c; letter-spacing:0.1em; text-transform:uppercase;
+  }
+  .startbtn{
+    margin-top:0.6em;
+    padding:0.85em 2.4em;
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.25);
+    color:#d8d8d8;
+    font-size:0.85rem; letter-spacing:0.25em; text-transform:uppercase;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .startbtn:active{ background:rgba(255,255,255,0.08); }
+
+  .miniline{
+    position:absolute; bottom:2.2em; left:0; right:0;
+    text-align:center; font-size:0.7rem; color:#4a4a4a; letter-spacing:0.15em;
+  }
+  .miniline button{
+    background:none;border:none;color:#4a4a4a;font-size:0.7rem;letter-spacing:0.15em;
+    text-decoration:underline; cursor:pointer; padding:0.6em; font-family:inherit;
+  }
+
+  #hint{
+    position:absolute; left:0; right:0; bottom:9vh; text-align:center;
+    color:rgba(255,255,255,0.35); font-size:0.75rem; letter-spacing:0.3em;
+    text-transform:uppercase; pointer-events:none; transition:opacity 2s ease;
+    z-index:5;
+  }
+
+  #diedScreen{
+    position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
+    background:#000; opacity:0; pointer-events:none; transition:opacity 0.6s ease;
+    flex-direction:column; gap:0.6em; text-align:center; padding:6vh 6vw;
+  }
+  #diedScreen.show{ opacity:1; pointer-events:auto; }
+  #diedScreen .diedTitle{ color:#8a1f1f; font-size:clamp(1.6rem,7vw,2.6rem); letter-spacing:0.3em; font-weight:200; }
+  #diedScreen .diedSub{ color:#666; font-size:0.85rem; letter-spacing:0.1em; max-width:30em; line-height:1.7em; }
+
+  #flashLayer{
+    position:absolute; inset:0; z-index:30; pointer-events:none; background:#fff; opacity:0;
+  }
+
+  #fakeOS{
+    position:absolute; top:0; left:0; right:0; z-index:40; pointer-events:none;
+    display:flex; justify-content:space-between; padding:0.6em 1em; font-size:0.72rem;
+    color:#eee; opacity:0; letter-spacing:0.05em;
+    background:linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
+  }
+  #fakeNotif{
+    position:absolute; top:2.4em; left:3vw; right:3vw; z-index:41; pointer-events:none;
+    background:rgba(20,20,20,0.92); border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px; padding:0.7em 0.9em; color:#eee; font-size:0.78rem;
+    opacity:0; transform:translateY(-10px); transition:opacity .25s ease, transform .25s ease;
+    display:flex; flex-direction:column; gap:0.15em;
+  }
+  #fakeNotif b{ font-weight:600; font-size:0.75rem; color:#bbb; }
+  #fakeNotif.show{ opacity:1; transform:translateY(0); }
+
+  #recDot{
+    position:absolute; top:0.7em; right:1em; width:7px; height:7px; border-radius:50%;
+    background:#c0392b; z-index:42; opacity:0; box-shadow:0 0 6px #c0392b;
+  }
+
+  #camWrap{
+    position:absolute; bottom:1.4em; right:1.4em; width:84px; height:112px; z-index:15;
+    border:1px solid rgba(255,255,255,0.15); overflow:hidden; opacity:0; transition:opacity 1s ease;
+    background:#000;
+  }
+  #camWrap.show{ opacity:0.85; }
+  #camWrap video{ width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.6) brightness(0.65); transform:scaleX(-1); }
+  #camWrap .camlabel{ position:absolute; bottom:2px; left:4px; font-size:0.55rem; color:#c0392b; letter-spacing:0.1em; }
+
+  #modal{
+    position:absolute; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.88); padding:6vh 8vw; text-align:center;
+  }
+  #modal.show{ display:flex; }
+  #modal .box{ max-width:26em; display:flex; flex-direction:column; gap:1.3em; }
+  #modal p{ color:#ccc; font-size:0.92rem; line-height:1.7em; letter-spacing:0.02em; }
+  #modal .row{ display:flex; gap:0.8em; justify-content:center; }
+  #modal button{
+    padding:0.7em 1.6em; background:transparent; border:1px solid rgba(255,255,255,0.25);
+    color:#ddd; font-size:0.78rem; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer;
+    font-family:inherit;
+  }
+
+  #gear{
+    position:absolute; top:1em; left:1em; z-index:60; width:34px; height:34px;
+    border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+    color:#999; display:flex; align-items:center; justify-content:center; font-size:0.9rem;
+    cursor:pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #flashLayer{ transition:none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="c"></canvas>
+
+  <div id="hint">tiens</div>
+
+  <div id="recDot"></div>
+  <div id="fakeOS">
+    <span id="fosTime">00:00</span>
+    <span id="fosBatt">100%</span>
+  </div>
+  <div id="fakeNotif"><b id="fnFrom">Inconnu</b><span id="fnMsg"></span></div>
+
+  <div id="camWrap"><video id="camVideo" autoplay playsinline muted></video><div class="camlabel">● REC</div></div>
+
+  <div id="veil">
+    <div class="title glitchtext" id="titleText">VEILLE</div>
+    <div class="flavor" id="flavorText">pose ton doigt sur l'écran. ne le retire pas.</div>
+    <div class="stat" id="statText"></div>
+    <button class="startbtn" id="startBtn">entrer</button>
+    <div class="miniline"><button id="resetBtn">tout oublier</button></div>
+  </div>
+
+  <div id="diedScreen">
+    <div class="diedTitle" id="diedTitle">IL T'A EU</div>
+    <div class="diedSub" id="diedSub"></div>
+  </div>
+
+  <div id="flashLayer"></div>
+
+  <div id="modal">
+    <div class="box">
+      <p id="modalText"></p>
+      <div class="row">
+        <button id="modalYes">oui</button>
+        <button id="modalNo">non</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gear" title="paramètres">☾</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   VEILLE — utilitaires & état persistant
+   ============================================================ */
+const SAVE_KEY = "veille_save_v1";
+const now = () => Date.now();
+const REDUCE_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function loadSave(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {
+    firstVisit: now(),
+    lastVisit: now(),
+    deaths: 0,
+    longestSurvivalMs: 0,
+    totalSessions: 0,
+    cameraChoice: null, // null | 'granted' | 'denied'
+    askedCameraOnce: false,
+    reduceEffects: REDUCE_MOTION
+  };
+}
+function writeSave(s){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){}
+}
+let save = loadSave();
+
+function fmtDuration(ms){
+  const s = Math.floor(ms/1000);
+  if(s < 60) return s + " seconde" + (s===1?"":"s");
+  const m = Math.floor(s/60);
+  if(m < 60) return m + " minute" + (m===1?"":"s");
+  const h = Math.floor(m/60);
+  if(h < 24) return h + " heure" + (h===1?"":"s");
+  const d = Math.floor(h/24);
+  return d + " jour" + (d===1?"":"s");
+}
+
+/* ============================================================
+   Canvas setup
+   ============================================================ */
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
+  canvas.style.width = W+"px"; canvas.style.height = H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+/* ============================================================
+   Audio (100% procédural, aucun fichier externe)
+   ============================================================ */
+let actx=null, droneGain=null, noiseGain=null, masterGain=null, noiseSrc=null, lfo=null, lfoGain=null, filter=null;
+function ensureAudio(){
+  if(actx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) return;
+  actx = new AC();
+  masterGain = actx.createGain(); masterGain.gain.value = 0.5;
+  masterGain.connect(actx.destination);
+
+  // drone grave
+  const osc = actx.createOscillator();
+  osc.type = "sine"; osc.frequency.value = 55;
+  droneGain = actx.createGain(); droneGain.gain.value = 0.05;
+  osc.connect(droneGain); droneGain.connect(masterGain);
+  osc.start();
+
+  // trémolo lent
+  lfo = actx.createOscillator(); lfo.frequency.value = 0.18;
+  lfoGain = actx.createGain(); lfoGain.gain.value = 0.03;
+  lfo.connect(lfoGain); lfoGain.connect(droneGain.gain);
+  lfo.start();
+
+  // bruit filtré (texture de fond)
+  const bufSize = actx.sampleRate * 2;
+  const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1)*0.6;
+  noiseSrc = actx.createBufferSource(); noiseSrc.buffer = buf; noiseSrc.loop = true;
+  filter = actx.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = 300;
+  noiseGain = actx.createGain(); noiseGain.gain.value = 0.02;
+  noiseSrc.connect(filter); filter.connect(noiseGain); noiseGain.connect(masterGain);
+  noiseSrc.start();
+}
+function setDread(level){ // 0..1
+  if(!actx) return;
+  const t = actx.currentTime;
+  droneGain.gain.setTargetAtTime(0.04 + level*0.09, t, 0.4);
+  noiseGain.gain.setTargetAtTime(0.015 + level*0.08, t, 0.4);
+  filter.frequency.setTargetAtTime(250 + level*1800, t, 0.5);
+  const osc2freq = 55 - level*8;
+  // subtle detune via lfo rate
+  lfo.frequency.setTargetAtTime(0.18 + level*0.6, t, 1);
+}
+function beep(freq, dur, type, vol){
+  if(!actx) return;
+  const o = actx.createOscillator(); const g = actx.createGain();
+  o.type = type||"sine"; o.frequency.value = freq;
+  g.gain.value = 0; o.connect(g); g.connect(masterGain);
+  const t = actx.currentTime;
+  g.gain.linearRampToValueAtTime(vol||0.2, t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.start(t); o.stop(t+dur+0.05);
+}
+function scareSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  // burst de bruit
+  const bufSize = actx.sampleRate * 0.6;
+  const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1);
+  const src = actx.createBufferSource(); src.buffer = buf;
+  const g = actx.createGain(); g.gain.setValueAtTime(0.5, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+0.55);
+  const f = actx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=900;
+  src.connect(f); f.connect(g); g.connect(masterGain);
+  src.start(t);
+  // sweep grave
+  const o = actx.createOscillator(); o.type="sawtooth";
+  o.frequency.setValueAtTime(220, t);
+  o.frequency.exponentialRampToValueAtTime(40, t+0.5);
+  const g2 = actx.createGain(); g2.gain.setValueAtTime(0.35, t);
+  g2.gain.exponentialRampToValueAtTime(0.001, t+0.6);
+  o.connect(g2); g2.connect(masterGain);
+  o.start(t); o.stop(t+0.65);
+}
+
+/* ============================================================
+   Vibration (mobile)
+   ============================================================ */
+function vibrate(pattern){
+  if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern);
+}
+
+/* ============================================================
+   État de jeu
+   ============================================================ */
+const STATE = { TITLE:"title", PLAYING:"playing", DEAD:"dead" };
+let state = STATE.TITLE;
+
+let held = false;
+let light = 1;      // 0..1
+let threat = 0;      // 0..1 (1 = attrapé)
+let panic = 0;       // 0..1
+let sessionStart = 0;
+let lastFrame = 0;
+let hiddenAt = 0;
+
+let pointerEvents = []; // timestamps des pointerdown récents (panique)
+let entitySeed = Math.random()*1000;
+let glitchTimer = randRange(18,34);
+let camAsked = false;
+
+function randRange(a,b){ return a + Math.random()*(b-a); }
+
+/* Difficulté progressive selon les morts précédentes */
+function difficultyMul(){
+  return 1 + Math.min(save.deaths, 12) * 0.045;
+}
+
+/* Menace de départ liée au temps réel écoulé depuis la dernière visite */
+function startingThreat(){
+  const hours = (now() - save.lastVisit) / 3600000;
+  return Math.min(0.42, Math.log2(1+hours) * 0.09);
+}
+
+/* ============================================================
+   Titre — texte qui se souvient
+   ============================================================ */
+function buildTitleFlavor(){
+  const delta = now() - save.lastVisit;
+  const d = save.deaths;
+  let msg;
+  if(save.totalSessions === 0){
+    msg = "pose ton doigt sur l'écran. ne le retire pas. reste calme — s'agiter attire l'attention.";
+  } else if(delta < 60000){
+    msg = "tu es encore là. il n'a pas eu le temps de partir non plus.";
+  } else if(delta < 3600000){
+    msg = "tu es parti " + fmtDuration(delta) + ". il a attendu, immobile, tourné vers la porte.";
+  } else if(delta < 86400000){
+    msg = "ça fait " + fmtDuration(delta) + ". quelque chose a bougé pendant ton absence.";
+  } else {
+    msg = "ça fait " + fmtDuration(delta) + ". il a eu largement le temps de grandir.";
+  }
+  const tiers = [
+    "",
+    "il connaît le son de ta respiration, maintenant.",
+    "il n'a plus besoin du noir pour te trouver.",
+    "il compte les fois où tu as lâché prise.",
+    "il n'attend plus que tu recommences.",
+  ];
+  const tierIdx = Math.min(Math.floor(d/3), tiers.length-1);
+  document.getElementById("flavorText").textContent = msg + (tierIdx>0 ? "  " + tiers[tierIdx] : "");
+  const stat = document.getElementById("statText");
+  const parts = [];
+  if(d>0) parts.push("morts : "+d);
+  if(save.longestSurvivalMs>0) parts.push("record : "+fmtDuration(save.longestSurvivalMs));
+  stat.textContent = parts.join("   ·   ");
+
+  const titleEl = document.getElementById("titleText");
+  titleEl.style.letterSpacing = (0.35 + Math.min(d,10)*0.01) + "em";
+  titleEl.style.textShadow = d>6 ? "0 0 22px rgba(180,20,20,0.25), 2px 0 0 rgba(255,0,0,0.12), -2px 0 0 rgba(0,255,255,0.1)" : "0 0 18px rgba(255,255,255,0.08)";
+}
+
+/* ============================================================
+   Boucle de rendu
+   ============================================================ */
+function drawScene(dt){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0,0,W,H);
+
+  const cx = W/2, cy = H*0.46;
+  const baseRadius = Math.max(W,H) * (0.16 + light*0.30 - threat*0.10);
+  const radius = Math.max(30, baseRadius);
+
+  // halo de lumière
+  const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,radius*1.9);
+  const lum = 0.10 + light*0.16;
+  grad.addColorStop(0, `rgba(255,244,222,${0.55*light+0.08})`);
+  grad.addColorStop(0.35, `rgba(120,100,90,${lum})`);
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,W,H);
+
+  // silhouette de l'entité, plus visible/proche à mesure que threat augmente
+  if(threat > 0.05){
+    const distFromLight = radius * (1.5 - threat*1.05); // se rapproche
+    const ang = Math.sin(entitySeed + performance.now()*0.00025) * 0.6;
+    const ex = cx + Math.cos(ang) * distFromLight * 0.9;
+    const ey = cy + Math.sin(ang*0.6) * distFromLight * 0.35 + H*0.06;
+    const size = 40 + threat*(H*0.55);
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.globalAlpha = Math.min(0.85, threat*0.9 + 0.05);
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    const jitter = threat*14;
+    const pts = 14;
+    for(let i=0;i<=pts;i++){
+      const a = (i/pts) * Math.PI*2;
+      const jr = size*(0.55+0.45*Math.sin(a*3.1+entitySeed+performance.now()*0.002)) + (Math.random()-0.5)*jitter;
+      const px = Math.cos(a)*jr*0.55;
+      const py = Math.sin(a)*jr;
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // grain / bruit léger
+  if(!save.reduceEffects){
+    const grainCount = Math.floor(40 + threat*140);
+    ctx.fillStyle = "rgba(255,255,255,0.035)";
+    for(let i=0;i<grainCount;i++){
+      const gx = Math.random()*W, gy = Math.random()*H;
+      ctx.fillRect(gx,gy,1,1);
+    }
+  }
+
+  // vignette
+  const vgn = ctx.createRadialGradient(cx,cy,radius*0.9,cx,cy,Math.max(W,H)*0.75);
+  vgn.addColorStop(0,"rgba(0,0,0,0)");
+  vgn.addColorStop(1,"rgba(0,0,0,0.55)");
+  ctx.fillStyle = vgn;
+  ctx.fillRect(0,0,W,H);
+}
+
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(!lastFrame) lastFrame = ts;
+  let dt = (ts - lastFrame)/1000;
+  lastFrame = ts;
+  dt = Math.min(dt, 0.1);
+
+  if(state === STATE.PLAYING){
+    updateGame(dt);
+  }
+  drawScene(dt);
+}
+requestAnimationFrame(loop);
+
+/* ============================================================
+   Logique de jeu
+   ============================================================ */
+function updateGame(dt){
+  const dmul = difficultyMul();
+
+  // panique : fréquence des pressions récentes
+  const cutoff = now() - 4000;
+  pointerEvents = pointerEvents.filter(t=>t>cutoff);
+  const freq = pointerEvents.length; // nb d'appuis sur 4s
+  const targetPanic = Math.max(0, Math.min(1, (freq-2)/6));
+  panic += (targetPanic - panic) * Math.min(1, dt*1.5);
+
+  if(held){
+    light = Math.min(1, light + dt*0.30);
+    const calmBonus = Math.max(0, 1-panic);
+    threat = Math.max(0, threat - dt*0.055*calmBonus*(1/dmul) + dt*0.05*panic*dmul);
+  } else {
+    light = Math.max(0, light - dt*0.9);
+    threat = Math.min(1, threat + dt*0.16*dmul);
+  }
+
+  setDread(threat);
+
+  document.getElementById("hint").style.opacity = (sessionStart && now()-sessionStart>6000) ? "0" : "1";
+
+  // glitchs factices d'OS
+  glitchTimer -= dt;
+  if(glitchTimer <= 0 && now()-sessionStart > 14000){
+    triggerFakeGlitch();
+    glitchTimer = randRange(22,42);
+  }
+
+  // proposition caméra une fois, autour de 20-40s
+  if(!camAsked && save.cameraChoice===null && now()-sessionStart > randRange(20000,32000)){
+    camAsked = true;
+    askCamera();
+  }
+
+  if(threat >= 1){
+    onCaught();
+  }
+}
+
+function onPointerDown(){
+  ensureAudio();
+  if(actx && actx.state==="suspended") actx.resume();
+  held = true;
+  pointerEvents.push(now());
+  if(state === STATE.TITLE){
+    // ignore, start handled by button
+  }
+}
+function onPointerUp(){
+  held = false;
+}
+
+/* ============================================================
+   Contrôles : tactile + souris + espace (clavier desktop)
+   ============================================================ */
+const stage = document.getElementById("app");
+stage.addEventListener("pointerdown", (e)=>{ if(state===STATE.PLAYING){ onPointerDown(); } });
+window.addEventListener("pointerup", ()=>{ onPointerUp(); });
+window.addEventListener("pointercancel", ()=>{ onPointerUp(); });
+window.addEventListener("keydown", (e)=>{
+  if(e.code === "Space" && state===STATE.PLAYING){ e.preventDefault(); onPointerDown(); }
+});
+window.addEventListener("keyup", (e)=>{
+  if(e.code === "Space"){ onPointerUp(); }
+});
+window.addEventListener("blur", ()=>{ onPointerUp(); });
+
+/* ============================================================
+   Punition d'absence : Page Visibility API
+   ============================================================ */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden){
+    if(state===STATE.PLAYING){ hiddenAt = now(); }
+  } else {
+    if(state===STATE.PLAYING && hiddenAt){
+      const away = now() - hiddenAt;
+      const awaySec = away/1000;
+      const bump = Math.min(0.6, awaySec*0.01);
+      threat = Math.min(1, threat + bump);
+      hiddenAt = 0;
+      if(awaySec > 4){
+        showFakeNotifOnReturn(away);
+      }
+      if(threat>=1) onCaught();
+    }
+  }
+});
+
+/* ============================================================
+   Faux glitchs d'interface (purement cosmétiques, dans la page)
+   ============================================================ */
+let batteryLevel = 100;
+if(navigator.getBattery){
+  navigator.getBattery().then(b=>{
+    batteryLevel = Math.round(b.level*100);
+    b.addEventListener("levelchange", ()=>{ batteryLevel = Math.round(b.level*100); });
+  }).catch(()=>{});
+}
+
+function updateFakeClock(){
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2,"0");
+  const mm = String(d.getMinutes()).padStart(2,"0");
+  document.getElementById("fosTime").textContent = hh+":"+mm;
+  document.getElementById("fosBatt").textContent = batteryLevel + "%";
+}
+setInterval(updateFakeClock, 1000);
+
+const glitchLines = [
+  "il fait plus froid ici qu'il y a une minute.",
+  "quelqu'un respire, mais ce n'est pas toi.",
+  "1 nouvelle présence détectée.",
+  "ne te retourne pas.",
+  "il sait que tu lis ceci.",
+  "batterie : ne le laisse pas s'éteindre.",
+];
+function triggerFakeGlitch(){
+  const fosEl = document.getElementById("fakeOS");
+  const rec = document.getElementById("recDot");
+  const roll = Math.random();
+  if(roll < 0.5){
+    fosEl.style.opacity = "1";
+    const battEl = document.getElementById("fosBatt");
+    const realBatt = batteryLevel;
+    let fake = realBatt;
+    const iv = setInterval(()=>{ fake = Math.max(-1, fake-Math.floor(randRange(3,14))); battEl.textContent = fake+"%"; if(fake<=0) clearInterval(iv); }, 90);
+    setTimeout(()=>{ fosEl.style.opacity="0"; battEl.textContent = realBatt+"%"; }, 1400);
+    vibrate([15]);
+  } else {
+    showFakeNotif(glitchLines[Math.floor(Math.random()*glitchLines.length)]);
+  }
+  if(Math.random()<0.35){
+    rec.style.opacity = "1";
+    setTimeout(()=>{ rec.style.opacity="0"; }, randRange(400,900));
+  }
+}
+function showFakeNotif(text, from){
+  const n = document.getElementById("fakeNotif");
+  document.getElementById("fnFrom").textContent = from || "Système";
+  document.getElementById("fnMsg").textContent = text;
+  n.classList.add("show");
+  setTimeout(()=>{ n.classList.remove("show"); }, 2600);
+}
+function showFakeNotifOnReturn(awayMs){
+  showFakeNotif("tu étais parti " + fmtDuration(awayMs) + ". il s'est rapproché.", "VEILLE");
+}
+
+/* ============================================================
+   Caméra optionnelle (100% locale, jamais transmise ni stockée)
+   ============================================================ */
+let camStream = null;
+function askCamera(){
+  const modal = document.getElementById("modal");
+  document.getElementById("modalText").textContent = "il aimerait te voir. le flux reste sur cet appareil — rien n'est envoyé ni enregistré. tu peux refuser.";
+  modal.classList.add("show");
+  document.getElementById("modalYes").onclick = ()=>{
+    modal.classList.remove("show");
+    navigator.mediaDevices?.getUserMedia({video:{facingMode:"user"}, audio:false}).then(stream=>{
+      camStream = stream;
+      const v = document.getElementById("camVideo");
+      v.srcObject = stream;
+      document.getElementById("camWrap").classList.add("show");
+      save.cameraChoice = "granted"; writeSave(save);
+    }).catch(()=>{
+      save.cameraChoice = "denied"; writeSave(save);
+      showFakeNotif("il ne peut pas te voir. pas encore.", "VEILLE");
+    });
+  };
+  document.getElementById("modalNo").onclick = ()=>{
+    modal.classList.remove("show");
+    save.cameraChoice = "denied"; writeSave(save);
+    showFakeNotif("il ne peut pas te voir. pas encore.", "VEILLE");
+  };
+}
+function stopCamera(){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+  document.getElementById("camWrap").classList.remove("show");
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden) stopCamera();
+});
+
+/* ============================================================
+   Mort / capture
+   ============================================================ */
+function onCaught(){
+  state = STATE.DEAD;
+  const survived = now() - sessionStart;
+  save.deaths += 1;
+  save.longestSurvivalMs = Math.max(save.longestSurvivalMs, survived);
+  save.lastVisit = now();
+  writeSave(save);
+  stopCamera();
+
+  scareSound();
+  vibrate([0,80,40,80,40,220]);
+  flashScreen();
+
+  const diedTitle = document.getElementById("diedTitle");
+  const diedSub = document.getElementById("diedSub");
+  const lines = [
+    "tu as lâché prise.",
+    "tu as regardé ailleurs.",
+    "tu as paniqué. il a senti chaque battement.",
+    "il attendait juste ça.",
+  ];
+  diedSub.textContent = lines[Math.floor(Math.random()*lines.length)] + "  —  survécu " + fmtDuration(survived) + ".";
+  document.getElementById("diedScreen").classList.add("show");
+
+  setTimeout(()=>{
+    document.getElementById("diedScreen").classList.remove("show");
+    backToTitle();
+  }, 2600);
+}
+function flashScreen(){
+  const f = document.getElementById("flashLayer");
+  if(save.reduceEffects){ f.style.opacity="0.25"; setTimeout(()=>f.style.opacity="0",180); return; }
+  let n=0;
+  const iv = setInterval(()=>{
+    f.style.opacity = (n%2===0) ? "0.9" : "0";
+    n++;
+    if(n>5){ clearInterval(iv); f.style.opacity="0"; }
+  }, 55);
+}
+
+/* ============================================================
+   Transitions d'écran
+   ============================================================ */
+function backToTitle(){
+  state = STATE.TITLE;
+  light = 1; threat = 0; panic = 0;
+  buildTitleFlavor();
+  document.getElementById("veil").classList.remove("hidden");
+}
+function startGame(){
+  ensureAudio();
+  if(actx && actx.state==="suspended") actx.resume();
+  save.totalSessions += 1;
+  save.lastVisit = now();
+  writeSave(save);
+
+  state = STATE.PLAYING;
+  sessionStart = now();
+  light = 1;
+  threat = startingThreat();
+  panic = 0;
+  entitySeed = Math.random()*1000;
+  glitchTimer = randRange(16,26);
+  camAsked = (save.cameraChoice !== null);
+  pointerEvents = [];
+  held = false;
+
+  document.getElementById("veil").classList.add("hidden");
+  document.getElementById("hint").style.opacity = "1";
+}
+
+document.getElementById("startBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  startGame();
+});
+document.getElementById("resetBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
+  save = loadSave();
+  buildTitleFlavor();
+});
+
+/* ============================================================
+   Paramètres (réduire les effets)
+   ============================================================ */
+document.getElementById("gear").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  save.reduceEffects = !save.reduceEffects;
+  writeSave(save);
+  showFakeNotif(save.reduceEffects ? "effets réduits." : "effets normaux.", "VEILLE");
+});
+
+/* ============================================================
+   Sauvegarde périodique de lastVisit tant qu'on joue
+   ============================================================ */
+setInterval(()=>{
+  if(state===STATE.PLAYING){ save.lastVisit = now(); writeSave(save); }
+}, 5000);
+window.addEventListener("beforeunload", ()=>{
+  save.lastVisit = now(); writeSave(save);
+});
+
+/* ============================================================
+   Service worker (offline / PWA)
+   ============================================================ */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+
+/* Init */
+buildTitleFlavor();
+
+})();
+</script>
+</body>
+</html>
