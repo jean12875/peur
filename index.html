@@ -132,6 +132,41 @@
     display:flex; align-items:center; justify-content:center; font-size:0.9rem; cursor:pointer;
   }
 
+  /* ---------- aperçu caméra permanent ---------- */
+  #camWrap{
+    position:absolute; bottom:1.2em; right:1.2em; width:72px; height:96px; z-index:16;
+    border:1px solid rgba(255,255,255,0.15); overflow:hidden; opacity:0; transition:opacity 1s ease;
+    background:#000;
+  }
+  #camWrap.show{ opacity:0.8; }
+  #camWrap video{ width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.5) brightness(0.6); transform:scaleX(-1); }
+  #camWrap .camlabel{ position:absolute; bottom:2px; left:4px; font-size:0.5rem; color:#c0392b; letter-spacing:0.06em; }
+
+  /* ---------- porte d'entrée multi-permissions ---------- */
+  #permGate{
+    position:absolute; inset:0; z-index:85; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.96); padding:6vh 8vw; text-align:center;
+  }
+  #permGate.show{ display:flex; }
+  #permGate .box{ max-width:26em; display:flex; flex-direction:column; gap:1.1em; align-items:center; }
+  #permGate p{ color:#ccc; font-size:0.86rem; line-height:1.7em; margin:0; }
+  #permList{ display:flex; flex-direction:column; gap:0.35em; font-size:0.74rem; letter-spacing:0.03em; color:#888; width:100%; max-width:19em; text-align:left; }
+  #permList .permRow{ display:flex; justify-content:space-between; }
+  #permList .ok{ color:#4bdc72; }
+  #permList .no{ color:#ff6a5e; }
+  #permList .pending{ color:#777; }
+  #permGate .row{ display:flex; gap:0.8em; justify-content:center; }
+  #permGate button{
+    padding:0.75em 1.8em; background:transparent; border:1px solid rgba(255,255,255,0.25);
+    color:#ddd; font-size:0.76rem; letter-spacing:0.16em; text-transform:uppercase; cursor:pointer; font-family:inherit;
+  }
+  #permGate button:disabled{ opacity:0.4; cursor:default; }
+  #permGate .miniclose{ border:none; color:#555; font-size:0.7rem; text-decoration:underline; letter-spacing:0.1em; background:none; padding:0.4em; }
+  #permGate .eye{
+    width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,0.2);
+    display:flex; align-items:center; justify-content:center; color:#888; font-size:1.1rem;
+  }
+
   @keyframes shake{
     0%{ transform:translate(0,0); }
     20%{ transform:translate(-7px,3px); }
@@ -193,6 +228,18 @@
   <div id="endScreen">
     <div id="endTitle">FIN</div>
     <div id="endSub"></div>
+  </div>
+
+  <div id="camWrap"><video id="camVideo" autoplay playsinline muted></video><div class="camlabel">● surveillance</div></div>
+
+  <div id="permGate">
+    <div class="box">
+      <div class="eye">◉</div>
+      <p id="permGateText">avant de commencer, il a besoin de tout savoir de toi : te voir, t'entendre, savoir où tu es, sentir si tu bouges, pouvoir te joindre. tout reste sur cet appareil — rien n'est transmis, rien n'est conservé au-delà de cette session. sans tout ça, il ne peut pas commencer.</p>
+      <div id="permList"></div>
+      <div class="row"><button id="permGateBtn">tout autoriser</button></div>
+      <button class="miniclose" id="permGateClose">retour</button>
+    </div>
   </div>
 
   <div id="gear" title="paramètres">☾</div>
@@ -479,6 +526,161 @@ function loop(){
 }
 
 /* ============================================================
+   Permissions — caméra, micro, position, mouvement, notifications
+   Tout ou rien, 100% local, jamais transmis ni stocké au-delà
+   de la session en cours.
+   ============================================================ */
+let camStream = null;
+let userCoords = null;
+let micAnalyser = null, micDataArray = null;
+let everGrantedAll = false;
+
+function setupMicFromStream(stream){
+  const audioTracks = stream.getAudioTracks ? stream.getAudioTracks() : [];
+  if(!audioTracks.length){ micAnalyser = null; return; }
+  ensureAudio();
+  if(!actx){ micAnalyser = null; return; }
+  try{
+    const micSource = actx.createMediaStreamSource(stream);
+    micAnalyser = actx.createAnalyser();
+    micAnalyser.fftSize = 512;
+    micDataArray = new Uint8Array(micAnalyser.fftSize);
+    micSource.connect(micAnalyser); // jamais reliée à la sortie
+  }catch(e){ micAnalyser = null; }
+}
+function currentMicRms(){
+  if(!micAnalyser) return 0;
+  micAnalyser.getByteTimeDomainData(micDataArray);
+  let sum = 0;
+  for(let i=0;i<micDataArray.length;i++){ const v=(micDataArray[i]-128)/128; sum += v*v; }
+  return Math.sqrt(sum/micDataArray.length);
+}
+function stopCamera(){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
+  document.getElementById("camWrap").classList.remove("show");
+  micAnalyser = null;
+}
+function sendRealNotification(){
+  try{
+    if("Notification" in window && Notification.permission === "granted"){
+      new Notification("…", { body:"il sait que tu lis ceci.", silent:false, tag:"letest" });
+    }
+  }catch(e){}
+}
+async function acquireCameraAndMic(){
+  const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:true});
+  camStream = stream;
+  const v = document.getElementById("camVideo");
+  v.srcObject = stream;
+  try{ await v.play(); }catch(e){}
+  document.getElementById("camWrap").classList.add("show");
+  setupMicFromStream(stream);
+  return stream;
+}
+
+const PERMS = [
+  { key:"camera", label:"te voir (caméra)" },
+  { key:"mic", label:"t'entendre (micro)" },
+  { key:"geo", label:"savoir où tu es (position)" },
+  { key:"motion", label:"sentir si tu bouges (mouvement)" },
+  { key:"notif", label:"te joindre (notifications)" },
+];
+let permStatus = {};
+function renderPermList(){
+  const el = document.getElementById("permList");
+  el.innerHTML = "";
+  PERMS.forEach(p=>{
+    const st = permStatus[p.key];
+    const cls = st===true ? "ok" : st===false ? "no" : "pending";
+    const mark = st===true ? "✓" : st===false ? "✗" : "…";
+    const row = document.createElement("div");
+    row.className = "permRow";
+    row.innerHTML = `<span>${p.label}</span><span class="${cls}">${mark}</span>`;
+    el.appendChild(row);
+  });
+}
+async function requestAllPermissions(){
+  PERMS.forEach(p=>{ permStatus[p.key] = null; });
+  renderPermList();
+
+  try{
+    await acquireCameraAndMic();
+    permStatus.camera = camStream.getVideoTracks().length>0;
+    permStatus.mic = camStream.getAudioTracks().length>0;
+  }catch(e){
+    permStatus.camera = false; permStatus.mic = false;
+  }
+  renderPermList();
+
+  if(navigator.geolocation){
+    try{
+      const pos = await new Promise((resolve,reject)=>{
+        navigator.geolocation.getCurrentPosition(resolve, reject, {timeout:8000});
+      });
+      userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      permStatus.geo = true;
+    }catch(e){ permStatus.geo = false; }
+  } else { permStatus.geo = false; }
+  renderPermList();
+
+  if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
+    try{
+      const res = await DeviceMotionEvent.requestPermission();
+      permStatus.motion = (res === "granted");
+    }catch(e){ permStatus.motion = false; }
+  } else {
+    permStatus.motion = true; // pas de prompt sur cette plateforme : non bloquant
+  }
+  renderPermList();
+
+  if("Notification" in window){
+    try{
+      const perm = await Notification.requestPermission();
+      permStatus.notif = (perm === "granted");
+    }catch(e){ permStatus.notif = false; }
+  } else {
+    permStatus.notif = true;
+  }
+  renderPermList();
+
+  return PERMS.every(p=>permStatus[p.key]===true);
+}
+function showPermGate(){
+  document.getElementById("permGate").classList.add("show");
+  renderPermList();
+}
+function hidePermGate(){ document.getElementById("permGate").classList.remove("show"); }
+
+document.getElementById("permGateBtn").addEventListener("click", async (e)=>{
+  e.stopPropagation();
+  ensureAudio();
+  if(actx && actx.state==="suspended") actx.resume();
+  const btn = document.getElementById("permGateBtn");
+  btn.disabled = true;
+  document.getElementById("permGateText").textContent = "il regarde, il écoute, il cherche…";
+  const allOk = await requestAllPermissions();
+  btn.disabled = false;
+  if(allOk){
+    everGrantedAll = true;
+    hidePermGate();
+    startBoot();
+  } else {
+    document.getElementById("permGateText").textContent = "il lui manque quelque chose. sans tout, il ne peut pas commencer. autorise ce qui manque dans les réglages de ton navigateur, puis réessaie.";
+    btn.textContent = "réessayer";
+  }
+});
+document.getElementById("permGateClose").addEventListener("click", (e)=>{ e.stopPropagation(); hidePermGate(); });
+document.getElementById("permGate").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
+
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden){
+    if(state===STATE.PLAYING) stopCamera();
+  } else if(state===STATE.PLAYING && everGrantedAll && !camStream){
+    acquireCameraAndMic().catch(()=>{});
+  }
+});
+
+/* ============================================================
    Fils SVG reliant les boutons au téléviseur
    ============================================================ */
 function layoutWires(){
@@ -513,47 +715,6 @@ if(navigator.getBattery){
   }).catch(()=>{});
 }
 
-/* ---- signaux sur l'appareil et l'environnement, 100% locaux ---- */
-function detectOS(){
-  const ua = navigator.userAgent || "";
-  if(/android/i.test(ua)) return "Android";
-  if(/iphone|ipad|ipod/i.test(ua)) return "iOS";
-  if(/windows/i.test(ua)) return "Windows";
-  if(/mac os/i.test(ua)) return "macOS";
-  if(/linux/i.test(ua)) return "Linux";
-  return "un système que je ne reconnais pas";
-}
-function detectBrowser(){
-  const ua = navigator.userAgent || "";
-  if(/edg\//i.test(ua)) return "Edge";
-  if(/firefox/i.test(ua)) return "Firefox";
-  if(/chrome/i.test(ua) && !/edg\//i.test(ua)) return "Chrome";
-  if(/safari/i.test(ua) && !/chrome/i.test(ua)) return "Safari";
-  return "un navigateur inconnu";
-}
-function screenOrientation(){
-  if(screen.orientation && screen.orientation.type) return screen.orientation.type.startsWith("portrait") ? "portrait" : "paysage";
-  return window.innerHeight >= window.innerWidth ? "portrait" : "paysage";
-}
-function timeZoneName(){
-  try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || null; }catch(e){ return null; }
-}
-function isStandalone(){
-  return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-}
-function doNotTrackOn(){
-  const v = navigator.doNotTrack || window.doNotTrack;
-  return v === "1" || v === "yes";
-}
-let storageGB = null;
-if(navigator.storage && navigator.storage.estimate){
-  navigator.storage.estimate().then(est=>{
-    if(est && est.quota) storageGB = (est.quota/1e9).toFixed(1);
-  }).catch(()=>{});
-}
-const cpuCores = navigator.hardwareConcurrency || null;
-const connInfo = navigator.connection || navigator.webkitConnection || navigator.mozConnection || null;
-
 let answers = []; // réponse (true/false) indexée par numéro de question, alimente les rappels
 const REACTIONS = ["ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as dit.", "curieux.", "……", "on va noter ça."];
 
@@ -568,32 +729,7 @@ const QUESTIONS = [
   /* 5 */ { text:"As-tu déjà répondu à ce genre de question, avant aujourd'hui ?" },
   /* 6 */ { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
   /* 7 */ { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
-  /* device: OS/navigateur */ { text: ()=>`Tu es sur ${detectOS()}, via ${detectBrowser()}. C'est vraiment le tien ?` },
-  /* device: écran */ { text: ()=>`Ton écran fait ${screen.width}×${screen.height}. Tu le tiens en ${screenOrientation()}.` },
-  /* device: fuseau */ {
-    text: ()=>`Ton fuseau horaire est ${timeZoneName()}. Ça correspond à où tu es vraiment ?`,
-    skipIf: ()=> !timeZoneName()
-  },
-  /* device: stockage */ {
-    text: ()=>`Il te reste environ ${storageGB} Go de libre sur cet appareil. Ça ne te dérange pas que je le sache ?`,
-    skipIf: ()=> storageGB===null
-  },
-  /* device: matériel */ {
-    text: ()=>`Ce processeur a ${cpuCores} cœurs. Il n'en aura jamais besoin d'autant, ici.`,
-    skipIf: ()=> !cpuCores
-  },
-  /* device: connexion */ {
-    text: ()=>`Ta connexion est en ${connInfo.effectiveType}. Ça ne changera rien pour toi.`,
-    skipIf: ()=> !connInfo || !connInfo.effectiveType
-  },
-  /* device: PWA */ {
-    text: "Tu as installé cette page comme une vraie application, sur ton écran d'accueil.",
-    skipIf: ()=> !isStandalone()
-  },
-  /* device: DNT ironie */ {
-    text: "Tu as demandé, sur cet appareil, à ne pas être suivi. Drôle, non, vu où tu es ?",
-    skipIf: ()=> !doNotTrackOn()
-  },
+  /* géoloc */ { text: ()=> userCoords ? `Tu es à ${userCoords.lat.toFixed(4)}, ${userCoords.lon.toFixed(4)}. Je le sais.` : "Je sais où tu es. Ça ne te dérange pas ?" },
   /* 8 */ { text:"Sais-tu depuis combien de temps tu es assis là ?" },
   /* 9 */ { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
   /* 10 */ {
@@ -606,6 +742,7 @@ const QUESTIONS = [
   /* 12 */ { text:"Si tu mentais, maintenant, le saurais-tu ?" },
   /* 13 */ { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes" },
   /* 14 */ { text:"Entends-tu ce bruit ?", effect: ()=>whisperSound(0.6) },
+  /* silence */ { text:"reste silencieux.", silenceCheck:3200 },
   /* 15 */ { text:"As-tu vérifié que c'est bien toi qui tiens cet appareil ?" },
   /* 16 */ { text: ()=> sessionCount<=1
               ? "C'est la première fois que tu viens ici. Le savais-tu ?"
@@ -613,7 +750,7 @@ const QUESTIONS = [
   /* 17 */ { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
   /* 18 */ { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
   /* 19 */ { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", expected:"yes" },
-  /* 20 */ { text:"t̸u̴—n'̷e̸s̶—p̵a̴s̸—s̷e̸u̶l̴", corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); } },
+  /* 20 */ { text:"t̸u̴—n'̷e̸s̶—p̵a̴s̸—s̷e̸u̶l̴", corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); sendRealNotification(); } },
   /* 21 */ { text: ()=> answers.wantToKnow===true
               ? "...ça va. tu as quand même voulu savoir. prêt pour la suite ?"
               : "...ça va. ce n'était rien. prêt pour la suite ?" },
@@ -657,12 +794,49 @@ function nextQuestion(){
     if(state!==STATE.PLAYING) return;
     setTvText(txt, !!q.corrupt);
     if(q.effect) q.effect();
+    if(q.silenceCheck){
+      waitingAnswer = false;
+      setButtonsEnabled(false);
+      runSilenceCheck(q.silenceCheck);
+      return;
+    }
     waitingAnswer = !q.corrupt;
     setButtonsEnabled(!q.corrupt);
     if(q.corrupt){
       setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, q.freeze || 1500);
     }
   }, delay);
+}
+
+function runSilenceCheck(duration){
+  if(!micAnalyser){
+    setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, Math.min(duration, 1200));
+    return;
+  }
+  const startT = now();
+  let baseline = [];
+  let flagged = false;
+  const iv = setInterval(()=>{
+    if(state!==STATE.PLAYING){ clearInterval(iv); return; }
+    const rms = currentMicRms();
+    const elapsed = now()-startT;
+    if(elapsed < 500){ baseline.push(rms); return; }
+    if(flagged) return;
+    const avg = baseline.length ? baseline.reduce((a,b)=>a+b,0)/baseline.length : 0.02;
+    const threshold = Math.max(0.07, avg*2.4+0.03);
+    if(rms > threshold){
+      flagged = true;
+      disturbCount++;
+      setTvText(pick(REACTIONS), true);
+      triggerDisturb();
+    }
+  }, 120);
+  setTimeout(()=>{
+    clearInterval(iv);
+    if(state!==STATE.PLAYING) return;
+    if(!flagged) setTvText("……bien.", false);
+    setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, flagged ? 900 : 500);
+  }, duration);
 }
 
 function answer(isYes){
@@ -715,6 +889,7 @@ function endQuiet(){
   save.lastVisit = now();
   writeSave(save);
   setButtonsEnabled(false);
+  stopCamera();
   setTvText("TEST TERMINÉ.", false);
   unease = 0.3; setUnease(unease);
 
@@ -738,6 +913,7 @@ function endDisturbing(){
   save.lastVisit = now();
   writeSave(save);
   setButtonsEnabled(false);
+  stopCamera();
 
   // montée progressive : petites secousses + texte qui se fragmente.
   // pas de visage géant, pas de cri — juste que plus rien ne colle.
@@ -842,8 +1018,12 @@ function startTest(){
   nextQuestion();
 }
 
-document.getElementById("startBtn").addEventListener("click", (e)=>{
+document.getElementById("startBtn").addEventListener("click", async (e)=>{
   e.stopPropagation();
+  if(!everGrantedAll){ showPermGate(); return; }
+  if(!camStream){
+    try{ await acquireCameraAndMic(); }catch(err){ /* dégradation silencieuse si la ré-acquisition échoue */ }
+  }
   startBoot();
 });
 document.getElementById("resetBtn").addEventListener("click", (e)=>{
