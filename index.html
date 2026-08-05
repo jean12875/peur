@@ -20,23 +20,14 @@
     touch-action:none;
     overscroll-behavior:none;
   }
-  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#d9d4c6; overflow:hidden; cursor:grab; }
-  #app.panning{ cursor:grabbing; }
+  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#d9d4c6; overflow:hidden; }
   canvas{ position:absolute; inset:0; display:block; }
-
-  /* ---------- scène pivotable — glisser à gauche/droite pour regarder la pièce ---------- */
-  #scene{
-    position:absolute; inset:0; transition:transform .35s ease; will-change:transform;
-  }
-  #scene.dragging{ transition:none; }
 
   /* ---------- téléviseur ---------- */
   #tvUnit{
-    position:absolute; left:50%; top:30%;
+    position:absolute; left:50%; top:30%; transform:translate(-50%,-50%);
     width:min(88vw, 380px); z-index:5; display:flex; flex-direction:column; align-items:center;
-    transition:transform .35s ease; will-change:transform;
   }
-  #tvUnit.dragging{ transition:none; }
   #tvBody{
     width:100%; background:#e9e6df; border-radius:10px; padding:4.5% 4.5% 8%;
     box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(0,0,0,0.15);
@@ -156,14 +147,9 @@
   #endTitle{ font-size:clamp(1.3rem,6vw,2.2rem); letter-spacing:0.3em; font-weight:200; }
   #endSub{ color:#666; font-size:0.85rem; letter-spacing:0.08em; max-width:30em; line-height:1.75em; }
 
-  /* notes murales : désormais chacune sur son propre mur (gauche = lit, droite = porte) */
   #wallnote{
-    position:absolute; left:8%; bottom:20%; z-index:2; color:rgba(0,0,0,0.16);
+    position:absolute; left:4vw; bottom:16vh; z-index:2; color:rgba(0,0,0,0.16);
     font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(-2deg);
-  }
-  #wallnoteRight{
-    position:absolute; left:8%; bottom:24%; z-index:2; color:rgba(0,0,0,0.14);
-    font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(1.5deg);
   }
 
   #gear{
@@ -239,40 +225,37 @@
 <div id="app">
   <canvas id="c"></canvas>
 
-  <div id="scene">
-    <div id="wallnote">quelqu'un a gratté ça dans le mur avant toi. tu ne comprends pas la langue.</div>
-    <div id="wallnoteRight">il y avait quelqu'un avant toi. il n'est jamais sorti par cette porte.</div>
+  <div id="wallnote">quelqu'un a gratté ça dans le mur avant toi. tu ne comprends pas la langue.</div>
 
-    <svg id="wires" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <path id="wireL" d="" stroke="#111" stroke-width="0.5" fill="none"/>
-      <path id="wireR" d="" stroke="#111" stroke-width="0.5" fill="none"/>
-    </svg>
+  <svg id="wires" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <path id="wireL" d="" stroke="#111" stroke-width="0.5" fill="none"/>
+    <path id="wireR" d="" stroke="#111" stroke-width="0.5" fill="none"/>
+  </svg>
 
-    <div id="tvUnit">
-      <div id="antenna"><svg viewBox="0 0 100 100"><line x1="30" y1="100" x2="15" y2="0" stroke="#888" stroke-width="1.5"/><line x1="70" y1="100" x2="88" y2="4" stroke="#888" stroke-width="1.5"/></svg></div>
-      <div id="tvBody">
-        <div id="tvScreenWrap">
-          <div id="tvScreen">
-            <div id="tvText"></div>
-            <div class="tvGlow"></div>
-            <div class="scanlines"></div>
-          </div>
+  <div id="tvUnit">
+    <div id="antenna"><svg viewBox="0 0 100 100"><line x1="30" y1="100" x2="15" y2="0" stroke="#888" stroke-width="1.5"/><line x1="70" y1="100" x2="88" y2="4" stroke="#888" stroke-width="1.5"/></svg></div>
+    <div id="tvBody">
+      <div id="tvScreenWrap">
+        <div id="tvScreen">
+          <div id="tvText"></div>
+          <div class="tvGlow"></div>
+          <div class="scanlines"></div>
         </div>
-        <div id="tvDials"><div class="dial"></div><div class="dial"></div></div>
       </div>
-      <div id="tvStand"></div>
-      <div id="tvLegs"><div></div><div></div></div>
+      <div id="tvDials"><div class="dial"></div><div class="dial"></div></div>
     </div>
+    <div id="tvStand"></div>
+    <div id="tvLegs"><div></div><div></div></div>
+  </div>
 
-    <div id="buttonRow">
-      <button class="bigbtn" id="btnYes">OUI</button>
-      <button class="bigbtn" id="btnNo">NON</button>
-    </div>
+  <div id="buttonRow">
+    <button class="bigbtn" id="btnYes">OUI</button>
+    <button class="bigbtn" id="btnNo">NON</button>
+  </div>
 
-    <div id="nameRow">
-      <input id="nameField" type="text" maxlength="40" autocomplete="off" autocapitalize="words" spellcheck="false">
-      <button id="nameConfirm">✓</button>
-    </div>
+  <div id="nameRow">
+    <input id="nameField" type="text" maxlength="40" autocomplete="off" autocapitalize="words" spellcheck="false">
+    <button id="nameConfirm">✓</button>
   </div>
 
   <div id="heavenOverlay"></div>
@@ -364,73 +347,9 @@ function resize(){
   canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
   canvas.style.width = W+"px"; canvas.style.height = H+"px";
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  // la largeur a changé : le décalage de la scène (calculé à partir de W) doit être
-  // recalculé, sinon la pièce dessinée sur le canvas et la télé/boutons du DOM se désynchronisent.
-  if(typeof applyCamPan === "function") applyCamPan();
-  else layoutWires();
-}
-window.addEventListener("resize", resize);
-
-/* ============================================================
-   Caméra pivotable — glisser le doigt révèle le reste de la pièce.
-   La télé et les boutons sont ancrés dans la pièce (ils glissent
-   avec elle, comme de vrais objets qu'on regarde de côté). Le
-   décor lui-même (murs, lit, porte, caméra) est dessiné sur le
-   canvas avec des lignes de fuite convergentes, pour un vrai effet
-   de profondeur sans dépendre de la composition 3D du navigateur.
-   ============================================================ */
-let camPan = 0; // -1 (extrême gauche) .. 1 (extrême droite)
-let dragging = false, dragStartX = 0, dragStartPan = 0, activePointerId = null;
-let panRafScheduled = false;
-function panShiftPx(){ return W*0.85; }
-function applyCamPan(){
-  const shift = camPan * panShiftPx();
-  document.getElementById("scene").style.transform = `translateX(${shift.toFixed(1)}px)`;
-  const tv = document.getElementById("tvUnit");
-  const rot = camPan * -16; // léger effet de perspective : l'écran se détourne quand on regarde ailleurs
-  tv.style.transform = `translate(-50%,-50%) perspective(900px) rotateY(${rot.toFixed(1)}deg)`;
   layoutWires();
 }
-// on découple la fréquence des événements tactiles (parfois très élevée) du
-// rythme de rendu réel : un seul recalcul par frame, pour un glissement fluide.
-function schedulePanUpdate(){
-  if(panRafScheduled) return;
-  panRafScheduled = true;
-  requestAnimationFrame(()=>{
-    panRafScheduled = false;
-    applyCamPan();
-  });
-}
-function setDragging(on){
-  dragging = on;
-  document.getElementById("app").classList.toggle("panning", on);
-  document.getElementById("scene").classList.toggle("dragging", on);
-  document.getElementById("tvUnit").classList.toggle("dragging", on);
-}
-const appEl = document.getElementById("app");
-appEl.addEventListener("pointerdown",(e)=>{
-  if(state!==STATE.PLAYING) return;
-  if(document.getElementById("nameRow").classList.contains("show")) return;
-  if(activePointerId!==null) return; // ignore un second doigt s'il y en a un déjà actif
-  activePointerId = e.pointerId;
-  try{ appEl.setPointerCapture(e.pointerId); }catch(err){}
-  setDragging(true);
-  dragStartX = e.clientX;
-  dragStartPan = camPan;
-});
-appEl.addEventListener("pointermove",(e)=>{
-  if(!dragging || e.pointerId!==activePointerId) return;
-  const delta = (e.clientX - dragStartX) / panShiftPx();
-  camPan = Math.max(-1, Math.min(1, dragStartPan + delta));
-  schedulePanUpdate();
-});
-["pointerup","pointercancel","pointerleave"].forEach(ev=>{
-  appEl.addEventListener(ev, (e)=>{
-    if(e.pointerId!==activePointerId) return;
-    activePointerId = null;
-    if(dragging) setDragging(false);
-  });
-});
+window.addEventListener("resize", resize);
 
 /* ============================================================
    Audio (100% procédural)
@@ -629,138 +548,35 @@ function triggerHeavenThenHell(){
 }
 
 /* ============================================================
-   Rendu de la pièce (salle d'isolement blanche capitonnée).
-   Dessiné en Canvas 2D avec de vraies lignes de fuite convergeant
-   vers un point de fuite qui se déplace avec le regard : c'est ce
-   qui donne l'impression de profondeur, pas une transformation 3D
-   du navigateur (trop fragile à contrôler sans aperçu visuel ici).
+   Rendu de fond (salle d'isolement blanche capitonnée + grain + vignette)
    ============================================================ */
 let unease = 0; // 0..1, monte avec la progression du test
-
-// positions fixes (en fractions de W) des éléments de la pièce, hors du
-// champ de vision par défaut — ils n'apparaissent qu'en glissant vers eux.
-const BED_X = -0.55, DOOR_X = 1.55, CAM_X = 1.05;
-
-function perspectiveScale(x, vpX){
-  const d = Math.abs(x - vpX);
-  return Math.max(0.55, 1 - (d/W)*0.5);
-}
-function drawBed(cx, floorY, vpX){
-  const s = perspectiveScale(cx, vpX);
-  ctx.save();
-  ctx.translate(cx, floorY);
-  ctx.scale(s, s);
-  const w = Math.min(230, W*0.5), h = w*0.36;
-  const x = -w/2, y = -h*0.95;
-  ctx.fillStyle = "rgba(0,0,0,0.14)";
-  ctx.fillRect(x+6, y+h*0.72, w-12, h*0.3);
-  ctx.fillStyle = "#eeeadd";
-  ctx.fillRect(x, y, w, h*0.62);
-  ctx.strokeStyle = "rgba(0,0,0,0.14)"; ctx.lineWidth = 1.5;
-  ctx.strokeRect(x, y, w, h*0.62);
-  ctx.strokeStyle = "rgba(0,0,0,0.08)";
-  ctx.beginPath(); ctx.moveTo(x+w*0.14,y+h*0.62); ctx.lineTo(x+w*0.14,y+h*0.08); ctx.stroke();
-  ctx.fillStyle = "#fbfaf5";
-  ctx.fillRect(x+w*0.05, y+h*0.05, w*0.22, h*0.24);
-  ctx.strokeStyle = "rgba(0,0,0,0.1)";
-  ctx.strokeRect(x+w*0.05, y+h*0.05, w*0.22, h*0.24);
-  ctx.restore();
-}
-function drawDoor(cx, floorY, vpX){
-  const s = perspectiveScale(cx, vpX);
-  ctx.save();
-  ctx.translate(cx, floorY);
-  ctx.scale(s, s);
-  const w = Math.min(150, W*0.32), h = w*2.15;
-  const x = -w/2, y = -h;
-  ctx.fillStyle = "rgba(0,0,0,0.06)";
-  ctx.fillRect(x-5, y-5, w+10, h+5);
-  ctx.fillStyle = "#e4e0d3"; // presque la teinte du mur : elle se remarque à peine
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = "rgba(0,0,0,0.16)"; ctx.lineWidth = 1.5;
-  ctx.strokeRect(x, y, w, h);
-  ctx.strokeStyle = "rgba(0,0,0,0.09)";
-  ctx.strokeRect(x+w*0.1, y+h*0.06, w*0.8, h*0.88);
-  // pas de poignée : juste une trace, là où elle devrait être
-  ctx.fillStyle = "rgba(0,0,0,0.07)";
-  ctx.beginPath(); ctx.arc(x+w*0.87, y+h*0.5, 3, 0, Math.PI*2); ctx.fill();
-  ctx.restore();
-}
-function drawCeilingCamera(cx, topY, vpX){
-  const s = perspectiveScale(cx, vpX);
-  ctx.save();
-  ctx.translate(cx, topY);
-  ctx.scale(s, s);
-  ctx.fillStyle = "rgba(0,0,0,0.1)";
-  ctx.beginPath(); ctx.ellipse(0,4,20,7,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#1c1c1c";
-  ctx.beginPath(); ctx.ellipse(0,0,16,9,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#050505";
-  ctx.beginPath(); ctx.arc(0,1,6,0,Math.PI*2); ctx.fill();
-  const blink = (Math.sin(now()/600)+1)/2;
-  ctx.fillStyle = `rgba(220,30,20,${(0.35+blink*0.5).toFixed(2)})`;
-  ctx.beginPath(); ctx.arc(9,-3,2.2,0,Math.PI*2); ctx.fill();
-  ctx.restore();
-}
-
 function drawRoom(){
-  const shiftPx = camPan * panShiftPx();
-  const vpX = W/2 + shiftPx;   // le point de fuite suit le regard
-  const vpY = H*0.33;
-  const floorY = H*0.78;
-
   ctx.fillStyle = "#d9d4c6"; ctx.fillRect(0,0,W,H);
 
-  // dalles capitonnées — la texture bouge un peu moins vite que la scène,
-  // ce qui crée une vraie impression de parallaxe/profondeur au glissement.
+  // dalles capitonnées
   const tile = Math.max(46, Math.min(W,H)/9);
-  const pad = panShiftPx() + tile;
-  ctx.save();
-  ctx.translate(shiftPx*0.45, 0);
-  ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(0,0,0,0.14)"; ctx.lineWidth = 2;
   for(let y=-tile; y<H+tile; y+=tile){
-    for(let x=-pad; x<W+pad; x+=tile){
+    for(let x=-tile; x<W+tile; x+=tile){
       const g = ctx.createRadialGradient(x+tile/2,y+tile/2,tile*0.05,x+tile/2,y+tile/2,tile*0.62);
-      g.addColorStop(0, "rgba(255,255,255,0.35)");
-      g.addColorStop(1, "rgba(0,0,0,0.07)");
+      g.addColorStop(0, "rgba(255,255,255,0.4)");
+      g.addColorStop(1, "rgba(0,0,0,0.08)");
       ctx.fillStyle = g;
       ctx.fillRect(x,y,tile,tile);
       ctx.strokeRect(x,y,tile,tile);
     }
   }
-  ctx.restore();
 
-  // lignes de fuite : les quatre coins de l'écran convergent vers le point
-  // de fuite — c'est ça qui vend vraiment l'impression d'être dans un volume.
-  ctx.strokeStyle = "rgba(0,0,0,0.15)"; ctx.lineWidth = 1.5;
-  [[0,0],[W,0],[0,floorY],[W,floorY]].forEach(([x,y])=>{
-    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(vpX,vpY); ctx.stroke();
-  });
-
-  // sol en perspective : trapèze clair + grille qui se resserre vers le fond
+  // sol
+  const floorY = H*0.78;
   ctx.fillStyle = "#b9b3a2";
-  ctx.beginPath();
-  ctx.moveTo(0,H); ctx.lineTo(W,H); ctx.lineTo(W,floorY); ctx.lineTo(0,floorY);
-  ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = "rgba(0,0,0,0.16)"; ctx.lineWidth = 1.2;
-  const floorLines = 7;
-  for(let i=0;i<=floorLines;i++){
-    const fx = (i/floorLines)*W;
-    ctx.beginPath(); ctx.moveTo(fx, H); ctx.lineTo(vpX, vpY); ctx.stroke();
+  ctx.fillRect(0,floorY,W,H-floorY);
+  ctx.strokeStyle = "rgba(0,0,0,0.18)"; ctx.lineWidth=1.5;
+  const ftile = tile*0.8;
+  for(let x=-ftile; x<W+ftile; x+=ftile){
+    ctx.beginPath(); ctx.moveTo(x,floorY); ctx.lineTo(x,H); ctx.stroke();
   }
-  for(let i=1;i<=4;i++){
-    const t = i/5;
-    const y = H + (floorY-H)*t*t; // resserrement progressif vers le fond
-    const leftX = (vpX-0)*t*0.55;
-    const rightX = W + (vpX-W)*t*0.55;
-    ctx.beginPath(); ctx.moveTo(leftX,y); ctx.lineTo(rightX,y); ctx.stroke();
-  }
-
-  // le lit, la porte sans poignée et la caméra — ancrés dans la pièce,
-  // hors champ tant qu'on ne regarde pas de ce côté.
-  drawBed(BED_X*W + shiftPx, floorY, vpX);
-  drawDoor(DOOR_X*W + shiftPx, floorY, vpX);
-  drawCeilingCamera(CAM_X*W + shiftPx, H*0.15, vpX);
 
   if(!save.reduceEffects){
     const grainCount = Math.floor(20 + unease*90);
@@ -1404,7 +1220,6 @@ function startTest(){
   document.getElementById("nameRow").classList.remove("show");
   document.getElementById("buttonRow").classList.remove("hide");
   document.getElementById("heavenOverlay").classList.remove("show","hell");
-  camPan = 0; applyCamPan();
 
   resize();
   requestAnimationFrame(()=>layoutWires());
@@ -1447,7 +1262,6 @@ if("serviceWorker" in navigator){
 
 /* Init */
 resize();
-applyCamPan();
 requestAnimationFrame(()=>layoutWires());
 buildTitleFlavor();
 requestAnimationFrame(loop);

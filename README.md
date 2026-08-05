@@ -38,11 +38,9 @@ Utilisation réelle en jeu :
 
 Tôt dans le test, l'écran demande le prénom et le nom du joueur — une vraie saisie, pas une case à cocher. Ce nom est mémorisé (localement) et réutilisé dans plusieurs questions plus tard, y compris dans une ligne corrompue vers la fin. Les sessions suivantes ne le redemandent pas : l'écran-titre s'adresse directement au joueur par son nom.
 
-## Regarder autour de soi
+## La pièce
 
-L'écran, les boutons et les fils sont ancrés dans la pièce, pas dans la caméra : glisser le doigt à gauche ou à droite fait pivoter la vue et révèle le reste de la salle capitonnée blanche. Le décor (dalles, sol, lit, porte sans poignée, caméra au plafond) est dessiné sur Canvas 2D avec de vraies lignes de fuite qui convergent vers un point de fuite mobile — c'est ce qui donne l'impression de profondeur, plutôt qu'une transformation 3D du navigateur (essayé, mais la composition 3D du CSS s'est révélée trop fragile à ajuster sans aperçu visuel direct de l'environnement de développement — ça rendait complètement de travers). Le téléviseur a son propre léger effet de perspective (il se détourne visuellement quand on regarde ailleurs). Le rendu est calé sur le rafraîchissement de l'écran (une seule mise à jour par frame, capture de pointeur) pour rester fluide même sur un téléphone modeste.
-
-Deux inscriptions différentes griffonnées sur les murs ne sont visibles qu'en tournant la tête.
+Une salle capitonnée blanche, vue de face, fixe : le téléviseur, les boutons et les fils sont toujours à la même place. Une inscription grattée dans le mur est visible en permanence dans un coin. (Un mécanisme pour regarder autour de soi en glissant le doigt a été tenté puis abandonné — la composition 3D du CSS s'est révélée trop fragile à ajuster sans aperçu visuel direct dans l'environnement de développement, et le rendu obtenu était cassé plutôt que convaincant. Mieux vaut une pièce simple et stable qu'un effet impressionnant mais buggé.)
 
 ## Escalade
 
