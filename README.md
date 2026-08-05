@@ -40,9 +40,9 @@ Tôt dans le test, l'écran demande le prénom et le nom du joueur — une vraie
 
 ## Regarder autour de soi
 
-L'écran, les boutons et les fils sont ancrés dans la pièce, pas dans la caméra : glisser le doigt à gauche ou à droite fait pivoter la vue et révèle le reste de la salle capitonnée blanche (avec un léger effet de perspective 3D sur le téléviseur, qui se détourne visuellement). Le glissement est calé sur le rafraîchissement de l'écran (une seule mise à jour par frame, capture de pointeur) pour rester fluide même sur un téléphone modeste.
+La pièce est une vraie géométrie en 3D (quatre plans assemblés avec `perspective` + `transform-style: preserve-3d` en CSS) : mur avant avec le téléviseur, mur gauche avec un lit, mur droit avec une porte sans poignée surveillée par une petite caméra au plafond (LED rouge qui clignote), et un sol. Glisser le doigt fait vraiment pivoter la caméra autour de son axe (jusqu'à 100° de chaque côté), avec la perspective réelle du navigateur — les murs se déforment et se rapprochent comme dans une vraie pièce, pas un décor plat qui glisse. Le rendu est calé sur le rafraîchissement de l'écran (une seule mise à jour par frame, capture de pointeur) pour rester fluide même sur un téléphone modeste.
 
-La pièce est carrée : un lit contre un mur, une porte sans poignée surveillée par une petite caméra au plafond contre l'autre, deux inscriptions différentes griffonnées sur les murs — rien de tout ça n'est visible depuis l'écran-titre, il faut tourner la tête pour le découvrir. Ce n'est pas de la vraie 3D (pas de moteur, pas de WebGL) — juste du Canvas 2D élargi et des transformations CSS — pour rester léger et fiable sur mobile.
+Deux inscriptions différentes griffonnées sur les murs latéraux ne sont visibles qu'en tournant la tête. Ce n'est pas un moteur 3D dédié (pas de WebGL/Three.js) — seulement les transformations 3D natives du CSS — pour rester léger et fiable sur mobile.
 
 ## Escalade
 
