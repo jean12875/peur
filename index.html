@@ -121,8 +121,6 @@
   #endTitle{ font-size:clamp(1.3rem,6vw,2.2rem); letter-spacing:0.3em; font-weight:200; }
   #endSub{ color:#666; font-size:0.85rem; letter-spacing:0.08em; max-width:30em; line-height:1.75em; }
 
-  #flashLayer{ position:absolute; inset:0; z-index:90; pointer-events:none; background:#fff; opacity:0; }
-
   #wallnote{
     position:absolute; left:4vw; bottom:16vh; z-index:2; color:rgba(255,255,255,0.08);
     font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(-2deg);
@@ -134,7 +132,17 @@
     display:flex; align-items:center; justify-content:center; font-size:0.9rem; cursor:pointer;
   }
 
-  @media (prefers-reduced-motion: reduce){ #flashLayer{ transition:none; } #hourglass{ animation:none; } }
+  @keyframes shake{
+    0%{ transform:translate(0,0); }
+    20%{ transform:translate(-7px,3px); }
+    40%{ transform:translate(6px,-5px); }
+    60%{ transform:translate(-5px,-3px); }
+    80%{ transform:translate(6px,2px); }
+    100%{ transform:translate(0,0); }
+  }
+  #app.shake{ animation:shake 0.4s linear; }
+
+  @media (prefers-reduced-motion: reduce){ #hourglass{ animation:none; } #app.shake{ animation:none; } }
 </style>
 </head>
 <body>
@@ -187,7 +195,6 @@
     <div id="endSub"></div>
   </div>
 
-  <div id="flashLayer"></div>
   <div id="gear" title="paramètres">☾</div>
 </div>
 
@@ -313,42 +320,33 @@ function clickSound(low){
   o.connect(g); g.connect(masterGain);
   o.start(t); o.stop(t+0.14);
 }
-function scareSound(){
+function glitchBurstSound(){
   if(!actx) return;
   const t = actx.currentTime;
-  const bufSize = Math.floor(actx.sampleRate * 0.6);
-  const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+  const bufSize = Math.floor(actx.sampleRate*0.16);
+  const buf = actx.createBuffer(1,bufSize,actx.sampleRate);
   const data = buf.getChannelData(0);
   for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1);
   const src = actx.createBufferSource(); src.buffer = buf;
-  const g = actx.createGain(); g.gain.setValueAtTime(0.55, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t+0.55);
-  const f = actx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=900;
+  const f = actx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 700;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.28, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+0.16);
   src.connect(f); f.connect(g); g.connect(masterGain);
   src.start(t);
 
-  const o = actx.createOscillator(); o.type="sawtooth";
-  o.frequency.setValueAtTime(220, t);
-  o.frequency.exponentialRampToValueAtTime(40, t+0.5);
-  const g2 = actx.createGain(); g2.gain.setValueAtTime(0.35, t);
-  g2.gain.exponentialRampToValueAtTime(0.001, t+0.6);
+  const o = actx.createOscillator(); o.type="square";
+  o.frequency.setValueAtTime(90, t);
+  const g2 = actx.createGain(); g2.gain.setValueAtTime(0.12, t);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t+0.1);
   o.connect(g2); g2.connect(masterGain);
-  o.start(t); o.stop(t+0.65);
-
-  const o3 = actx.createOscillator(); o3.type="square";
-  o3.frequency.setValueAtTime(320, t);
-  o3.frequency.exponentialRampToValueAtTime(1500, t+0.15);
-  o3.frequency.exponentialRampToValueAtTime(160, t+0.55);
-  const g3 = actx.createGain(); g3.gain.setValueAtTime(0.0001, t);
-  g3.gain.linearRampToValueAtTime(0.32, t+0.05);
-  g3.gain.exponentialRampToValueAtTime(0.0001, t+0.6);
-  o3.connect(g3); g3.connect(masterGain);
-  o3.start(t); o3.stop(t+0.65);
+  o.start(t); o.stop(t+0.11);
 }
 function vibrate(pattern){ if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern); }
 
 /* ============================================================
-   Visage procédural (réservé au final "mauvaise fin")
+   Visage procédural — réservé à de très brefs aperçus furtifs,
+   jamais à un jumpscare plein écran
    ============================================================ */
 let entitySeed = Math.random()*1000;
 function drawFace(x,y,size,alpha,jitter,fillStyle){
@@ -386,25 +384,21 @@ function drawFace(x,y,size,alpha,jitter,fillStyle){
   ctx.closePath(); ctx.fill();
   ctx.restore();
 }
-let jumpscareUntil = 0, shakeUntil = 0;
-function drawJumpscare(){
-  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
-  const dur = save.reduceEffects ? 400 : 900;
-  const remain = Math.max(0, jumpscareUntil-now());
-  const t = 1 - remain/dur;
-  const size = Math.min(W,H) * (0.5 + 0.6*Math.min(1,t*3));
-  const cx = W/2 + (save.reduceEffects?0:(Math.random()-0.5)*10);
-  const cy = H/2 + (save.reduceEffects?0:(Math.random()-0.5)*10);
-  if(!save.reduceEffects){
-    ctx.globalCompositeOperation = "lighter";
-    drawFace(cx-6, cy, size, 0.5, 26, "rgba(255,0,60,0.9)");
-    drawFace(cx+6, cy, size, 0.5, 26, "rgba(0,230,255,0.7)");
-    ctx.globalCompositeOperation = "source-over";
-  }
-  drawFace(cx, cy, size, 1, save.reduceEffects?6:22, "#050505");
-  if(!save.reduceEffects && Math.random()<0.5){
-    ctx.fillStyle = "rgba(255,255,255,0.06)"; ctx.fillRect(0,0,W,H);
-  }
+let glimpseUntil = 0, glimpseX = 0.5, glimpseY = 0.25;
+function triggerGlimpse(){
+  glimpseX = randRange(0.28,0.72);
+  glimpseY = randRange(0.12,0.32);
+  glimpseUntil = now() + randRange(120,220);
+}
+let redPulseUntil = 0;
+function triggerDisturb(){
+  const app = document.getElementById("app");
+  app.classList.remove("shake");
+  void app.offsetWidth; // force le redémarrage de l'animation CSS
+  app.classList.add("shake");
+  redPulseUntil = now() + 900;
+  glitchBurstSound();
+  vibrate(save.reduceEffects ? [20] : [0,35,15,35]);
 }
 
 /* ============================================================
@@ -451,12 +445,24 @@ function drawRoom(){
     ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,W,H);
   }
 
+  // aperçu furtif, très bref et discret — jamais un jumpscare
+  if(now() < glimpseUntil){
+    drawFace(glimpseX*W, glimpseY*H, Math.min(W,H)*0.09, 0.45, 6, "#020202");
+  }
+
   // vignette qui s'assombrit avec le malaise
   const cx=W/2, cy=H*0.42;
   const vgn = ctx.createRadialGradient(cx,cy,Math.min(W,H)*0.2,cx,cy,Math.max(W,H)*0.75);
   vgn.addColorStop(0,"rgba(0,0,0,0)");
   vgn.addColorStop(1,`rgba(0,0,0,${0.35+unease*0.45})`);
   ctx.fillStyle = vgn; ctx.fillRect(0,0,W,H);
+
+  // pulse rouge — réaction à une réponse "inattendue", pas un jumpscare
+  if(now() < redPulseUntil){
+    const alpha = Math.max(0,(redPulseUntil-now())/900) * 0.32;
+    ctx.fillStyle = `rgba(170,10,10,${alpha})`;
+    ctx.fillRect(0,0,W,H);
+  }
 }
 let lightFlickerUntil = 0;
 function triggerLightFlicker(){
@@ -465,20 +471,7 @@ function triggerLightFlicker(){
 }
 
 function drawScene(){
-  const shaking = now() < shakeUntil;
-  let ox=0, oy=0;
-  if(shaking){
-    const mag = save.reduceEffects ? 3 : 16;
-    ox = (Math.random()-0.5)*mag; oy = (Math.random()-0.5)*mag;
-  }
-  ctx.save();
-  if(shaking) ctx.translate(ox,oy);
-  if(now() < jumpscareUntil){
-    drawJumpscare();
-  } else {
-    drawRoom();
-  }
-  ctx.restore();
+  drawRoom();
 }
 function loop(){
   requestAnimationFrame(loop);
@@ -520,37 +513,48 @@ if(navigator.getBattery){
   }).catch(()=>{});
 }
 
+let answers = []; // réponse (true/false) indexée par numéro de question, alimente les rappels
+const REACTIONS = ["ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as dit.", "curieux.", "……", "on va noter ça."];
+
 const QUESTIONS = [
-  { text:"Es-tu vivant ?", weight:{yes:1,no:-1} },
-  { text:"Comprends-tu ce qu'on te demande ?" },
-  { text:"Vois-tu cet écran clairement ?" },
-  { text:"Es-tu seul, là où tu es ?" },
-  { text:"As-tu déjà répondu à ce genre de question ?" },
-  { text:"Te souviens-tu de ton propre nom, là, tout de suite ?" },
-  { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
-  { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
-  { text:"Sais-tu depuis combien de temps tu es assis là ?" },
-  { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
-  { text:"Tu as déjà répondu à cette question, une fois. T'en souviens-tu ?" },
-  { text:"Pourquoi as-tu changé d'avis, depuis la dernière fois ?" },
-  { text:"Si tu mentais, maintenant, le saurais-tu ?" },
-  { text:"Crois-tu que tes réponses t'appartiennent encore ?" },
-  { text:"Entends-tu ce bruit ?", effect: ()=>whisperSound(0.6) },
-  { text:"Quelqu'un d'autre pourrait-il répondre à ta place sans que tu le remarques ?" },
-  { text:"As-tu vérifié que c'est bien toi qui tiens cet appareil ?" },
-  {
-    text: ()=> sessionCount<=1 ? "C'est la première fois que tu viens ici. Le savais-tu ?" : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?`
+  /* 0 */ { text:"Es-tu vivant ?", expected:"yes" },
+  /* 1 */ { text:"Comprends-tu ce qu'on te demande ?", expected:"yes" },
+  /* 2 */ { text:"Vois-tu cet écran clairement ?" },
+  /* 3 */ { text:"Es-tu seul, là où tu es ?" },
+  /* 4 */ { text: ()=> answers[3]===true
+              ? "Tu es seul. En es-tu vraiment sûr ?"
+              : "Qui d'autre est avec toi, là, maintenant ?" },
+  /* 5 */ { text:"As-tu déjà répondu à ce genre de question, avant aujourd'hui ?" },
+  /* 6 */ { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
+  /* 7 */ { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
+  /* 8 */ { text:"Sais-tu depuis combien de temps tu es assis là ?" },
+  /* 9 */ { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
+  /* 10 */ {
+    text: ()=> answers[0]===true
+      ? "Tu as dit que tu étais vivant. En es-tu toujours certain ?"
+      : "Tu as dit que tu ne l'étais pas. Qu'est-ce que ça fait ?",
+    expected: ()=> answers[0]===true ? "yes" : null
   },
-  { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
-  { text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", weight:{yes:-1,no:1} },
-  { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", weight:{yes:1,no:-1} },
-  { text:"t̸u̴—n'̷e̸s̶—p̵a̴s̸—s̷e̸u̶l̴", corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); } },
-  { text:"...ça va. ce n'était rien. prêt pour la suite ?" },
-  { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", weight:{yes:-1,no:1}, isLast:true },
+  /* 11 */ { text:"Pourrais-tu prouver que c'est bien toi qui réponds, et pas quelqu'un d'autre ?" },
+  /* 12 */ { text:"Si tu mentais, maintenant, le saurais-tu ?" },
+  /* 13 */ { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes" },
+  /* 14 */ { text:"Entends-tu ce bruit ?", effect: ()=>whisperSound(0.6) },
+  /* 15 */ { text:"As-tu vérifié que c'est bien toi qui tiens cet appareil ?" },
+  /* 16 */ { text: ()=> sessionCount<=1
+              ? "C'est la première fois que tu viens ici. Le savais-tu ?"
+              : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
+  /* 17 */ { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
+  /* 18 */ { text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
+  /* 19 */ { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", expected:"yes" },
+  /* 20 */ { text:"t̸u̴—n'̷e̸s̶—p̵a̴s̸—s̷e̸u̶l̴", corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); } },
+  /* 21 */ { text: ()=> answers[18]===true
+              ? "...ça va. tu as quand même voulu savoir. prêt pour la suite ?"
+              : "...ça va. ce n'était rien. prêt pour la suite ?" },
+  /* 22 */ { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", expected:"no", isLast:true },
 ];
 
 let qIndex = -1;
-let compliance = 0;
+let disturbCount = 0;
 let waitingAnswer = false;
 
 /* ============================================================
@@ -599,14 +603,24 @@ function answer(isYes){
   vibrate([10]);
 
   const q = QUESTIONS[qIndex];
-  if(q.weight){
-    compliance += isYes ? q.weight.yes : q.weight.no;
+  answers[qIndex] = isYes;
+
+  const expected = typeof q.expected === "function" ? q.expected() : q.expected;
+  const unexpected = !!expected && ((expected==="yes") !== isYes);
+
+  if(unexpected){
+    disturbCount++;
+    setTvText(pick(REACTIONS), true);
+    triggerDisturb();
+    if(q.onUnexpected) q.onUnexpected();
   }
+
+  const delay = unexpected ? 1300 : randRange(350,600);
   if(q.isLast){
-    setTimeout(()=>concludeTest(), 500);
+    setTimeout(()=>concludeTest(), delay);
     return;
   }
-  setTimeout(()=>nextQuestion(), randRange(350,600));
+  setTimeout(()=>nextQuestion(), delay);
 }
 document.getElementById("btnYes").addEventListener("click", (e)=>{ e.stopPropagation(); answer(true); });
 document.getElementById("btnNo").addEventListener("click", (e)=>{ e.stopPropagation(); answer(false); });
@@ -614,7 +628,7 @@ document.getElementById("btnYes").addEventListener("pointerdown",(e)=>e.stopProp
 document.getElementById("btnNo").addEventListener("pointerdown",(e)=>e.stopPropagation());
 
 function concludeTest(){
-  if(compliance >= 1){ endQuiet(); } else { endJumpscare(); }
+  if(disturbCount <= 1){ endQuiet(); } else { endDisturbing(); }
 }
 
 /* ============================================================
@@ -647,42 +661,47 @@ function endQuiet(){
     backToTitle();
   }, 6000);
 }
-function endJumpscare(){
+function endDisturbing(){
   state = STATE.END;
   save.badEndings = (save.badEndings||0)+1;
   save.lastVisit = now();
   writeSave(save);
   setButtonsEnabled(false);
-  setTvText("……", true);
 
-  const jsDuration = save.reduceEffects ? 400 : 900;
-  jumpscareUntil = now() + jsDuration;
-  shakeUntil = jumpscareUntil;
-  scareSound();
-  vibrate([0,90,30,90,30,260]);
-  flashScreen();
+  // montée progressive : petites secousses + texte qui se fragmente.
+  // pas de visage géant, pas de cri — juste que plus rien ne colle.
+  let step = 0;
+  const lines = ["……","ça—suffit.","non.","arrête—de—répondre.","tu—n'aurais—pas—dû"];
+  const iv = setInterval(()=>{
+    step++;
+    triggerDisturb();
+    setTvText(lines[Math.min(step-1, lines.length-1)], true);
+    if(step>=4){ clearInterval(iv); cutToBlack(); }
+  }, 550);
+}
+function cutToBlack(){
+  const wrap = document.getElementById("tvScreenWrap");
+  wrap.style.transition = "opacity 0.12s ease";
+  wrap.style.opacity = "0";
+  if(actx && droneGain && noiseGain){
+    const t = actx.currentTime;
+    droneGain.gain.setTargetAtTime(0, t, 0.04);
+    noiseGain.gain.setTargetAtTime(0, t, 0.04);
+  }
+  vibrate(save.reduceEffects ? [] : [0,15,10,15]);
 
   setTimeout(()=>{
-    document.getElementById("endTitle").textContent = "TU N'AURAIS PAS DÛ VOULOIR SAVOIR.";
+    document.getElementById("endTitle").textContent = "……";
     document.getElementById("endTitle").style.color = "#8a1f1f";
-    document.getElementById("endSub").textContent = "le test recommencera. il recommence toujours.";
+    document.getElementById("endSub").textContent = "on va devoir recommencer.";
     document.getElementById("endScreen").classList.add("show");
-  }, 700);
+  }, 1600);
 
   setTimeout(()=>{
     document.getElementById("endScreen").classList.remove("show");
+    wrap.style.opacity = "1";
     backToTitle();
-  }, 4600);
-}
-function flashScreen(){
-  const f = document.getElementById("flashLayer");
-  if(save.reduceEffects){ f.style.opacity="0.25"; setTimeout(()=>f.style.opacity="0",180); return; }
-  let n=0;
-  const iv = setInterval(()=>{
-    f.style.opacity = (n%2===0) ? "0.9" : "0";
-    n++;
-    if(n>5){ clearInterval(iv); f.style.opacity="0"; }
-  }, 55);
+  }, 5000);
 }
 
 /* ============================================================
@@ -739,11 +758,13 @@ function startTest(){
   state = STATE.PLAYING;
   sessionStart = now();
   qIndex = -1;
-  compliance = 0;
+  disturbCount = 0;
+  answers = [];
   unease = 0; setUnease(0);
   entitySeed = Math.random()*1000;
-  jumpscareUntil = 0; shakeUntil = 0;
+  redPulseUntil = 0; glimpseUntil = 0;
   lightFlickerUntil = 0;
+  document.getElementById("app").classList.remove("shake");
 
   resize();
   requestAnimationFrame(()=>layoutWires());
