@@ -812,7 +812,8 @@ function triggerSuccessPulse(){
   screen.classList.add("success");
   successChimeSound();
   vibrate(save.reduceEffects ? [] : [0,15,10,15,10,25]);
-  setTimeout(()=>{ screen.classList.remove("success"); }, 1800);
+  // pas de minuteur fixe ici : le vert reste tant que le texte de CETTE question
+  // est affiché, et n'est retiré qu'au moment où nextQuestion() passe à la suivante
 }
 
 /* ============================================================
@@ -1184,7 +1185,7 @@ const QUESTIONS = [
 
   /* 10 dossier + contexte de la pièce — pas de bouton, juste des faits posés là */
   { text:"Un dossier à ton nom existe ici. Il a été ouvert avant ton arrivée aujourd'hui.", auto:true, holdFor:2600 },
-  { text:"Cette pièce existe pour des gens comme toi. Elle existait avant que tu la voies.", auto:true, holdFor:2800 },
+  { text:"Cette pièce existe pour des gens comme toi. Elle existait avant que tu la voies.", auto:true, holdFor:2800, effect: ()=>triggerAmbientGlitch() },
 
   /* 11 doute d'identité */
   { text: ()=> answers.alive===true
@@ -1217,7 +1218,7 @@ const QUESTIONS = [
       ? "Bien. Ferme les yeux si tu veux. Ça ne changera rien."
       : "Bien. On va vérifier ça.",
     auto:true, holdFor:2000, effect: ()=>{ triggerLightFlicker(); lightsOutSound(); setRoomDark(true); } },
-  { text:"Peux-tu toujours voir cet écran, malgré le noir autour de toi ?", expected:"yes" },
+  { text:"Peux-tu toujours voir cet écran, malgré le noir autour de toi ?", expected:"yes", effect: ()=>triggerTvRollGlitch() },
   { text:"Entends-tu quelque chose bouger, derrière toi, dans le noir ?", expected:"no" },
   { text:"Si quelque chose te touchait l'épaule, là, maintenant, le dirais-tu ?", expected:"yes" },
   { text:"La lumière revient. Tu peux te détendre — pour l'instant.", auto:true, holdFor:2200, effect: ()=>{ setRoomDark(false); powerHumSound(); } },
@@ -1229,22 +1230,30 @@ const QUESTIONS = [
   { text:"Le sujet a été jugé ██████ pour la suite du protocole.", auto:true, holdFor:2400, effect: ()=>triggerSignalCorruption() },
 
   /* 30 une question bizarre, existentielle — puis le blanc */
-  { text:"Cesses-tu d'exister quand tu fermes les yeux ?", effect: ()=>triggerHeavenThenHell() },
+  { text:"Cesses-tu d'exister quand tu fermes les yeux ?", effect: ()=>{
+      // laisser le temps de lire la question avant que tout devienne blanc
+      const idx = qIndex;
+      setTimeout(()=>{ if(state===STATE.PLAYING && qIndex===idx) triggerHeavenThenHell(); }, 2600);
+    } },
   { text:"……ça va mieux. Tu peux rouvrir les yeux.", auto:true, holdFor:1400 },
   { text:"Une case, sur une feuille, juste à côté de ton nom, dit VIVANT. Pour l'instant.", auto:true, holdFor:2800 },
   { text:"Sais-tu combien de fois tu es déjà venu ici ?" },
   { text: ()=> sessionCount<=1
       ? "C'est la première fois que tu viens ici. Le savais-tu ?"
       : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
-  { text:"La porte, derrière toi. Est-elle toujours fermée ?" },
+  { text:"La porte, derrière toi. Est-elle toujours fermée ?", effect: ()=>triggerAmbientGlitch() },
 
   /* 36 une défaillance signalée — puis le noir */
-  { text:"Une défaillance vient d'être signalée quelque part dans cette pièce. Reste tranquille, ça ne prendra qu'un instant.", freeze:1100, auto:true, holdFor:10200, effect: ()=>triggerBlackout(9200) },
-  { text:"N'as-tu vraiment rien senti pendant ce moment ?", expected:"yes" },
+  { text:"Une défaillance vient d'être signalée quelque part dans cette pièce. Reste tranquille, ça ne prendra qu'un instant.", freeze:1100, auto:true, holdFor:10200, effect: ()=>{
+      // laisser le temps de lire la question avant que tout devienne noir
+      const idx = qIndex;
+      setTimeout(()=>{ if(state===STATE.PLAYING && qIndex===idx) triggerBlackout(9200); }, 3000);
+    } },
+  { text:"N'as-tu vraiment rien senti pendant ce moment ?", expected:"yes", effect: ()=>triggerAmbientGlitch() },
 
   /* 38 dernier tiers — la manipulation à découvert */
   { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
-  { text:"Si on éteignait cet écran maintenant, resterais-tu quand même ?", expected:"yes" },
+  { text:"Si on éteignait cet écran maintenant, resterais-tu quand même ?", expected:"yes", effect: ()=>triggerSignalCorruption() },
   { text: ()=> playerName ? `i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̸,—${playerName.split(" ")[0]}` : "i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̶",
     corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); sendRealNotification(); triggerMonster(); } },
   { text: ()=> answers.wantToKnow===true
@@ -1313,16 +1322,18 @@ function typeTvText(text, corrupt, onDone, extreme){
   el.classList.toggle("corrupt", !!corrupt);
   applyAlertVisual(!!corrupt, !!extreme);
   clearTypingTimeouts();
-  typingActive = true;
-  const chars = Array.from(text);
-  el.textContent = "";
-  if(save.reduceEffects || chars.length === 0){
+  typingActive = false;
+  // écran rouge (corrompu) : pas d'animation, le texte s'affiche d'un coup —
+  // le malaise vient du basculement brutal, pas d'une lecture progressive
+  if(corrupt || save.reduceEffects || Array.from(text).length === 0){
     el.textContent = text;
-    typingActive = false;
     if(onDone) onDone();
     return;
   }
-  const perChar = corrupt ? 40 : 26;
+  typingActive = true;
+  const chars = Array.from(text);
+  el.textContent = "";
+  const perChar = 26;
   let i = 0;
   const step = ()=>{
     if(!typingActive) return;
@@ -1330,7 +1341,7 @@ function typeTvText(text, corrupt, onDone, extreme){
     el.textContent = chars.slice(0,i).join("");
     if(i % 2 === 0) typeTickSound();
     if(i < chars.length){
-      const jitter = corrupt ? randRange(-10,45) : randRange(-6,16);
+      const jitter = randRange(-6,16);
       typingTimeoutIds.push(setTimeout(step, perChar+jitter));
     } else {
       typingActive = false;
@@ -1351,6 +1362,9 @@ function nextQuestion(){
 
   waitingAnswer = false;
   setButtonsEnabled(false);
+  // on quitte la question précédente : le vert (réussite), s'il y en avait un,
+  // ne doit pas déborder sur celle-ci
+  document.getElementById("tvScreen").classList.remove("success");
   setTvText("…", false);
   unease = Math.min(1, qIndex / (QUESTIONS.length-1));
   setUnease(unease);
@@ -1562,7 +1576,7 @@ function startTest(){
   roomDark = false;
   roomDarkAlpha = 0;
   if(corruptStaticIv){ clearInterval(corruptStaticIv); corruptStaticIv = null; }
-  document.getElementById("tvScreen").classList.remove("alert","extreme");
+  document.getElementById("tvScreen").classList.remove("alert","extreme","success");
   document.getElementById("app").classList.remove("roomDark");
   document.getElementById("app").classList.remove("shake","shakeHard");
   document.getElementById("buttonRow").classList.remove("hide");

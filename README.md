@@ -35,7 +35,7 @@ Une salle capitonnée blanche, vue de face, fixe : le téléviseur, les boutons 
 
 ## Le texte s'écrit, il n'apparaît pas
 
-Chaque réplique du téléviseur s'affiche lettre par lettre, avec un petit tic sonore à chaque frappe — jamais d'un coup. Les boutons OUI/NON ne s'activent qu'une fois la phrase entièrement écrite : impossible de répondre avant d'avoir lu.
+Chaque réplique du téléviseur s'affiche lettre par lettre, avec un petit tic sonore à chaque frappe — jamais d'un coup. Les boutons OUI/NON ne s'activent qu'une fois la phrase entièrement écrite : impossible de répondre avant d'avoir lu. Exception volontaire : pendant les moments écran rouge (ligne corrompue, réponse inattendue), le texte s'affiche d'un seul coup — le malaise vient là du basculement brutal, pas d'une lecture progressive.
 
 ## Escalade
 
