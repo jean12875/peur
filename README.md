@@ -14,29 +14,20 @@ Ce qui rend LE TEST inhabituel :
 
 - **Une seule mécanique, aucune distraction.** Pas de minuteur à gérer, pas de doigt à maintenir sur l'écran — juste des questions, une par une, et le poids de devoir y répondre.
 - **Le test ment.** Certaines questions prétendent que tu as déjà répondu différemment, ou remettent en cause ta version précédente — alors que ce n'est pas vrai. Le doute est le but.
-- **Il sait vraiment des choses sur toi.** L'heure, la batterie de ton appareil, ta position GPS réelle — affichées telles quelles, sans détour. Une caméra te filme en permanence dans un coin de l'écran. Un micro écoute une question où il te faut rester silencieux — et le jeu entend si tu échoues. Une vraie notification système arrive au pire moment.
+- **Il sait vraiment des choses sur toi.** L'heure réelle, la batterie réelle de ton appareil, ton prénom et ton nom — affichés telles quels, sans détour. Une vraie notification système arrive au pire moment.
 - **Aucune bonne réponse n'est mise en scène pour toi.** Pas de jumpscare. Une réponse "étrange" fait trembler l'écran, le teinte de rouge, corrompt le texte — jamais un cri, jamais un visage qui surgit.
 - **Deux fins, déterminées par tes choix**, pas par un mini-jeu de réflexes : une fin silencieuse et froide si tu restes conciliant, une fin qui s'effondre lentement dans le glitch et le noir si ta curiosité l'emporte.
 - **La mémoire entre les sessions.** Le jeu se souvient du nombre de fois où tu es venu et depuis combien de temps, et l'écran-titre le formule froidement.
 
-## Permissions — tout ou rien, sans mise en scène
+## Avant de commencer : formulaire + notifications
 
-Avant de commencer, le jeu demande caméra, microphone, géolocalisation, capteurs de mouvement (iOS) et notifications, un rond par permission. Chaque rond ne devient vert que si une vraie demande native a réellement été montrée et acceptée — jamais de faux "accordé" silencieux. Sur un appareil où une permission ne peut tout simplement pas être proposée (ex : notifications sur Safari iOS hors écran d'accueil), le rond reste rouge et le jeu ne démarre pas tant que ce n'est pas résolu — c'est volontaire. Le gros bouton central ne s'active qu'une fois tous les ronds verts.
+La porte d'entrée demande deux choses, dans le même écran : ton prénom et ton nom (un vrai formulaire, deux champs), et l'autorisation d'envoyer des notifications. Le gros bouton central ne s'active que lorsque les deux champs sont remplis et que la permission a été explicitement accordée — jamais de faux "accordé" silencieux. Sur un appareil où les notifications ne peuvent tout simplement pas être proposées (ex : Safari iOS hors écran d'accueil), le rond reste rouge et le jeu ne démarre pas tant que ce n'est pas résolu — c'est volontaire.
 
-Sur certains navigateurs Android compatibles avec le *Contact Picker*, un rond supplémentaire apparaît : il ouvre le sélecteur de contacts natif du téléphone, et si tu choisis un contact, le jeu peut ensuite le mentionner.
-
-Utilisation réelle en jeu :
-
-- **Caméra** : flux vidéo affiché en permanence dans un coin de l'écran (aperçu en niveaux de gris), coupé automatiquement si l'onglet passe en arrière-plan et entre deux sessions.
-- **Microphone** : analysé en direct pour une question qui demande le silence — un bruit détecté au-dessus d'un seuil calibré sur le bruit ambiant déclenche une réaction du jeu.
-- **Géolocalisation** : coordonnées GPS réelles affichées brutes dans une question — jamais géocodées, pour ne jamais avoir besoin d'un appel réseau externe.
-- **Notifications** : une vraie notification système est envoyée au moment le plus fort du test (via le service worker, pour que ça fonctionne aussi sur mobile).
-- **Mouvement (iOS)** : demandé pour cohérence avec le reste du dispositif.
-- **Contacts (bonus, si disponible)** : sélectionne un nom réel dans les contacts de l'appareil pour une question ciblée.
+Une vraie notification système est envoyée au moment le plus fort du test (via le service worker, pour que ça fonctionne aussi sur mobile).
 
 ## Le nom
 
-Tôt dans le test, l'écran demande le prénom et le nom du joueur — une vraie saisie, pas une case à cocher. Ce nom est mémorisé (localement) et réutilisé dans plusieurs questions plus tard, y compris dans une ligne corrompue vers la fin. Les sessions suivantes ne le redemandent pas : l'écran-titre s'adresse directement au joueur par son nom.
+Le prénom et le nom, saisis avant le lancement, sont mémorisés (localement) et réutilisés dans plusieurs questions tout au long du test, y compris dans une ligne corrompue vers la fin. Les sessions suivantes pré-remplissent le formulaire : l'écran-titre s'adresse directement au joueur par son nom.
 
 ## La pièce
 
@@ -44,7 +35,7 @@ Une salle capitonnée blanche, vue de face, fixe : le téléviseur, les boutons 
 
 ## Escalade
 
-Une réponse "inattendue" fait trembler l'écran et le teinte de rouge — l'intensité de cette réaction grandit avec la progression du test (secousse plus forte, rouge plus profond, son plus dur en fin de partie). Des grésillements surviennent aussi sans prévenir : l'écran se couvre de statique, la pièce tremble, tout devient rouge quelques secondes, de plus en plus souvent à mesure que le malaise grandit — indépendamment de tes réponses. De temps en temps, un flash bref désaligne complètement les couleurs de l'écran, comme un signal qui lâche.
+Une réponse "inattendue" fait trembler l'écran et le teinte de rouge — l'intensité de cette réaction grandit avec la progression du test (secousse plus forte, rouge plus profond, son plus dur en fin de partie). Des grésillements surviennent aussi sans prévenir : l'écran se couvre de statique, la pièce tremble, tout devient rouge quelques secondes, de plus en plus souvent à mesure que le malaise grandit — indépendamment de tes réponses. De temps en temps, un flash bref désaligne complètement les couleurs de l'écran, comme un signal qui lâche. Un autre glitch, plus bref (une seconde pile), fait rouler et trembler le texte à l'écran dans un aller-retour statique/couleurs désalignées, avant que tout ne redevienne net d'un coup.
 
 Une séquence dédiée transforme la pièce en blanc immaculé pendant dix bonnes secondes, avec une musique étrange et légèrement désaccordée — puis tout redevient normal, en silence, comme si de rien n'était. Aucune coupure rouge, aucune explication : c'est cette absence de suite qui dérange. Un autre moment plonge l'écran dans un noir total, avec des bruits d'opération (scie, cliquetis métalliques, un moniteur cardiaque qui finit par s'aplatir) — jamais expliqué non plus.
 
@@ -68,7 +59,7 @@ python3 -m http.server 8080
 # puis ouvrir http://localhost:8080
 ```
 
-Un contexte sécurisé (`localhost` ou HTTPS) est nécessaire cette fois : caméra, micro et géolocalisation exigent tous `https://` ou `http://localhost` — un simple double-clic sur `index.html` (`file://`) ne suffira pas.
+Un contexte sécurisé (`localhost` ou HTTPS) est recommandé : les notifications exigent `https://` ou `http://localhost` — un simple double-clic sur `index.html` (`file://`) peut ne pas suffire pour cette permission.
 
 ## Publier sur GitHub Pages
 
@@ -79,7 +70,7 @@ Un contexte sécurisé (`localhost` ou HTTPS) est nécessaire cette fois : camé
 
 ## Vie privée
 
-Rien n'est envoyé à un serveur : pas de backend, pas d'analytics, pas de tracking. Caméra et micro tournent entièrement en local dans le navigateur, jamais transmis ni enregistrés ; le flux caméra est coupé dès que l'onglet est masqué ou que la session se termine. La position GPS est affichée brute, jamais géocodée ni envoyée à un service tiers. Les seules données stockées sont locales à l'appareil (`localStorage`) : nombre de tests passés, dernière visite, nombre de mauvaises fins, préférences d'affichage.
+Rien n'est envoyé à un serveur : pas de backend, pas d'analytics, pas de tracking. Le prénom et le nom saisis restent locaux à l'appareil (`localStorage`), jamais transmis. Les seules autres données stockées sont locales également : nombre de tests passés, dernière visite, nombre de mauvaises fins, préférences d'affichage.
 
 ## Historique
 
