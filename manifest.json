@@ -4,7 +4,7 @@
   "description": "Réponds sincèrement.",
   "start_url": "./index.html",
   "scope": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "orientation": "portrait",
   "background_color": "#050506",
   "theme_color": "#000000",

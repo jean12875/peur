@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <meta name="description" content="LE TEST — réponds sincèrement.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LE TEST">
 <title>LE TEST</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -105,7 +109,6 @@
     transition:opacity 2.4s ease, background-color .2s ease;
   }
   #heavenOverlay.show{ opacity:1; }
-  #heavenOverlay.hell{ background:#4a0808; }
 
   /* ---------- noir total (bruits d'opération) ---------- */
   #blackout{
@@ -162,7 +165,9 @@
     position:absolute; top:1em; left:1em; z-index:60; width:34px; height:34px; border-radius:50%;
     background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#999;
     display:flex; align-items:center; justify-content:center; font-size:0.9rem; cursor:pointer;
+    transition:border-color .3s ease, color .3s ease, background-color .3s ease;
   }
+  #gear.active{ border-color:#6a9fdc; color:#6a9fdc; background:rgba(106,159,220,0.12); }
 
   /* ---------- porte d'entrée : formulaire + notifications ---------- */
   #permGate{
@@ -170,7 +175,9 @@
     background:rgba(0,0,0,0.97);
   }
   #permGate.show{ display:flex; }
-  #permGate .box{ display:flex; flex-direction:column; gap:2.4em; align-items:center; }
+  #permGate .box{ display:flex; flex-direction:column; gap:1.8em; align-items:center; }
+  #permGroup{ display:flex; flex-direction:column; align-items:center; gap:0.6em; }
+  #permHint{ font-size:0.62rem; color:#4a4a4a; letter-spacing:0.18em; text-transform:uppercase; }
   #permGrid{ display:flex; flex-wrap:wrap; justify-content:center; gap:1em; max-width:14em; }
   .permBtn{
     width:52px; height:52px; border-radius:50%; border:1px solid rgba(255,255,255,0.22);
@@ -292,7 +299,7 @@
   <div id="veil">
     <div class="levelTag">niveau 1</div>
     <div class="title" id="titleText">LE TEST</div>
-    <div class="flavor" id="flavorText">assieds-toi. réponds sincèrement. ça ne prendra pas longtemps.</div>
+    <div class="flavor" id="flavorText">assieds-toi. ce protocole existe depuis longtemps. réponds sincèrement, ça ne prendra pas longtemps.</div>
     <div class="stat" id="statText"></div>
     <button class="startbtn" id="startBtn">commencer</button>
     <div class="miniline"><button id="resetBtn">tout oublier</button></div>
@@ -310,8 +317,11 @@
         <input id="pgFirstName" type="text" placeholder="prénom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
         <input id="pgLastName" type="text" placeholder="nom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
       </div>
-      <div id="permGrid">
-        <button class="permBtn" data-key="notif"></button>
+      <div id="permGroup">
+        <div id="permGrid">
+          <button class="permBtn" data-key="notif"></button>
+        </div>
+        <div id="permHint">notifications</div>
       </div>
       <button id="launchBtn"></button>
     </div>
@@ -486,18 +496,6 @@ function heavenSound(duration){
     o.connect(g); o.start(t); o.stop(t+dur+0.05);
   });
 }
-function hellCutSound(){
-  if(!actx) return;
-  glitchBurstSound();
-  const t = actx.currentTime;
-  const o = actx.createOscillator(); o.type = "sawtooth";
-  o.frequency.setValueAtTime(140, t);
-  o.frequency.exponentialRampToValueAtTime(40, t+0.5);
-  const g = actx.createGain(); g.gain.setValueAtTime(0.22, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t+0.55);
-  o.connect(g); g.connect(masterGain);
-  o.start(t); o.stop(t+0.56);
-}
 function vibrate(pattern){ if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern); }
 
 /* ============================================================
@@ -565,7 +563,6 @@ function triggerDisturb(severity){
 // pas de coupure rouge ici : le malaise vient justement de l'absence de suite.
 function triggerHeavenThenHell(){
   const overlay = document.getElementById("heavenOverlay");
-  overlay.classList.remove("hell");
   overlay.classList.add("show");
   heavenSound(10);
   setTimeout(()=>{ if(state===STATE.PLAYING) heavenSound(4); }, 5200);
@@ -582,6 +579,7 @@ function triggerHeavenThenHell(){
    grandit — pas seulement en réaction à une réponse.
    ============================================================ */
 let tvStaticBuilt = false;
+let staticEffectBusy = false; // évite que deux effets de statique se marchent dessus
 function buildTvStaticTexture(){
   if(tvStaticBuilt) return;
   tvStaticBuilt = true;
@@ -597,7 +595,8 @@ function buildTvStaticTexture(){
   document.getElementById("tvStatic").style.backgroundImage = `url(${c.toDataURL()})`;
 }
 function triggerAmbientGlitch(){
-  if(state!==STATE.PLAYING) return;
+  if(state!==STATE.PLAYING || staticEffectBusy) return;
+  staticEffectBusy = true;
   buildTvStaticTexture();
   const dur = randRange(1600, 3800);
   const staticEl = document.getElementById("tvStatic");
@@ -613,10 +612,11 @@ function triggerAmbientGlitch(){
   setTimeout(()=>{
     clearInterval(iv);
     staticEl.classList.remove("show");
+    staticEffectBusy = false;
   }, dur);
 }
 setInterval(()=>{
-  if(state!==STATE.PLAYING) return;
+  if(state!==STATE.PLAYING || staticEffectBusy) return;
   const chance = 0.05 + unease*0.14;
   if(Math.random() < chance) triggerAmbientGlitch();
 }, 4000);
@@ -626,7 +626,8 @@ setInterval(()=>{
    seconde exactement, puis tout redevient net d'un coup.
    ============================================================ */
 function triggerTvRollGlitch(){
-  if(state!==STATE.PLAYING) return;
+  if(state!==STATE.PLAYING || staticEffectBusy) return;
+  staticEffectBusy = true;
   buildTvStaticTexture();
   const staticEl = document.getElementById("tvStatic");
   const txt = document.getElementById("tvText");
@@ -641,10 +642,11 @@ function triggerTvRollGlitch(){
     clearInterval(iv);
     staticEl.classList.remove("show");
     txt.classList.remove("rollGlitch");
+    staticEffectBusy = false;
   }, 1000);
 }
 setInterval(()=>{
-  if(state!==STATE.PLAYING) return;
+  if(state!==STATE.PLAYING || staticEffectBusy) return;
   const chance = 0.06 + unease*0.12;
   if(Math.random() < chance) triggerTvRollGlitch();
 }, 5200);
@@ -973,9 +975,13 @@ if(navigator.getBattery){
 }
 
 let answers = []; // réponse (true/false) indexée par numéro de question, alimente les rappels
-const REACTIONS = ["ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as dit.", "curieux.", "……", "on va noter ça."];
+const REACTIONS = ["ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as dit.", "curieux.", "……", "on va noter ça.", "ce n'est pas la bonne réponse.", "on le savait déjà.", "intéressant."];
 
 const QUESTIONS = [
+  /* -1 mise en situation — le protocole s'ouvre, avant la première question */
+  { text:"Le protocole commence. Reste assis. N'essaie pas de te lever.", auto:true, holdFor:2600 },
+  { text:"Tout ce que tu diras ici sera conservé. Rien n'est effacé.", auto:true, holdFor:2600 },
+
   /* 00 accueil clinique */
   { id:"alive", text: ()=> playerName ? `${playerName}. Es-tu vivant ?` : "Es-tu vivant ?", expected:"yes" },
   { text:"Es-tu venu ici de ton plein gré ?" },
@@ -992,8 +998,9 @@ const QUESTIONS = [
   { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Est-ce le chiffre que tu attendais ?` : "Cet appareil te semble-t-il fiable ?" },
   { id:"trust", text:"Fais-tu confiance à ce que dit cet écran ?" },
 
-  /* 10 dossier — pas de bouton, juste un fait posé là */
+  /* 10 dossier + contexte de la pièce — pas de bouton, juste des faits posés là */
   { text:"Un dossier à ton nom existe ici. Il a été ouvert avant ton arrivée aujourd'hui.", auto:true, holdFor:2600 },
+  { text:"Cette pièce existe pour des gens comme toi. Elle existait avant que tu la voies.", auto:true, holdFor:2800 },
 
   /* 11 doute d'identité */
   { text: ()=> answers.alive===true
@@ -1012,7 +1019,8 @@ const QUESTIONS = [
   { text:"Entends-tu ce bruit, là, maintenant ?", effect: ()=>whisperSound(0.6) },
   { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
   { text:"Ne dis rien. Ne bouge pas. Compte jusqu'à dix, dans ta tête.", auto:true, holdFor:3400 },
-  { text:"Un sujet précédent a entendu la même chose que toi. Il n'a pas terminé ce test.", auto:true, holdFor:2800 },
+  { text:"Un sujet précédent n'a pas réussi à rester immobile. Il n'a pas terminé ce test.", auto:true, holdFor:2800 },
+  { text:"Ton dossier s'épaissit à chaque réponse que tu donnes.", auto:true, holdFor:2400 },
   { text: ()=> answers.trust===true
       ? "Tu fais confiance à cet écran. Est-ce une erreur, selon toi ?"
       : "Tu ne fais pas confiance à cet écran. Est-ce la chose la plus sensée que tu aies faite aujourd'hui ?" },
@@ -1051,6 +1059,7 @@ const QUESTIONS = [
   { text:"Si je te disais qu'un autre sujet a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no" },
   { text:"Tu n'es pas le premier sujet aujourd'hui. Tu ne seras pas le dernier.", auto:true, holdFor:2600 },
   { text:"Le protocole est presque terminé. Les résultats seront transmis, quelle que soit ta réponse.", auto:true, holdFor:2800 },
+  { text:"Ce que tu réponds compte réellement. C'est bien pour ça qu'on te le demande.", auto:true, holdFor:2600 },
 
   /* 46 fin */
   { text:"Dernière chance de partir. Veux-tu vraiment continuer ?", expected:"yes" },
@@ -1158,7 +1167,7 @@ function endQuiet(){
   setTimeout(()=>{
     document.getElementById("endTitle").textContent = "MERCI.";
     document.getElementById("endTitle").style.color = "#8fb0c9";
-    document.getElementById("endSub").textContent = "on se revoit bientôt. tu ne sauras pas quand.";
+    document.getElementById("endSub").textContent = `durée du test : ${fmtDuration(now()-sessionStart)}. on se revoit bientôt. tu ne sauras pas quand.`;
     document.getElementById("endScreen").classList.add("show");
   }, 1200);
 
@@ -1226,7 +1235,7 @@ function buildTitleFlavor(){
   const delta = now() - save.lastVisit;
   let msg;
   if(save.totalSessions === 0){
-    msg = "assieds-toi. réponds sincèrement. ça ne prendra pas longtemps.";
+    msg = "assieds-toi. ce protocole existe depuis longtemps. réponds sincèrement, ça ne prendra pas longtemps.";
   } else if(delta < 60000){
     msg = playerName ? `${playerName}. tu es revenu tout de suite. il ne t'a pas vu partir.` : "tu es revenu tout de suite. il ne t'a pas vu partir.";
   } else if(delta < 3600000){
@@ -1240,6 +1249,7 @@ function buildTitleFlavor(){
   const stat = document.getElementById("statText");
   const parts = [];
   if(save.totalSessions>0) parts.push("tests passés : "+save.totalSessions);
+  if(save.quietEndings>0) parts.push("fins calmes : "+save.quietEndings);
   if(save.badEndings>0) parts.push("mauvaises réponses : "+save.badEndings);
   stat.textContent = parts.join("   ·   ");
 }
@@ -1279,9 +1289,10 @@ function startTest(){
   entitySeed = Math.random()*1000;
   redPulseUntil = 0; glimpseUntil = 0;
   lightFlickerUntil = 0;
+  staticEffectBusy = false;
   document.getElementById("app").classList.remove("shake","shakeHard");
   document.getElementById("buttonRow").classList.remove("hide");
-  document.getElementById("heavenOverlay").classList.remove("show","hell");
+  document.getElementById("heavenOverlay").classList.remove("show");
   document.getElementById("tvStatic").classList.remove("show");
   document.getElementById("blackout").classList.remove("show");
   document.getElementById("wakeText").classList.remove("show");
@@ -1302,12 +1313,25 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
   save = loadSave();
+  playerName = null;
+  everGrantedAll = false;
+  permStatus = {};
+  document.getElementById("pgFirstName").value = "";
+  document.getElementById("pgLastName").value = "";
   buildTitleFlavor();
+  updateGearState();
 });
+function updateGearState(){
+  const gearEl = document.getElementById("gear");
+  gearEl.classList.toggle("active", !!save.reduceEffects);
+  gearEl.title = save.reduceEffects ? "paramètres — effets réduits (activé)" : "paramètres — effets réduits";
+}
 document.getElementById("gear").addEventListener("click", (e)=>{
   e.stopPropagation();
   save.reduceEffects = !save.reduceEffects;
   writeSave(save);
+  updateGearState();
+  vibrate([12]);
 });
 
 /* ============================================================
@@ -1328,6 +1352,7 @@ if("serviceWorker" in navigator){
 resize();
 requestAnimationFrame(()=>layoutWires());
 buildTitleFlavor();
+updateGearState();
 requestAnimationFrame(loop);
 
 })();
