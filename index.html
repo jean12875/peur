@@ -513,27 +513,94 @@ if(navigator.getBattery){
   }).catch(()=>{});
 }
 
+/* ---- signaux sur l'appareil et l'environnement, 100% locaux ---- */
+function detectOS(){
+  const ua = navigator.userAgent || "";
+  if(/android/i.test(ua)) return "Android";
+  if(/iphone|ipad|ipod/i.test(ua)) return "iOS";
+  if(/windows/i.test(ua)) return "Windows";
+  if(/mac os/i.test(ua)) return "macOS";
+  if(/linux/i.test(ua)) return "Linux";
+  return "un système que je ne reconnais pas";
+}
+function detectBrowser(){
+  const ua = navigator.userAgent || "";
+  if(/edg\//i.test(ua)) return "Edge";
+  if(/firefox/i.test(ua)) return "Firefox";
+  if(/chrome/i.test(ua) && !/edg\//i.test(ua)) return "Chrome";
+  if(/safari/i.test(ua) && !/chrome/i.test(ua)) return "Safari";
+  return "un navigateur inconnu";
+}
+function screenOrientation(){
+  if(screen.orientation && screen.orientation.type) return screen.orientation.type.startsWith("portrait") ? "portrait" : "paysage";
+  return window.innerHeight >= window.innerWidth ? "portrait" : "paysage";
+}
+function timeZoneName(){
+  try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || null; }catch(e){ return null; }
+}
+function isStandalone(){
+  return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+}
+function doNotTrackOn(){
+  const v = navigator.doNotTrack || window.doNotTrack;
+  return v === "1" || v === "yes";
+}
+let storageGB = null;
+if(navigator.storage && navigator.storage.estimate){
+  navigator.storage.estimate().then(est=>{
+    if(est && est.quota) storageGB = (est.quota/1e9).toFixed(1);
+  }).catch(()=>{});
+}
+const cpuCores = navigator.hardwareConcurrency || null;
+const connInfo = navigator.connection || navigator.webkitConnection || navigator.mozConnection || null;
+
 let answers = []; // réponse (true/false) indexée par numéro de question, alimente les rappels
 const REACTIONS = ["ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as dit.", "curieux.", "……", "on va noter ça."];
 
 const QUESTIONS = [
-  /* 0 */ { text:"Es-tu vivant ?", expected:"yes" },
+  /* 0 */ { id:"alive", text:"Es-tu vivant ?", expected:"yes" },
   /* 1 */ { text:"Comprends-tu ce qu'on te demande ?", expected:"yes" },
   /* 2 */ { text:"Vois-tu cet écran clairement ?" },
-  /* 3 */ { text:"Es-tu seul, là où tu es ?" },
-  /* 4 */ { text: ()=> answers[3]===true
+  /* 3 */ { id:"alone", text:"Es-tu seul, là où tu es ?" },
+  /* 4 */ { text: ()=> answers.alone===true
               ? "Tu es seul. En es-tu vraiment sûr ?"
               : "Qui d'autre est avec toi, là, maintenant ?" },
   /* 5 */ { text:"As-tu déjà répondu à ce genre de question, avant aujourd'hui ?" },
   /* 6 */ { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
   /* 7 */ { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
+  /* device: OS/navigateur */ { text: ()=>`Tu es sur ${detectOS()}, via ${detectBrowser()}. C'est vraiment le tien ?` },
+  /* device: écran */ { text: ()=>`Ton écran fait ${screen.width}×${screen.height}. Tu le tiens en ${screenOrientation()}.` },
+  /* device: fuseau */ {
+    text: ()=>`Ton fuseau horaire est ${timeZoneName()}. Ça correspond à où tu es vraiment ?`,
+    skipIf: ()=> !timeZoneName()
+  },
+  /* device: stockage */ {
+    text: ()=>`Il te reste environ ${storageGB} Go de libre sur cet appareil. Ça ne te dérange pas que je le sache ?`,
+    skipIf: ()=> storageGB===null
+  },
+  /* device: matériel */ {
+    text: ()=>`Ce processeur a ${cpuCores} cœurs. Il n'en aura jamais besoin d'autant, ici.`,
+    skipIf: ()=> !cpuCores
+  },
+  /* device: connexion */ {
+    text: ()=>`Ta connexion est en ${connInfo.effectiveType}. Ça ne changera rien pour toi.`,
+    skipIf: ()=> !connInfo || !connInfo.effectiveType
+  },
+  /* device: PWA */ {
+    text: "Tu as installé cette page comme une vraie application, sur ton écran d'accueil.",
+    skipIf: ()=> !isStandalone()
+  },
+  /* device: DNT ironie */ {
+    text: "Tu as demandé, sur cet appareil, à ne pas être suivi. Drôle, non, vu où tu es ?",
+    skipIf: ()=> !doNotTrackOn()
+  },
   /* 8 */ { text:"Sais-tu depuis combien de temps tu es assis là ?" },
   /* 9 */ { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
   /* 10 */ {
-    text: ()=> answers[0]===true
+    text: ()=> answers.alive===true
       ? "Tu as dit que tu étais vivant. En es-tu toujours certain ?"
       : "Tu as dit que tu ne l'étais pas. Qu'est-ce que ça fait ?",
-    expected: ()=> answers[0]===true ? "yes" : null
+    expected: ()=> answers.alive===true ? "yes" : null
   },
   /* 11 */ { text:"Pourrais-tu prouver que c'est bien toi qui réponds, et pas quelqu'un d'autre ?" },
   /* 12 */ { text:"Si tu mentais, maintenant, le saurais-tu ?" },
@@ -544,10 +611,10 @@ const QUESTIONS = [
               ? "C'est la première fois que tu viens ici. Le savais-tu ?"
               : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
   /* 17 */ { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
-  /* 18 */ { text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
+  /* 18 */ { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
   /* 19 */ { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", expected:"yes" },
   /* 20 */ { text:"t̸u̴—n'̷e̸s̶—p̵a̴s̸—s̷e̸u̶l̴", corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); } },
-  /* 21 */ { text: ()=> answers[18]===true
+  /* 21 */ { text: ()=> answers.wantToKnow===true
               ? "...ça va. tu as quand même voulu savoir. prêt pour la suite ?"
               : "...ça va. ce n'était rien. prêt pour la suite ?" },
   /* 22 */ { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", expected:"no", isLast:true },
@@ -572,6 +639,9 @@ function setButtonsEnabled(on){
 
 function nextQuestion(){
   qIndex++;
+  while(qIndex < QUESTIONS.length && QUESTIONS[qIndex].skipIf && QUESTIONS[qIndex].skipIf()){
+    qIndex++;
+  }
   if(qIndex >= QUESTIONS.length){ concludeTest(); return; }
   const q = QUESTIONS[qIndex];
   const txt = typeof q.text === "function" ? q.text() : q.text;
@@ -604,6 +674,7 @@ function answer(isYes){
 
   const q = QUESTIONS[qIndex];
   answers[qIndex] = isYes;
+  if(q.id) answers[q.id] = isYes;
 
   const expected = typeof q.expected === "function" ? q.expected() : q.expected;
   const unexpected = !!expected && ((expected==="yes") !== isYes);
