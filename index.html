@@ -1057,78 +1057,85 @@ let answers = []; // réponse (true/false) indexée par numéro de question, ali
 const REACTIONS = ["ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as dit.", "curieux.", "……", "on va noter ça."];
 
 const QUESTIONS = [
-  /* 0 */ { id:"alive", text:"Es-tu vivant ?", expected:"yes" },
-  /* 1 */ { text:"Comprends-tu ce qu'on te demande ?", expected:"yes" },
-  /* 2 */ { text:"Comment dois-je t'appeler ? Ton prénom, et ton nom.", nameInput:true, skipIf: ()=> !!playerName },
-  /* 3 */ { text: ()=> playerName ? `${playerName}. Vois-tu cet écran clairement ?` : "Vois-tu cet écran clairement ?" },
-  /* 4 */ { id:"alone", text:"Es-tu seul, là où tu es ?" },
-  /* 5 */ { text: ()=> answers.alone===true
-              ? "Tu es seul. En es-tu vraiment sûr ?"
-              : "Qui d'autre est avec toi, là, maintenant ?" },
-  /* 6 */ { text:"Ceci est un test de ton état mental. Le comprends-tu ?", expected:"yes" },
-  /* 7 */ { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
-  /* 8 */ { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
-  /* géoloc */ { text: ()=> userCoords ? `Tu es à ${userCoords.lat.toFixed(4)}, ${userCoords.lon.toFixed(4)}. Je le sais.` : "Je sais où tu es. Ça ne te dérange pas ?" },
-  /* dossier */ { text:"Il y a un dossier, ici, avec ton nom dessus. Il existait avant que tu arrives aujourd'hui." },
-  /* 9 */ { text:"Sais-tu depuis combien de temps tu es assis là ?" },
-  /* trivia1 */ { text:"Un être humain perçoit le monde par cinq sens. Combien penses-tu qu'il t'en reste, à la fin de ce test ?" },
-  /* voix */ { text:"Entends-tu une voix dans ta tête quand tu mets trop de temps à répondre ?" },
-  /* 10 */ { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
-  /* 11 */ { id:"trust", text:"Fais-tu confiance à ce que dit cet écran ?" },
-  /* 12 */ {
-    text: ()=> answers.alive===true
-      ? "Tu as dit que tu étais vivant. En es-tu toujours certain ?"
-      : "Tu as dit que tu ne l'étais pas. Qu'est-ce que ça fait ?",
-    expected: ()=> answers.alive===true ? "yes" : null
-  },
-  /* 13 */ { text:"Pourrais-tu prouver que c'est bien toi qui réponds, et pas quelqu'un d'autre ?" },
-  /* but */ { text:"Crois-tu que le but de ce test soit de t'aider ?", expected:"yes" },
-  /* 14 */ { text:"Si tu mentais, maintenant, le saurais-tu ?" },
-  /* 15 */ { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes" },
-  /* contact */ { text: ()=> `Un contact enregistré sur cet appareil s'appelle ${knownContactName}. Est-ce que ça te dit quelque chose ?`, skipIf: ()=> !knownContactName },
-  /* 16 */ {
-    id:"sawName",
+  /* 00 accueil clinique */
+  { id:"alive", text:"Es-tu vivant ?", expected:"yes" },
+  { text:"Es-tu venu ici de ton plein gré ?" },
+  { text:"Comprends-tu que ce test évalue ton état mental ?", expected:"yes" },
+  { text:"Dis-moi ton prénom et ton nom, pour le dossier.", nameInput:true, skipIf: ()=> !!playerName },
+  { text: ()=> playerName ? `${playerName}. Peux-tu voir cet écran distinctement ?` : "Peux-tu voir cet écran distinctement ?" },
+
+  /* 05 environnement immédiat */
+  { id:"alone", text:"Es-tu seul, dans cette pièce, en ce moment ?" },
+  { text: ()=> answers.alone===true
+      ? "Tu dis être seul. En es-tu absolument certain ?"
+      : "Tu n'es pas seul. Est-ce que cette présence te rassure ?" },
+  { text:"As-tu peur, là, maintenant ?" },
+  { text: ()=>`Il est ${timeString()}. Est-ce l'heure à laquelle tu pensais être ici ?` },
+  { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Est-ce le chiffre que tu attendais ?` : "Cet appareil te semble-t-il fiable ?" },
+  { text: ()=> userCoords ? `Je connais ta position exacte : ${userCoords.lat.toFixed(4)}, ${userCoords.lon.toFixed(4)}. Cela te met-il mal à l'aise ?` : "Je sais où tu es, précisément. Cela te met-il mal à l'aise ?" },
+  { text: ()=> `${knownContactName} figure dans les contacts de cet appareil. Le reconnais-tu ?`, skipIf: ()=> !knownContactName },
+  { id:"trust", text:"Fais-tu confiance à ce que dit cet écran ?" },
+
+  /* 13 dossier — pas de bouton, juste un fait posé là */
+  { text:"Un dossier à ton nom existe ici. Il a été ouvert avant ton arrivée aujourd'hui.", auto:true, holdFor:2600 },
+
+  /* 14 doute d'identité */
+  { text: ()=> answers.alive===true
+      ? "Tu as dit être vivant. L'es-tu encore, à cet instant précis ?"
+      : "Tu as dit ne pas l'être. Est-ce toujours vrai ?",
+    expected: ()=> answers.alive===true ? "yes" : null },
+  { text:"As-tu menti à l'une des questions précédentes ?", expected:"no" },
+  { text:"Crois-tu que ce test cherche à t'aider ?", expected:"yes" },
+  { text:"Si tu mentais, maintenant, le remarquerais-tu toi-même ?" },
+  { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes" },
+  { id:"sawName",
     text: ()=> playerName ? `As-tu déjà vu "${playerName}" écrit quelque part dans cette pièce ?` : "As-tu déjà vu ton nom écrit quelque part dans cette pièce ?",
-    expected:"no", onUnexpected:()=>triggerGlimpse()
-  },
-  /* 17 */ { text:"Entends-tu ce bruit ?", effect: ()=>whisperSound(0.6) },
-  /* silence */ { text:"reste silencieux.", silenceCheck:3200 },
-  /* précédent */ { text:"Le sujet précédent a entendu la même chose. Il n'a pas répondu à la question suivante." },
-  /* 18 */ {
-    text: ()=> answers.trust===true
-      ? "Tu fais confiance à cet écran. C'est une erreur."
-      : "Tu ne fais pas confiance à cet écran. C'est la première chose sensée que tu aies faite.",
-    effect: ()=>triggerLightFlicker()
-  },
-  /* 19 */ { text:"En signe de bonne volonté, on t'a laissé quelque chose près de toi. Tu ne le vois pas d'ici. Le sens-tu ?" },
-  /* chat */ { text:"S'il y avait un chat dans cette pièce, là, maintenant, essaierais-tu de l'attraper ?" },
-  /* félicitations */ { text:"Félicitations. Tu viens de terminer une partie du test.", effect: ()=>{ unease = Math.max(0, unease-0.08); setUnease(unease); } },
-  /* pause */ { text:"Veuillez patienter. Le test va reprendre sous peu.", auto:true, holdFor:3400 },
-  /* reprise */ { text:"Le test reprend. Merci pour toute ta participation jusqu'ici.", auto:true, holdFor:1600 },
-  /* caviardé */ { text:"Le sujet a été jugé ██████ pour la suite du protocole." },
-  /* 20 */ { text:"Ferme les yeux. Est-ce que tu vois quelque chose de blanc ?", effect: ()=>triggerHeavenThenHell() },
-  /* 21 */ { text:"……ça va mieux. tu peux rouvrir les yeux." },
-  /* case */ { text:"Il y a une case, sur une feuille, juste à côté de ton nom. Elle dit VIVANT. Pour l'instant." },
-  /* 22 */ { text: ()=> sessionCount<=1
-              ? "C'est la première fois que tu viens ici. Le savais-tu ?"
-              : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
-  /* 23 */ { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
-  /* noir */ { text:"Reste tranquille. Ça ne prendra qu'un instant.", freeze:1100, effect: ()=>triggerBlackout(9200) },
-  /* noir-après */ { text:"…voilà. tu n'as rien senti, n'est-ce pas ? c'est normal." },
-  /* 24 */ { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
-  /* 25 */ { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", expected:"yes" },
-  /* 26 */ {
-    text: ()=> playerName ? `i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̸,—${playerName.split(" ")[0]}` : "i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̶",
-    corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); sendRealNotification(); }
-  },
-  /* 27 */ { text: ()=> answers.wantToKnow===true
-              ? "...ça va. tu as quand même voulu savoir. prêt pour la suite ?"
-              : "...ça va. ce n'était rien. prêt pour la suite ?" },
-  /* 28 */ { text:"Si je te disais que quelqu'un d'autre a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no" },
-  /* remplaçable */ { text:"Tu n'es pas le premier sujet, aujourd'hui. Tu ne seras pas non plus le dernier." },
-  /* protocole */ { text:"Le protocole est presque terminé. Les résultats seront transmis, quelle que soit ta réponse." },
-  /* 29 */ { text:"Dernière chance de partir. Veux-tu vraiment continuer ?", expected:"yes" },
-  /* 30 */ { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", expected:"no", isLast:true },
+    expected:"no", onUnexpected:()=>triggerGlimpse() },
+
+  /* 20 perte de repères sensoriels */
+  { text:"Entends-tu ce bruit, là, maintenant ?", effect: ()=>whisperSound(0.6) },
+  { text:"Peux-tu rester parfaitement silencieux, quelques secondes ?", silenceCheck:3200 },
+  { text:"Un sujet précédent a entendu la même chose que toi. Il n'a pas terminé ce test.", auto:true, holdFor:2800 },
+  { text: ()=> answers.trust===true
+      ? "Tu fais confiance à cet écran. Est-ce une erreur, selon toi ?"
+      : "Tu ne fais pas confiance à cet écran. Est-ce la chose la plus sensée que tu aies faite aujourd'hui ?",
+    effect: ()=>triggerLightFlicker() },
+  { text:"On a laissé quelque chose près de toi, en signe de bonne volonté. Le sens-tu ?" },
+  { text:"Si un animal entrait dans cette pièce, là, maintenant, resterais-tu calme ?" },
+
+  /* 26 palier — le test relâche la pression, brièvement */
+  { text:"Félicitations. Tu viens de terminer une partie du test.", auto:true, holdFor:2200, effect: ()=>{ unease = Math.max(0, unease-0.08); setUnease(unease); } },
+  { text:"Veuillez patienter. Le test va reprendre sous peu.", auto:true, holdFor:3400 },
+  { text:"Le test reprend. Merci pour toute ta participation jusqu'ici.", auto:true, holdFor:1600 },
+  { text:"Le sujet a été jugé ██████ pour la suite du protocole.", auto:true, holdFor:2400 },
+
+  /* 30 le blanc, puis le noir */
+  { text:"Ferme les yeux. Vois-tu quelque chose de blanc ?", effect: ()=>triggerHeavenThenHell() },
+  { text:"……ça va mieux. Tu peux rouvrir les yeux.", auto:true, holdFor:1400 },
+  { text:"Une case, sur une feuille, juste à côté de ton nom, dit VIVANT. Pour l'instant.", auto:true, holdFor:2800 },
+  { text: ()=> sessionCount<=1
+      ? "C'est la première fois que tu viens ici. Le savais-tu ?"
+      : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
+  { text:"As-tu vérifié la porte, derrière toi, avant de commencer ?" },
+  { text:"Reste tranquille. Ça ne prendra qu'un instant.", freeze:1100, auto:true, holdFor:10200, effect: ()=>triggerBlackout(9200) },
+  { text:"N'as-tu vraiment rien senti pendant ce moment ?", expected:"yes" },
+
+  /* 37 dernier tiers — la manipulation à découvert */
+  { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
+  { text:"Si on éteignait cet écran maintenant, resterais-tu quand même ?", expected:"yes" },
+  { text: ()=> playerName ? `i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̸,—${playerName.split(" ")[0]}` : "i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̶",
+    corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); sendRealNotification(); } },
+  { text: ()=> answers.wantToKnow===true
+      ? "...ça va. Tu as quand même voulu savoir. Es-tu prêt pour la suite ?"
+      : "...ça va. Ce n'était rien. Es-tu prêt pour la suite ?",
+    expected:"yes" },
+  { text:"Si je te disais qu'un autre sujet a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no" },
+  { text:"Tu n'es pas le premier sujet aujourd'hui. Tu ne seras pas le dernier.", auto:true, holdFor:2600 },
+  { text:"Le protocole est presque terminé. Les résultats seront transmis, quelle que soit ta réponse.", auto:true, holdFor:2800 },
+
+  /* 45 fin */
+  { text:"Dernière chance de partir. Veux-tu vraiment continuer ?", expected:"yes" },
+  { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", expected:"no", isLast:true },
 ];
 
 let qIndex = -1;
