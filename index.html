@@ -20,12 +20,13 @@
     touch-action:none;
     overscroll-behavior:none;
   }
-  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#050506; overflow:hidden; }
+  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#050506; overflow:hidden; cursor:grab; }
+  #app.panning{ cursor:grabbing; }
   canvas{ position:absolute; inset:0; display:block; }
 
   /* ---------- scène pivotable — glisser à gauche/droite pour regarder la pièce ---------- */
   #scene{
-    position:absolute; inset:0; transition:transform .35s ease;
+    position:absolute; inset:0; transition:transform .35s ease; will-change:transform;
   }
   #scene.dragging{ transition:none; }
 
@@ -33,7 +34,7 @@
   #tvUnit{
     position:absolute; left:50%; top:30%; transform:translate(-50%,-50%);
     width:min(88vw, 380px); z-index:5; display:flex; flex-direction:column; align-items:center;
-    transition:transform .35s ease;
+    transition:transform .35s ease; will-change:transform;
   }
   #tvUnit.dragging{ transition:none; }
   #tvBody{
@@ -156,11 +157,11 @@
   #endSub{ color:#666; font-size:0.85rem; letter-spacing:0.08em; max-width:30em; line-height:1.75em; }
 
   #wallnote{
-    position:absolute; left:4vw; bottom:16vh; z-index:2; color:rgba(255,255,255,0.08);
+    position:absolute; left:4vw; bottom:16vh; z-index:2; color:rgba(0,0,0,0.16);
     font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(-2deg);
   }
   #wallnoteRight{
-    position:absolute; right:-38vw; bottom:20vh; z-index:2; color:rgba(255,255,255,0.07);
+    position:absolute; right:-38vw; bottom:20vh; z-index:2; color:rgba(0,0,0,0.14);
     font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(1.5deg); text-align:right;
   }
 
@@ -362,7 +363,10 @@ function resize(){
   canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
   canvas.style.width = W+"px"; canvas.style.height = H+"px";
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  layoutWires();
+  // la largeur a changé : le décalage de la scène (calculé à partir de W) doit être
+  // recalculé, sinon la pièce dessinée sur le canvas et la télé/boutons du DOM se désynchronisent.
+  if(typeof applyCamPan === "function") applyCamPan();
+  else layoutWires();
 }
 window.addEventListener("resize", resize);
 
@@ -372,7 +376,8 @@ window.addEventListener("resize", resize);
    avec elle, comme de vrais objets qu'on regarde de côté).
    ============================================================ */
 let camPan = 0; // -1 (extrême gauche) .. 1 (extrême droite)
-let dragging = false, dragStartX = 0, dragStartPan = 0;
+let dragging = false, dragStartX = 0, dragStartPan = 0, activePointerId = null;
+let panRafScheduled = false;
 function panShiftPx(){ return W*0.85; }
 function applyCamPan(){
   const shift = camPan * panShiftPx();
@@ -382,25 +387,46 @@ function applyCamPan(){
   tv.style.transform = `translate(-50%,-50%) perspective(900px) rotateY(${rot.toFixed(1)}deg)`;
   layoutWires();
 }
+// on découple la fréquence des événements tactiles (parfois très élevée) du
+// rythme de rendu réel : un seul recalcul par frame, pour un glissement fluide.
+function schedulePanUpdate(){
+  if(panRafScheduled) return;
+  panRafScheduled = true;
+  requestAnimationFrame(()=>{
+    panRafScheduled = false;
+    applyCamPan();
+  });
+}
 function setDragging(on){
   dragging = on;
+  const appEl = document.getElementById("app");
+  appEl.classList.toggle("panning", on);
   document.getElementById("scene").classList.toggle("dragging", on);
   document.getElementById("tvUnit").classList.toggle("dragging", on);
 }
-document.getElementById("app").addEventListener("pointerdown",(e)=>{
+const appEl = document.getElementById("app");
+appEl.addEventListener("pointerdown",(e)=>{
   if(state!==STATE.PLAYING) return;
+  if(document.getElementById("nameRow").classList.contains("show")) return;
+  if(activePointerId!==null) return; // ignore un second doigt s'il y en a un déjà actif
+  activePointerId = e.pointerId;
+  try{ appEl.setPointerCapture(e.pointerId); }catch(err){}
   setDragging(true);
   dragStartX = e.clientX;
   dragStartPan = camPan;
 });
-document.getElementById("app").addEventListener("pointermove",(e)=>{
-  if(!dragging) return;
+appEl.addEventListener("pointermove",(e)=>{
+  if(!dragging || e.pointerId!==activePointerId) return;
   const delta = (e.clientX - dragStartX) / panShiftPx();
   camPan = Math.max(-1, Math.min(1, dragStartPan + delta));
-  applyCamPan();
+  schedulePanUpdate();
 });
 ["pointerup","pointercancel","pointerleave"].forEach(ev=>{
-  document.getElementById("app").addEventListener(ev, ()=>{ if(dragging) setDragging(false); });
+  appEl.addEventListener(ev, (e)=>{
+    if(e.pointerId!==activePointerId) return;
+    activePointerId = null;
+    if(dragging) setDragging(false);
+  });
 });
 
 /* ============================================================
@@ -600,26 +626,77 @@ function triggerHeavenThenHell(){
 }
 
 /* ============================================================
-   Rendu de fond (pièce capitonnée + grain + vignette)
+   Rendu de fond (salle d'isolement blanche capitonnée + grain + vignette)
    ============================================================ */
 let unease = 0; // 0..1, monte avec la progression du test
+
+// positions fixes (en fractions de W) des éléments de la pièce, hors du
+// champ de vision par défaut — ils n'apparaissent qu'en glissant vers eux.
+const BED_X = -0.55, DOOR_X = 1.55, CAM_X = 1.05;
+
+function drawBed(cx, floorY){
+  const w = Math.min(230, W*0.5), h = w*0.36;
+  const x = cx - w/2, y = floorY - h*0.95;
+  ctx.fillStyle = "rgba(0,0,0,0.14)";
+  ctx.fillRect(x+6, y+h*0.72, w-12, h*0.3);
+  ctx.fillStyle = "#eeeadd";
+  ctx.fillRect(x, y, w, h*0.62);
+  ctx.strokeStyle = "rgba(0,0,0,0.14)"; ctx.lineWidth = 1.5;
+  ctx.strokeRect(x, y, w, h*0.62);
+  ctx.strokeStyle = "rgba(0,0,0,0.08)";
+  ctx.beginPath(); ctx.moveTo(x+w*0.14,y+h*0.62); ctx.lineTo(x+w*0.14,y+h*0.08); ctx.stroke();
+  ctx.fillStyle = "#fbfaf5";
+  ctx.fillRect(x+w*0.05, y+h*0.05, w*0.22, h*0.24);
+  ctx.strokeStyle = "rgba(0,0,0,0.1)";
+  ctx.strokeRect(x+w*0.05, y+h*0.05, w*0.22, h*0.24);
+}
+function drawDoor(cx, floorY){
+  const w = Math.min(150, W*0.32), h = w*2.15;
+  const x = cx - w/2, y = floorY - h;
+  ctx.fillStyle = "rgba(0,0,0,0.06)";
+  ctx.fillRect(x-5, y-5, w+10, h+5);
+  ctx.fillStyle = "#e4e0d3"; // presque la teinte du mur : elle se remarque à peine
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "rgba(0,0,0,0.16)"; ctx.lineWidth = 1.5;
+  ctx.strokeRect(x, y, w, h);
+  ctx.strokeStyle = "rgba(0,0,0,0.09)";
+  ctx.strokeRect(x+w*0.1, y+h*0.06, w*0.8, h*0.88);
+  // pas de poignée : juste une trace, là où elle devrait être
+  ctx.fillStyle = "rgba(0,0,0,0.07)";
+  ctx.beginPath(); ctx.arc(x+w*0.87, y+h*0.5, 3, 0, Math.PI*2); ctx.fill();
+}
+function drawCeilingCamera(cx, topY){
+  ctx.save();
+  ctx.translate(cx, topY);
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  ctx.beginPath(); ctx.ellipse(0,4,20,7,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#1c1c1c";
+  ctx.beginPath(); ctx.ellipse(0,0,16,9,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#050505";
+  ctx.beginPath(); ctx.arc(0,1,6,0,Math.PI*2); ctx.fill();
+  const blink = (Math.sin(now()/600)+1)/2;
+  ctx.fillStyle = `rgba(220,30,20,${(0.35+blink*0.5).toFixed(2)})`;
+  ctx.beginPath(); ctx.arc(9,-3,2.2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
 function drawRoom(){
-  ctx.fillStyle = "#3a3d44"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = "#d9d4c6"; ctx.fillRect(0,0,W,H);
 
   // la pièce est plus large que l'écran : glisser le doigt la fait pivoter
   const shiftPx = camPan * panShiftPx();
   ctx.save();
   ctx.translate(shiftPx, 0);
 
-  // dalles capitonnées
+  // dalles capitonnées (salle d'isolement blanche)
   const tile = Math.max(46, Math.min(W,H)/9);
   const pad = panShiftPx() + tile;
-  ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(0,0,0,0.14)"; ctx.lineWidth = 2;
   for(let y=-tile; y<H+tile; y+=tile){
     for(let x=-pad; x<W+pad; x+=tile){
       const g = ctx.createRadialGradient(x+tile/2,y+tile/2,tile*0.05,x+tile/2,y+tile/2,tile*0.62);
-      g.addColorStop(0, "rgba(255,255,255,0.05)");
-      g.addColorStop(1, "rgba(0,0,0,0.12)");
+      g.addColorStop(0, "rgba(255,255,255,0.4)");
+      g.addColorStop(1, "rgba(0,0,0,0.08)");
       ctx.fillStyle = g;
       ctx.fillRect(x,y,tile,tile);
       ctx.strokeRect(x,y,tile,tile);
@@ -628,18 +705,24 @@ function drawRoom(){
 
   // sol
   const floorY = H*0.78;
-  ctx.fillStyle = "#2c2e33";
+  ctx.fillStyle = "#b9b3a2";
   ctx.fillRect(-pad,floorY,W+pad*2,H-floorY);
-  ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth=1.5;
+  ctx.strokeStyle = "rgba(0,0,0,0.18)"; ctx.lineWidth=1.5;
   const ftile = tile*0.8;
   for(let x=-pad; x<W+pad; x+=ftile){
     ctx.beginPath(); ctx.moveTo(x,floorY); ctx.lineTo(x,H); ctx.stroke();
   }
+
+  // le lit, la porte sans poignée et la caméra — hors champ tant qu'on ne regarde pas
+  drawBed(BED_X*W, floorY);
+  drawDoor(DOOR_X*W, floorY);
+  drawCeilingCamera(CAM_X*W, H*0.15);
+
   ctx.restore();
 
   if(!save.reduceEffects){
     const grainCount = Math.floor(20 + unease*90);
-    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    ctx.fillStyle = "rgba(0,0,0,0.035)";
     for(let i=0;i<grainCount;i++){
       ctx.fillRect(Math.random()*W, Math.random()*H, 1, 1);
     }
@@ -659,7 +742,7 @@ function drawRoom(){
   const cx=W/2, cy=H*0.42;
   const vgn = ctx.createRadialGradient(cx,cy,Math.min(W,H)*0.2,cx,cy,Math.max(W,H)*0.75);
   vgn.addColorStop(0,"rgba(0,0,0,0)");
-  vgn.addColorStop(1,`rgba(0,0,0,${0.35+unease*0.45})`);
+  vgn.addColorStop(1,`rgba(0,0,0,${0.28+unease*0.45})`);
   ctx.fillStyle = vgn; ctx.fillRect(0,0,W,H);
 
   // pulse rouge — réaction à une réponse "inattendue", pas un jumpscare

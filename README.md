@@ -40,7 +40,9 @@ Tôt dans le test, l'écran demande le prénom et le nom du joueur — une vraie
 
 ## Regarder autour de soi
 
-L'écran, les boutons et les fils sont ancrés dans la pièce, pas dans la caméra : glisser le doigt à gauche ou à droite fait pivoter la vue et révèle le reste de la salle capitonnée (avec un léger effet de perspective 3D sur le téléviseur, qui se détourne visuellement). Deux détails inscrits sur les murs ne sont visibles qu'en regardant de côté. Ce n'est pas de la vraie 3D (pas de moteur, pas de WebGL) — juste du Canvas 2D et des transformations CSS — pour rester léger et fiable sur mobile.
+L'écran, les boutons et les fils sont ancrés dans la pièce, pas dans la caméra : glisser le doigt à gauche ou à droite fait pivoter la vue et révèle le reste de la salle capitonnée blanche (avec un léger effet de perspective 3D sur le téléviseur, qui se détourne visuellement). Le glissement est calé sur le rafraîchissement de l'écran (une seule mise à jour par frame, capture de pointeur) pour rester fluide même sur un téléphone modeste.
+
+La pièce est carrée : un lit contre un mur, une porte sans poignée surveillée par une petite caméra au plafond contre l'autre, deux inscriptions différentes griffonnées sur les murs — rien de tout ça n'est visible depuis l'écran-titre, il faut tourner la tête pour le découvrir. Ce n'est pas de la vraie 3D (pas de moteur, pas de WebGL) — juste du Canvas 2D élargi et des transformations CSS — pour rester léger et fiable sur mobile.
 
 ## Escalade
 
