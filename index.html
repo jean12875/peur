@@ -20,14 +20,22 @@
     touch-action:none;
     overscroll-behavior:none;
   }
-  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#050506; }
+  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#050506; overflow:hidden; }
   canvas{ position:absolute; inset:0; display:block; }
+
+  /* ---------- scène pivotable — glisser à gauche/droite pour regarder la pièce ---------- */
+  #scene{
+    position:absolute; inset:0; transition:transform .35s ease;
+  }
+  #scene.dragging{ transition:none; }
 
   /* ---------- téléviseur ---------- */
   #tvUnit{
     position:absolute; left:50%; top:30%; transform:translate(-50%,-50%);
     width:min(88vw, 380px); z-index:5; display:flex; flex-direction:column; align-items:center;
+    transition:transform .35s ease;
   }
+  #tvUnit.dragging{ transition:none; }
   #tvBody{
     width:100%; background:#e9e6df; border-radius:10px; padding:4.5% 4.5% 8%;
     box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(0,0,0,0.15);
@@ -151,6 +159,10 @@
     position:absolute; left:4vw; bottom:16vh; z-index:2; color:rgba(255,255,255,0.08);
     font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(-2deg);
   }
+  #wallnoteRight{
+    position:absolute; right:-38vw; bottom:20vh; z-index:2; color:rgba(255,255,255,0.07);
+    font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(1.5deg); text-align:right;
+  }
 
   #gear{
     position:absolute; top:1em; left:1em; z-index:60; width:34px; height:34px; border-radius:50%;
@@ -225,37 +237,40 @@
 <div id="app">
   <canvas id="c"></canvas>
 
-  <div id="wallnote">quelqu'un a gratté ça dans le mur avant toi. tu ne comprends pas la langue.</div>
+  <div id="scene">
+    <div id="wallnote">quelqu'un a gratté ça dans le mur avant toi. tu ne comprends pas la langue.</div>
+    <div id="wallnoteRight">il y avait quelqu'un avant toi. il n'est jamais sorti par cette porte.</div>
 
-  <svg id="wires" viewBox="0 0 100 100" preserveAspectRatio="none">
-    <path id="wireL" d="" stroke="#111" stroke-width="0.5" fill="none"/>
-    <path id="wireR" d="" stroke="#111" stroke-width="0.5" fill="none"/>
-  </svg>
+    <svg id="wires" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <path id="wireL" d="" stroke="#111" stroke-width="0.5" fill="none"/>
+      <path id="wireR" d="" stroke="#111" stroke-width="0.5" fill="none"/>
+    </svg>
 
-  <div id="tvUnit">
-    <div id="antenna"><svg viewBox="0 0 100 100"><line x1="30" y1="100" x2="15" y2="0" stroke="#888" stroke-width="1.5"/><line x1="70" y1="100" x2="88" y2="4" stroke="#888" stroke-width="1.5"/></svg></div>
-    <div id="tvBody">
-      <div id="tvScreenWrap">
-        <div id="tvScreen">
-          <div id="tvText"></div>
-          <div class="tvGlow"></div>
-          <div class="scanlines"></div>
+    <div id="tvUnit">
+      <div id="antenna"><svg viewBox="0 0 100 100"><line x1="30" y1="100" x2="15" y2="0" stroke="#888" stroke-width="1.5"/><line x1="70" y1="100" x2="88" y2="4" stroke="#888" stroke-width="1.5"/></svg></div>
+      <div id="tvBody">
+        <div id="tvScreenWrap">
+          <div id="tvScreen">
+            <div id="tvText"></div>
+            <div class="tvGlow"></div>
+            <div class="scanlines"></div>
+          </div>
         </div>
+        <div id="tvDials"><div class="dial"></div><div class="dial"></div></div>
       </div>
-      <div id="tvDials"><div class="dial"></div><div class="dial"></div></div>
+      <div id="tvStand"></div>
+      <div id="tvLegs"><div></div><div></div></div>
     </div>
-    <div id="tvStand"></div>
-    <div id="tvLegs"><div></div><div></div></div>
-  </div>
 
-  <div id="buttonRow">
-    <button class="bigbtn" id="btnYes">OUI</button>
-    <button class="bigbtn" id="btnNo">NON</button>
-  </div>
+    <div id="buttonRow">
+      <button class="bigbtn" id="btnYes">OUI</button>
+      <button class="bigbtn" id="btnNo">NON</button>
+    </div>
 
-  <div id="nameRow">
-    <input id="nameField" type="text" maxlength="40" autocomplete="off" autocapitalize="words" spellcheck="false">
-    <button id="nameConfirm">✓</button>
+    <div id="nameRow">
+      <input id="nameField" type="text" maxlength="40" autocomplete="off" autocapitalize="words" spellcheck="false">
+      <button id="nameConfirm">✓</button>
+    </div>
   </div>
 
   <div id="heavenOverlay"></div>
@@ -350,6 +365,43 @@ function resize(){
   layoutWires();
 }
 window.addEventListener("resize", resize);
+
+/* ============================================================
+   Caméra pivotable — glisser le doigt révèle le reste de la pièce.
+   La télé et les boutons sont ancrés dans la pièce (ils glissent
+   avec elle, comme de vrais objets qu'on regarde de côté).
+   ============================================================ */
+let camPan = 0; // -1 (extrême gauche) .. 1 (extrême droite)
+let dragging = false, dragStartX = 0, dragStartPan = 0;
+function panShiftPx(){ return W*0.85; }
+function applyCamPan(){
+  const shift = camPan * panShiftPx();
+  document.getElementById("scene").style.transform = `translateX(${shift.toFixed(1)}px)`;
+  const tv = document.getElementById("tvUnit");
+  const rot = camPan * -16; // léger effet de perspective : l'écran se détourne quand on regarde ailleurs
+  tv.style.transform = `translate(-50%,-50%) perspective(900px) rotateY(${rot.toFixed(1)}deg)`;
+  layoutWires();
+}
+function setDragging(on){
+  dragging = on;
+  document.getElementById("scene").classList.toggle("dragging", on);
+  document.getElementById("tvUnit").classList.toggle("dragging", on);
+}
+document.getElementById("app").addEventListener("pointerdown",(e)=>{
+  if(state!==STATE.PLAYING) return;
+  setDragging(true);
+  dragStartX = e.clientX;
+  dragStartPan = camPan;
+});
+document.getElementById("app").addEventListener("pointermove",(e)=>{
+  if(!dragging) return;
+  const delta = (e.clientX - dragStartX) / panShiftPx();
+  camPan = Math.max(-1, Math.min(1, dragStartPan + delta));
+  applyCamPan();
+});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>{
+  document.getElementById("app").addEventListener(ev, ()=>{ if(dragging) setDragging(false); });
+});
 
 /* ============================================================
    Audio (100% procédural)
@@ -554,11 +606,17 @@ let unease = 0; // 0..1, monte avec la progression du test
 function drawRoom(){
   ctx.fillStyle = "#3a3d44"; ctx.fillRect(0,0,W,H);
 
+  // la pièce est plus large que l'écran : glisser le doigt la fait pivoter
+  const shiftPx = camPan * panShiftPx();
+  ctx.save();
+  ctx.translate(shiftPx, 0);
+
   // dalles capitonnées
   const tile = Math.max(46, Math.min(W,H)/9);
+  const pad = panShiftPx() + tile;
   ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 2;
   for(let y=-tile; y<H+tile; y+=tile){
-    for(let x=-tile; x<W+tile; x+=tile){
+    for(let x=-pad; x<W+pad; x+=tile){
       const g = ctx.createRadialGradient(x+tile/2,y+tile/2,tile*0.05,x+tile/2,y+tile/2,tile*0.62);
       g.addColorStop(0, "rgba(255,255,255,0.05)");
       g.addColorStop(1, "rgba(0,0,0,0.12)");
@@ -571,12 +629,13 @@ function drawRoom(){
   // sol
   const floorY = H*0.78;
   ctx.fillStyle = "#2c2e33";
-  ctx.fillRect(0,floorY,W,H-floorY);
+  ctx.fillRect(-pad,floorY,W+pad*2,H-floorY);
   ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth=1.5;
   const ftile = tile*0.8;
-  for(let x=-ftile; x<W+ftile; x+=ftile){
+  for(let x=-pad; x<W+pad; x+=ftile){
     ctx.beginPath(); ctx.moveTo(x,floorY); ctx.lineTo(x,H); ctx.stroke();
   }
+  ctx.restore();
 
   if(!save.reduceEffects){
     const grainCount = Math.floor(20 + unease*90);
@@ -1220,6 +1279,7 @@ function startTest(){
   document.getElementById("nameRow").classList.remove("show");
   document.getElementById("buttonRow").classList.remove("hide");
   document.getElementById("heavenOverlay").classList.remove("show","hell");
+  camPan = 0; applyCamPan();
 
   resize();
   requestAnimationFrame(()=>layoutWires());
@@ -1262,6 +1322,7 @@ if("serviceWorker" in navigator){
 
 /* Init */
 resize();
+applyCamPan();
 requestAnimationFrame(()=>layoutWires());
 buildTitleFlavor();
 requestAnimationFrame(loop);

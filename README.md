@@ -38,6 +38,10 @@ Utilisation réelle en jeu :
 
 Tôt dans le test, l'écran demande le prénom et le nom du joueur — une vraie saisie, pas une case à cocher. Ce nom est mémorisé (localement) et réutilisé dans plusieurs questions plus tard, y compris dans une ligne corrompue vers la fin. Les sessions suivantes ne le redemandent pas : l'écran-titre s'adresse directement au joueur par son nom.
 
+## Regarder autour de soi
+
+L'écran, les boutons et les fils sont ancrés dans la pièce, pas dans la caméra : glisser le doigt à gauche ou à droite fait pivoter la vue et révèle le reste de la salle capitonnée (avec un léger effet de perspective 3D sur le téléviseur, qui se détourne visuellement). Deux détails inscrits sur les murs ne sont visibles qu'en regardant de côté. Ce n'est pas de la vraie 3D (pas de moteur, pas de WebGL) — juste du Canvas 2D et des transformations CSS — pour rester léger et fiable sur mobile.
+
 ## Escalade
 
 Une réponse "inattendue" fait trembler l'écran et le teinte de rouge — l'intensité de cette réaction grandit avec la progression du test (secousse plus forte, rouge plus profond, son plus dur en fin de partie). Une séquence dédiée transforme brièvement toute la pièce en blanc immaculé, avec une musique étrange et légèrement désaccordée, avant de basculer brutalement dans le rouge. Aucun jumpscare classique nulle part : tout reste ambiance et rupture de rythme, jamais un visage qui surgit.
