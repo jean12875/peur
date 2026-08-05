@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="VEILLE — cinq épreuves. il regarde, il écoute, il attend.">
-<title>VEILLE</title>
+<meta name="description" content="LE TEST — réponds sincèrement.">
+<title>LE TEST</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
@@ -14,200 +14,180 @@
   *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body{
     margin:0; padding:0; width:100%; height:100%;
-    background:#000; overflow:hidden;
+    background:#050506; overflow:hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     user-select:none; -webkit-user-select:none;
     touch-action:none;
     overscroll-behavior:none;
   }
-  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#000; }
+  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#050506; }
   canvas{ position:absolute; inset:0; display:block; }
+
+  /* ---------- téléviseur ---------- */
+  #tvUnit{
+    position:absolute; left:50%; top:30%; transform:translate(-50%,-50%);
+    width:min(88vw, 380px); z-index:5; display:flex; flex-direction:column; align-items:center;
+  }
+  #tvBody{
+    width:100%; background:#e9e6df; border-radius:10px; padding:4.5% 4.5% 8%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(0,0,0,0.15);
+    display:flex; gap:3%;
+    position:relative;
+  }
+  #tvScreenWrap{
+    flex:1; background:#000; border-radius:4px; padding:3%;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+  }
+  #tvScreen{
+    position:relative; width:100%; aspect-ratio:4/3; background:radial-gradient(ellipse at 50% 30%, #2a5fa0 0%, #0d1f38 75%);
+    border-radius:2px; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:8%;
+  }
+  #tvText{
+    color:#dce8fb; font-size:clamp(0.78rem, 3.4vw, 1rem); text-align:center; line-height:1.55em;
+    letter-spacing:0.02em; font-weight:500; text-shadow:0 0 6px rgba(150,190,255,0.4);
+    z-index:2; transition:opacity 0.25s ease;
+  }
+  #tvText.corrupt{ color:#ff5b5b; text-shadow:0 0 8px rgba(255,60,60,0.6); }
+  .scanlines{
+    position:absolute; inset:0; pointer-events:none; z-index:3;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 2px, transparent 3px);
+    mix-blend-mode:multiply;
+  }
+  .tvGlow{ position:absolute; inset:0; pointer-events:none; z-index:1; background:radial-gradient(ellipse at 50% 20%, rgba(255,255,255,0.12), transparent 60%); }
+  #tvDials{ width:16%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10%; }
+  .dial{ width:70%; aspect-ratio:1; border-radius:50%; background:#cfcbc2; box-shadow:inset 0 0 0 2px rgba(0,0,0,0.25), inset 0 2px 3px rgba(0,0,0,0.3); }
+  #antenna{
+    position:absolute; top:-22%; left:50%; width:60%; height:26%; transform:translateX(-50%);
+    pointer-events:none;
+  }
+  #antenna svg{ width:100%; height:100%; }
+  #tvStand{ width:34%; height:14px; background:#3a352e; margin-top:-4px; border-radius:0 0 4px 4px; }
+  #tvLegs{ display:flex; gap:60%; width:34%; margin-top:2px; }
+  #tvLegs div{ width:6px; height:22px; background:#3a352e; border-radius:0 0 2px 2px; }
+
+  /* ---------- fils + boutons ---------- */
+  #wires{ position:absolute; inset:0; z-index:3; pointer-events:none; }
+  #buttonRow{
+    position:absolute; left:0; right:0; bottom:8vh; z-index:6;
+    display:flex; justify-content:center; gap:18vw;
+  }
+  .bigbtn{
+    width:min(22vw, 92px); height:min(22vw, 92px); border-radius:50%;
+    border:none; cursor:pointer; font-family:inherit;
+    font-size:clamp(0.8rem,3.4vw,1rem); font-weight:800; letter-spacing:0.05em; color:#fff;
+    box-shadow: 0 10px 0 rgba(0,0,0,0.45), 0 12px 16px rgba(0,0,0,0.5);
+    transition: transform .08s ease, box-shadow .08s ease, filter .3s ease;
+  }
+  .bigbtn:active{ transform:translateY(6px); box-shadow:0 4px 0 rgba(0,0,0,0.45), 0 6px 10px rgba(0,0,0,0.4); }
+  .bigbtn.disabled{ filter:grayscale(0.7) brightness(0.6); pointer-events:none; }
+  #btnYes{ background:radial-gradient(circle at 35% 30%, #4bdc72, #1f9e46); }
+  #btnNo{ background:radial-gradient(circle at 35% 30%, #ff6a5e, #c62a1f); }
+
+  /* ---------- écrans overlay ---------- */
+  #boot{
+    position:absolute; inset:0; z-index:80; background:#000; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1em; opacity:1; transition:opacity 1s ease;
+  }
+  #boot.hidden{ opacity:0; pointer-events:none; }
+  #hourglass{ font-size:2.6rem; color:#8fa; animation:flip 1.6s infinite ease-in-out; }
+  @keyframes flip{ 0%,40%{ transform:rotate(0);} 50%,90%{ transform:rotate(180deg);} 100%{ transform:rotate(180deg);} }
+  #bootLabel{ color:#7a7a7a; font-size:0.75rem; letter-spacing:0.4em; text-transform:uppercase; }
 
   #veil{
     position:absolute; inset:0; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center;
-    padding:8vh 6vw; gap:1.1em;
-    color:#cfcfcf; letter-spacing:0.04em;
-    background:radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.92) 75%);
-    transition:opacity 1.4s ease;
-    z-index:10;
+    padding:8vh 6vw; gap:1.1em; color:#cfcfcf; letter-spacing:0.04em;
+    background:radial-gradient(ellipse at center, rgba(5,5,8,0.2) 0%, rgba(5,5,8,0.94) 75%);
+    transition:opacity 1.2s ease; z-index:70;
   }
   #veil.hidden{ opacity:0; pointer-events:none; }
-
-  .title{
-    font-size:clamp(2.4rem, 9vw, 4.4rem); font-weight:200; letter-spacing:0.35em;
-    margin:0 0 0.1em 0; color:#e6e6e6; text-shadow:0 0 18px rgba(255,255,255,0.08);
-  }
-  .flavor{
-    font-size:clamp(0.85rem, 2.6vw, 1.05rem); font-weight:300; color:#8a8a8a;
-    max-width:34em; line-height:1.6em; min-height:3.2em;
-  }
-  .stat{ font-size:0.78rem; color:#5c5c5c; letter-spacing:0.1em; text-transform:uppercase; }
+  .title{ font-size:clamp(2rem, 8vw, 3.4rem); font-weight:200; letter-spacing:0.3em; margin:0; color:#e6e6e6; text-shadow:0 0 18px rgba(255,255,255,0.08); }
+  .flavor{ font-size:clamp(0.82rem, 2.5vw, 1rem); font-weight:300; color:#8a8a8a; max-width:32em; line-height:1.6em; min-height:3em; }
+  .stat{ font-size:0.76rem; color:#5c5c5c; letter-spacing:0.1em; text-transform:uppercase; }
   .startbtn{
-    margin-top:0.6em; padding:0.85em 2.4em; background:transparent;
-    border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
-    font-size:0.85rem; letter-spacing:0.25em; text-transform:uppercase;
-    cursor:pointer; font-family:inherit;
+    margin-top:0.6em; padding:0.85em 2.4em; background:transparent; border:1px solid rgba(255,255,255,0.25);
+    color:#d8d8d8; font-size:0.85rem; letter-spacing:0.25em; text-transform:uppercase; cursor:pointer; font-family:inherit;
   }
   .startbtn:active{ background:rgba(255,255,255,0.08); }
+  .miniline{ position:absolute; bottom:2.2em; left:0; right:0; text-align:center; font-size:0.7rem; color:#4a4a4a; letter-spacing:0.15em; }
+  .miniline button{ background:none;border:none;color:#4a4a4a;font-size:0.7rem;letter-spacing:0.15em; text-decoration:underline; cursor:pointer; padding:0.6em; font-family:inherit; }
 
-  .miniline{
-    position:absolute; bottom:2.2em; left:0; right:0; text-align:center;
-    font-size:0.7rem; color:#4a4a4a; letter-spacing:0.15em;
+  #endScreen{
+    position:absolute; inset:0; z-index:75; display:flex; align-items:center; justify-content:center;
+    background:#000; opacity:0; pointer-events:none; transition:opacity 1.1s ease;
+    flex-direction:column; gap:0.7em; text-align:center; padding:6vh 6vw;
   }
-  .miniline button{
-    background:none;border:none;color:#4a4a4a;font-size:0.7rem;letter-spacing:0.15em;
-    text-decoration:underline; cursor:pointer; padding:0.6em; font-family:inherit;
-  }
+  #endScreen.show{ opacity:1; pointer-events:auto; }
+  #endTitle{ font-size:clamp(1.3rem,6vw,2.2rem); letter-spacing:0.3em; font-weight:200; }
+  #endSub{ color:#666; font-size:0.85rem; letter-spacing:0.08em; max-width:30em; line-height:1.75em; }
 
-  #hint{
-    position:absolute; left:0; right:0; bottom:9vh; text-align:center;
-    color:rgba(255,255,255,0.35); font-size:0.75rem; letter-spacing:0.3em;
-    text-transform:uppercase; pointer-events:none; transition:opacity 2s ease; z-index:5;
-  }
+  #flashLayer{ position:absolute; inset:0; z-index:90; pointer-events:none; background:#fff; opacity:0; }
 
-  #trialBanner{
-    position:absolute; left:0; right:0; top:9vh; text-align:center; z-index:14;
-    opacity:0; transition:opacity 0.8s ease; pointer-events:none;
-  }
-  #trialBanner.show{ opacity:1; }
-  #trialBanner .lbl{ color:#eee; font-size:0.95rem; letter-spacing:0.4em; text-transform:uppercase; font-weight:300; }
-  #trialBanner .hnt{ color:#777; font-size:0.72rem; letter-spacing:0.1em; margin-top:0.4em; }
-
-  #turnBtn{
-    position:absolute; left:50%; bottom:9vh; transform:translateX(-50%);
-    padding:0.7em 1.6em; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.25);
-    color:#ddd; font-size:0.72rem; letter-spacing:0.22em; text-transform:uppercase;
-    opacity:0; pointer-events:none; transition:opacity 1.4s ease; z-index:12; cursor:pointer;
-    font-family:inherit;
-  }
-  #turnBtn.show{ opacity:0.9; pointer-events:auto; }
-
-  #diedScreen, #clearedScreen{
-    position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
-    background:#000; opacity:0; pointer-events:none; transition:opacity 0.6s ease;
-    flex-direction:column; gap:0.6em; text-align:center; padding:6vh 6vw;
-  }
-  #diedScreen.show, #clearedScreen.show{ opacity:1; pointer-events:auto; }
-  #diedScreen .diedTitle{ color:#8a1f1f; font-size:clamp(1.6rem,7vw,2.6rem); letter-spacing:0.3em; font-weight:200; }
-  #diedScreen .diedSub{ color:#666; font-size:0.85rem; letter-spacing:0.1em; max-width:30em; line-height:1.7em; }
-  #clearedScreen .clearedTitle{ color:#7fa8c9; font-size:clamp(1.4rem,6vw,2.2rem); letter-spacing:0.3em; font-weight:200; }
-  #clearedScreen .clearedSub{ color:#666; font-size:0.85rem; letter-spacing:0.1em; max-width:30em; line-height:1.7em; }
-
-  #flashLayer{ position:absolute; inset:0; z-index:30; pointer-events:none; background:#fff; opacity:0; }
-
-  #fakeOS{
-    position:absolute; top:0; left:0; right:0; z-index:40; pointer-events:none;
-    display:flex; justify-content:space-between; padding:0.6em 1em; font-size:0.72rem;
-    color:#eee; opacity:0; letter-spacing:0.05em;
-    background:linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
-  }
-  #fakeNotif{
-    position:absolute; top:2.4em; left:3vw; right:3vw; z-index:41; pointer-events:none;
-    background:rgba(20,20,20,0.92); border:1px solid rgba(255,255,255,0.08);
-    border-radius:14px; padding:0.7em 0.9em; color:#eee; font-size:0.78rem;
-    opacity:0; transform:translateY(-10px); transition:opacity .25s ease, transform .25s ease;
-    display:flex; flex-direction:column; gap:0.15em;
-  }
-  #fakeNotif b{ font-weight:600; font-size:0.75rem; color:#bbb; }
-  #fakeNotif.show{ opacity:1; transform:translateY(0); }
-
-  #recDot{
-    position:absolute; top:0.7em; right:1em; width:7px; height:7px; border-radius:50%;
-    background:#c0392b; z-index:42; opacity:0; box-shadow:0 0 6px #c0392b;
-  }
-
-  #camWrap{
-    position:absolute; bottom:1.4em; right:1.4em; width:84px; height:112px; z-index:15;
-    border:1px solid rgba(255,255,255,0.15); overflow:hidden; opacity:0; transition:opacity 1s ease;
-    background:#000;
-  }
-  #camWrap.show{ opacity:0.85; }
-  #camWrap video{ width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.6) brightness(0.65); transform:scaleX(-1); }
-  #camWrap .camlabel{ position:absolute; bottom:2px; left:4px; font-size:0.55rem; color:#c0392b; letter-spacing:0.1em; }
-  #camWrap .eyeDot{
-    position:absolute; top:4px; right:4px; width:6px; height:6px; border-radius:50%;
-    background:#2ecc71; box-shadow:0 0 5px #2ecc71; transition:background .3s ease, box-shadow .3s ease;
-  }
-  #camWrap .eyeDot.away{ background:#c0392b; box-shadow:0 0 5px #c0392b; }
-
-  #camGate{
-    position:absolute; inset:0; z-index:55; display:none; align-items:center; justify-content:center;
-    background:rgba(0,0,0,0.94); padding:6vh 8vw; text-align:center;
-  }
-  #camGate.show{ display:flex; }
-  #camGate .box{ max-width:26em; display:flex; flex-direction:column; gap:1.2em; align-items:center; }
-  #camGate p{ color:#ccc; font-size:0.92rem; line-height:1.75em; letter-spacing:0.02em; margin:0; }
-  #camGate .row{ display:flex; gap:0.8em; justify-content:center; }
-  #camGate button{
-    padding:0.75em 1.8em; background:transparent; border:1px solid rgba(255,255,255,0.25);
-    color:#ddd; font-size:0.78rem; letter-spacing:0.18em; text-transform:uppercase; cursor:pointer;
-    font-family:inherit;
-  }
-  #camGate .miniclose{
-    border:none; color:#555; font-size:0.7rem; text-decoration:underline; letter-spacing:0.1em; background:none;
-    padding:0.4em;
-  }
-  #camGate .eye{
-    width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,0.2);
-    display:flex; align-items:center; justify-content:center; color:#888; font-size:1.1rem;
+  #wallnote{
+    position:absolute; left:4vw; bottom:16vh; z-index:2; color:rgba(255,255,255,0.08);
+    font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(-2deg);
   }
 
   #gear{
-    position:absolute; top:1em; left:1em; z-index:60; width:34px; height:34px;
-    border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
-    color:#999; display:flex; align-items:center; justify-content:center; font-size:0.9rem; cursor:pointer;
+    position:absolute; top:1em; left:1em; z-index:60; width:34px; height:34px; border-radius:50%;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#999;
+    display:flex; align-items:center; justify-content:center; font-size:0.9rem; cursor:pointer;
   }
 
-  @media (prefers-reduced-motion: reduce){ #flashLayer{ transition:none; } }
+  @media (prefers-reduced-motion: reduce){ #flashLayer{ transition:none; } #hourglass{ animation:none; } }
 </style>
 </head>
 <body>
 <div id="app">
   <canvas id="c"></canvas>
 
-  <div id="hint">tiens</div>
-  <div id="trialBanner"><div class="lbl" id="trialLabel"></div><div class="hnt" id="trialHint"></div></div>
-  <button id="turnBtn">se retourner</button>
+  <div id="wallnote">quelqu'un a gratté ça dans le mur avant toi. tu ne comprends pas la langue.</div>
 
-  <div id="recDot"></div>
-  <div id="fakeOS">
-    <span id="fosTime">00:00</span>
-    <span id="fosBatt">100%</span>
+  <svg id="wires" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <path id="wireL" d="" stroke="#111" stroke-width="0.5" fill="none"/>
+    <path id="wireR" d="" stroke="#111" stroke-width="0.5" fill="none"/>
+  </svg>
+
+  <div id="tvUnit">
+    <div id="antenna"><svg viewBox="0 0 100 100"><line x1="30" y1="100" x2="15" y2="0" stroke="#888" stroke-width="1.5"/><line x1="70" y1="100" x2="88" y2="4" stroke="#888" stroke-width="1.5"/></svg></div>
+    <div id="tvBody">
+      <div id="tvScreenWrap">
+        <div id="tvScreen">
+          <div id="tvText"></div>
+          <div class="tvGlow"></div>
+          <div class="scanlines"></div>
+        </div>
+      </div>
+      <div id="tvDials"><div class="dial"></div><div class="dial"></div></div>
+    </div>
+    <div id="tvStand"></div>
+    <div id="tvLegs"><div></div><div></div></div>
   </div>
-  <div id="fakeNotif"><b id="fnFrom">Inconnu</b><span id="fnMsg"></span></div>
 
-  <div id="camWrap"><video id="camVideo" autoplay playsinline muted></video><div class="eyeDot" id="eyeDot"></div><div class="camlabel">● REC</div></div>
+  <div id="buttonRow">
+    <button class="bigbtn" id="btnYes">OUI</button>
+    <button class="bigbtn" id="btnNo">NON</button>
+  </div>
+
+  <div id="boot">
+    <div id="hourglass">⧗</div>
+    <div id="bootLabel">chargement</div>
+  </div>
 
   <div id="veil">
-    <div class="title" id="titleText">VEILLE</div>
-    <div class="flavor" id="flavorText">cinq épreuves. il a besoin de te voir pour commencer.</div>
+    <div class="title" id="titleText">LE TEST</div>
+    <div class="flavor" id="flavorText">assieds-toi. réponds sincèrement. ça ne prendra pas longtemps.</div>
     <div class="stat" id="statText"></div>
-    <button class="startbtn" id="startBtn">entrer</button>
+    <button class="startbtn" id="startBtn">commencer</button>
     <div class="miniline"><button id="resetBtn">tout oublier</button></div>
   </div>
 
-  <div id="diedScreen">
-    <div class="diedTitle" id="diedTitle">IL T'A EU</div>
-    <div class="diedSub" id="diedSub"></div>
-  </div>
-
-  <div id="clearedScreen">
-    <div class="clearedTitle">NUIT SURVÉCUE</div>
-    <div class="clearedSub" id="clearedSub"></div>
+  <div id="endScreen">
+    <div id="endTitle">FIN</div>
+    <div id="endSub"></div>
   </div>
 
   <div id="flashLayer"></div>
-
-  <div id="camGate">
-    <div class="box">
-      <div class="eye">◉</div>
-      <p id="camGateText">cinq épreuves t'attendent. il a besoin de te voir, et si possible de t'entendre et de sentir si tu bouges. le flux reste entièrement sur cet appareil — rien n'est envoyé ni enregistré.</p>
-      <div class="row"><button id="camGateBtn">autoriser</button></div>
-      <button class="miniclose" id="camGateClose">retour</button>
-    </div>
-  </div>
-
   <div id="gear" title="paramètres">☾</div>
 </div>
 
@@ -216,12 +196,13 @@
 "use strict";
 
 /* ============================================================
-   VEILLE — utilitaires & état persistant
+   Utilitaires & état persistant
    ============================================================ */
-const SAVE_KEY = "veille_save_v3";
+const SAVE_KEY = "letest_save_v1";
 const now = () => Date.now();
 const REDUCE_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function randRange(a,b){ return a + Math.random()*(b-a); }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
 function loadSave(){
   try{
@@ -229,8 +210,8 @@ function loadSave(){
     if(raw) return JSON.parse(raw);
   }catch(e){}
   return {
-    firstVisit: now(), lastVisit: now(), deaths: 0, nightsCompleted: 0,
-    longestSurvivalMs: 0, totalSessions: 0, reduceEffects: REDUCE_MOTION
+    firstVisit: now(), lastVisit: now(), totalSessions: 0,
+    quietEndings: 0, badEndings: 0, reduceEffects: REDUCE_MOTION
   };
 }
 function writeSave(s){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){} }
@@ -248,7 +229,7 @@ function fmtDuration(ms){
 }
 
 /* ============================================================
-   Canvas setup
+   Canvas — ambiance de la pièce
    ============================================================ */
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
@@ -259,12 +240,12 @@ function resize(){
   canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
   canvas.style.width = W+"px"; canvas.style.height = H+"px";
   ctx.setTransform(DPR,0,0,DPR,0,0);
+  layoutWires();
 }
 window.addEventListener("resize", resize);
-resize();
 
 /* ============================================================
-   Audio (100% procédural, aucun fichier externe)
+   Audio (100% procédural)
    ============================================================ */
 let actx=null, droneGain=null, noiseGain=null, masterGain=null, noiseSrc=null, lfo=null, lfoGain=null, filter=null;
 function ensureAudio(){
@@ -276,13 +257,13 @@ function ensureAudio(){
   masterGain.connect(actx.destination);
 
   const osc = actx.createOscillator();
-  osc.type = "sine"; osc.frequency.value = 55;
-  droneGain = actx.createGain(); droneGain.gain.value = 0.05;
+  osc.type = "sine"; osc.frequency.value = 52;
+  droneGain = actx.createGain(); droneGain.gain.value = 0.035;
   osc.connect(droneGain); droneGain.connect(masterGain);
   osc.start();
 
-  lfo = actx.createOscillator(); lfo.frequency.value = 0.18;
-  lfoGain = actx.createGain(); lfoGain.gain.value = 0.03;
+  lfo = actx.createOscillator(); lfo.frequency.value = 0.15;
+  lfoGain = actx.createGain(); lfoGain.gain.value = 0.025;
   lfo.connect(lfoGain); lfoGain.connect(droneGain.gain);
   lfo.start();
 
@@ -291,36 +272,46 @@ function ensureAudio(){
   const data = buf.getChannelData(0);
   for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1)*0.6;
   noiseSrc = actx.createBufferSource(); noiseSrc.buffer = buf; noiseSrc.loop = true;
-  filter = actx.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = 300;
-  noiseGain = actx.createGain(); noiseGain.gain.value = 0.02;
+  filter = actx.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = 260;
+  noiseGain = actx.createGain(); noiseGain.gain.value = 0.012;
   noiseSrc.connect(filter); filter.connect(noiseGain); noiseGain.connect(masterGain);
   noiseSrc.start();
 }
-function setDread(level){
+function setUnease(level){
   if(!actx) return;
   const t = actx.currentTime;
-  droneGain.gain.setTargetAtTime(0.04 + level*0.09, t, 0.4);
-  noiseGain.gain.setTargetAtTime(0.015 + level*0.08, t, 0.4);
-  filter.frequency.setTargetAtTime(250 + level*1800, t, 0.5);
-  lfo.frequency.setTargetAtTime(0.18 + level*0.6, t, 1);
+  droneGain.gain.setTargetAtTime(0.03 + level*0.075, t, 0.6);
+  noiseGain.gain.setTargetAtTime(0.01 + level*0.06, t, 0.6);
+  filter.frequency.setTargetAtTime(220 + level*1200, t, 0.7);
+  lfo.frequency.setTargetAtTime(0.15 + level*0.4, t, 1);
 }
 function whisperSound(intensity){
   if(!actx) return;
   const t = actx.currentTime;
-  const bufSize = Math.floor(actx.sampleRate*0.35);
+  const bufSize = Math.floor(actx.sampleRate*0.4);
   const buf = actx.createBuffer(1,bufSize,actx.sampleRate);
   const data = buf.getChannelData(0);
   for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1);
   const src = actx.createBufferSource(); src.buffer = buf;
   const f = actx.createBiquadFilter(); f.type = "bandpass";
-  f.frequency.setValueAtTime(1800,t);
-  f.frequency.exponentialRampToValueAtTime(300, t+0.3);
+  f.frequency.setValueAtTime(1600,t);
+  f.frequency.exponentialRampToValueAtTime(280, t+0.35);
   const g = actx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(0.14*intensity, t+0.03);
-  g.gain.exponentialRampToValueAtTime(0.0001, t+0.35);
+  g.gain.linearRampToValueAtTime(0.13*intensity, t+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.4);
   src.connect(f); f.connect(g); g.connect(masterGain);
   src.start(t);
+}
+function clickSound(low){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type="sine";
+  o.frequency.setValueAtTime(low?220:520, t);
+  const g = actx.createGain(); g.gain.setValueAtTime(0.18,t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t+0.14);
 }
 function scareSound(){
   if(!actx) return;
@@ -354,111 +345,17 @@ function scareSound(){
   o3.connect(g3); g3.connect(masterGain);
   o3.start(t); o3.stop(t+0.65);
 }
+function vibrate(pattern){ if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern); }
 
 /* ============================================================
-   Vibration (mobile)
+   Visage procédural (réservé au final "mauvaise fin")
    ============================================================ */
-function vibrate(pattern){
-  if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern);
-}
-
-/* ============================================================
-   État de jeu
-   ============================================================ */
-const STATE = { TITLE:"title", PLAYING:"playing", DEAD:"dead", CLEARED:"cleared" };
-let state = STATE.TITLE;
-
-let held = false;
-let light = 1;
-let threat = 0;
-let panic = 0;
-let sessionStart = 0;
-let paused = false;
-let lastFrame = 0;
-let hiddenAt = 0;
-
-let pointerEvents = [];
 let entitySeed = Math.random()*1000;
-let glitchTimer = randRange(18,34);
-
-let nextGlimpseAt = 0;
-let glimpseUntil = 0, glimpseX=0, glimpseY=0, glimpseSize=0;
-let jumpscareUntil = 0;
-let shakeUntil = 0;
-let crackUntil = 0, crackSeed = 0;
-let subliminalUntil = 0, subliminalText = "", subliminalAngle = 0;
-
-const SUBLIMINAL_AMBIENT = ["derrière toi","il respire","ne bouge pas","chut","il sait","reste calme","trop tard","regarde"];
-const SUBLIMINAL_DEATH = ["NON.","IL T'A EU.","COURS.","TROP TARD.","REGARDE-LE."];
-
-function difficultyMul(){ return 1 + Math.min(save.deaths, 12) * 0.045; }
-function startingThreat(){
-  const hours = (now() - save.lastVisit) / 3600000;
-  return Math.min(0.3, Math.log2(1+hours) * 0.06);
-}
-
-/* ============================================================
-   Les cinq épreuves
-   ============================================================ */
-const TRIALS = [
-  { id:"regard",      label:"LE REGARD",       hint:"ne détourne pas les yeux.",              duration:16000 },
-  { id:"souffle",     label:"LE SOUFFLE",      hint:"ne fais aucun bruit.",                    duration:15000 },
-  { id:"miroir",      label:"LE MIROIR",       hint:"touche l'écran quand tu le vois.",        duration:12000 },
-  { id:"immobilite",  label:"L'IMMOBILITÉ",    hint:"ne bouge pas l'appareil.",                 duration:15000 },
-  { id:"retourner",   label:"DERRIÈRE TOI",    hint:"retourne-toi. puis reviens.",              duration:0 },
-];
-let currentTrial = -1;
-let trialStart = 0;
-
-/* ============================================================
-   Titre — texte qui se souvient
-   ============================================================ */
-function buildTitleFlavor(){
-  const delta = now() - save.lastVisit;
-  const d = save.deaths;
-  let msg;
-  if(save.totalSessions === 0){
-    msg = "cinq épreuves. il a besoin de te voir pour commencer — et si tu le laisses, de t'entendre et de sentir si tu bouges.";
-  } else if(delta < 60000){
-    msg = "tu es encore là. il n'a pas eu le temps de partir non plus.";
-  } else if(delta < 3600000){
-    msg = "tu es parti " + fmtDuration(delta) + ". il a attendu, immobile, tourné vers la porte.";
-  } else if(delta < 86400000){
-    msg = "ça fait " + fmtDuration(delta) + ". quelque chose a bougé pendant ton absence.";
-  } else {
-    msg = "ça fait " + fmtDuration(delta) + ". il a eu largement le temps de grandir.";
-  }
-  const tiers = [
-    "",
-    "il connaît le son de ta respiration, maintenant.",
-    "il n'a plus besoin du noir pour te trouver.",
-    "il compte les fois où tu as lâché prise.",
-    "il n'attend plus que tu recommences.",
-    "il n'est plus vraiment dans l'écran.",
-  ];
-  const tierIdx = Math.min(Math.floor(d/3), tiers.length-1);
-  document.getElementById("flavorText").textContent = msg + (tierIdx>0 ? "  " + tiers[tierIdx] : "");
-  const stat = document.getElementById("statText");
-  const parts = [];
-  if(d>0) parts.push("morts : "+d);
-  if(save.nightsCompleted>0) parts.push("nuits survécues : "+save.nightsCompleted);
-  if(save.longestSurvivalMs>0) parts.push("record : "+fmtDuration(save.longestSurvivalMs));
-  stat.textContent = parts.join("   ·   ");
-
-  const titleEl = document.getElementById("titleText");
-  titleEl.style.letterSpacing = (0.35 + Math.min(d,10)*0.01) + "em";
-  titleEl.style.textShadow = d>6 ? "0 0 22px rgba(180,20,20,0.25), 2px 0 0 rgba(255,0,0,0.12), -2px 0 0 rgba(0,255,255,0.1)" : "0 0 18px rgba(255,255,255,0.08)";
-}
-
-/* ============================================================
-   Visage procédural de l'entité
-   ============================================================ */
 function drawFace(x,y,size,alpha,jitter,fillStyle){
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.translate(x,y);
   ctx.fillStyle = fillStyle || "#050505";
-
   ctx.beginPath();
   const pts = 16;
   for(let i=0;i<=pts;i++){
@@ -487,143 +384,17 @@ function drawFace(x,y,size,alpha,jitter,fillStyle){
   }
   ctx.lineTo(mw,my+size*0.14); ctx.lineTo(-mw,my+size*0.14);
   ctx.closePath(); ctx.fill();
-
   ctx.restore();
 }
-
-/* ============================================================
-   Rendu
-   ============================================================ */
-function threatVignette(){
-  const vr = Math.floor(threat*70), vb = Math.floor(threat*14);
-  const cx=W/2, cy=H/2;
-  const vgn = ctx.createRadialGradient(cx,cy,Math.min(W,H)*0.28,cx,cy,Math.max(W,H)*0.75);
-  vgn.addColorStop(0,"rgba(0,0,0,0)");
-  vgn.addColorStop(1,`rgba(${vr},0,${vb},0.55)`);
-  ctx.fillStyle = vgn;
-  ctx.fillRect(0,0,W,H);
-}
-
-function drawMicMeter(){
-  const cx=W/2, cy=H*0.84;
-  const r = 16 + currentRms*160;
-  ctx.save();
-  ctx.globalAlpha = 0.55;
-  ctx.strokeStyle = (micBaselineReady && currentRms>micThreshold) ? "#c0392b" : "rgba(255,255,255,0.4)";
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(cx,cy,Math.max(6,r),0,Math.PI*2); ctx.stroke();
-  ctx.restore();
-}
-function drawTremorMeter(){
-  const cx=W/2, cy=H*0.84;
-  const w=140, h=6;
-  const t = Math.min(1, tremor/(motionThreshold||1));
-  ctx.save();
-  ctx.strokeStyle = "rgba(255,255,255,0.3)";
-  ctx.strokeRect(cx-w/2,cy,w,h);
-  ctx.fillStyle = t>0.8 ? "#c0392b" : "rgba(255,255,255,0.55)";
-  ctx.fillRect(cx-w/2,cy,w*t,h);
-  ctx.restore();
-}
-
-function drawNormalScene(){
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0,0,W,H);
-
-  const cx = W/2, cy = H*0.46;
-  const baseRadius = Math.max(W,H) * (0.16 + light*0.30 - threat*0.10);
-  const radius = Math.max(30, baseRadius);
-
-  const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,radius*1.9);
-  const lum = 0.10 + light*0.16;
-  grad.addColorStop(0, `rgba(255,244,222,${0.55*light+0.08})`);
-  grad.addColorStop(0.35, `rgba(120,100,90,${lum})`);
-  grad.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0,0,W,H);
-
-  if(threat > 0.05){
-    const distFromLight = radius * (1.5 - threat*1.05);
-    const ang = Math.sin(entitySeed + performance.now()*0.00025) * 0.6;
-    const ex = cx + Math.cos(ang) * distFromLight * 0.9;
-    const ey = cy + Math.sin(ang*0.6) * distFromLight * 0.35 + H*0.06;
-    const size = 40 + threat*(H*0.5);
-    const jitter = threat*16;
-    drawFace(ex, ey, size, Math.min(0.92, threat*0.95+0.05), jitter, "#050505");
-  }
-
-  if(now() < glimpseUntil){
-    drawFace(glimpseX, glimpseY, glimpseSize, 0.85, 10, "#020202");
-  }
-
-  if(!save.reduceEffects){
-    const grainCount = Math.floor(35 + threat*120);
-    ctx.fillStyle = "rgba(255,255,255,0.035)";
-    for(let i=0;i<grainCount;i++){
-      const gx = Math.random()*W, gy = Math.random()*H;
-      ctx.fillRect(gx,gy,1,1);
-    }
-  }
-
-  threatVignette();
-  if(currentTrial===1) drawMicMeter();
-  if(currentTrial===3) drawTremorMeter();
-}
-
-function drawMirrorTrial(){
-  ctx.save();
-  ctx.filter = "grayscale(1) contrast(1.5) brightness(0.55)";
-  const v = document.getElementById("camVideo");
-  if(v && v.videoWidth){
-    const vw=v.videoWidth, vh=v.videoHeight;
-    const scale = Math.max(W/vw, H/vh);
-    const dw=vw*scale, dh=vh*scale;
-    ctx.drawImage(v, (W-dw)/2, (H-dh)/2, dw, dh);
-  } else {
-    ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H);
-  }
-  ctx.filter = "none";
-  ctx.restore();
-
-  if(mirrorFlashUntil>0 && now()<mirrorFlashUntil){
-    drawFace(mirrorFX*W, mirrorFY*H, Math.min(W,H)*0.16, 0.85, 14, "#000");
-  }
-  if(!save.reduceEffects){
-    ctx.fillStyle = "rgba(255,255,255,0.03)";
-    for(let i=0;i<40;i++){ ctx.fillRect(Math.random()*W, Math.random()*H, 1, 1); }
-  }
-  threatVignette();
-}
-
-function drawTurnedScene(){
-  ctx.fillStyle = "#050505";
-  ctx.fillRect(0,0,W,H);
-  const cx=W/2, cy=H*0.5;
-  const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*0.6);
-  grad.addColorStop(0,"rgba(40,35,35,0.35)");
-  grad.addColorStop(1,"rgba(0,0,0,0.95)");
-  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
-
-  if(somethingBehind){
-    const pulse = 0.28 + 0.15*Math.sin(performance.now()*0.004);
-    drawFace(cx + Math.sin(performance.now()*0.0006)*W*0.06, cy, Math.min(W,H)*0.22, pulse, 10, "#000");
-  }
-  if(!save.reduceEffects){
-    ctx.fillStyle = "rgba(255,255,255,0.03)";
-    for(let i=0;i<50;i++){ ctx.fillRect(Math.random()*W, Math.random()*H, 1, 1); }
-  }
-}
-
+let jumpscareUntil = 0, shakeUntil = 0;
 function drawJumpscare(){
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0,0,W,H);
-  const dur = save.reduceEffects ? 400 : 850;
+  ctx.fillStyle = "#000"; ctx.fillRect(0,0,W,H);
+  const dur = save.reduceEffects ? 400 : 900;
   const remain = Math.max(0, jumpscareUntil-now());
   const t = 1 - remain/dur;
-  const size = Math.min(W,H) * (0.5 + 0.55*Math.min(1,t*3));
+  const size = Math.min(W,H) * (0.5 + 0.6*Math.min(1,t*3));
   const cx = W/2 + (save.reduceEffects?0:(Math.random()-0.5)*10);
   const cy = H/2 + (save.reduceEffects?0:(Math.random()-0.5)*10);
-
   if(!save.reduceEffects){
     ctx.globalCompositeOperation = "lighter";
     drawFace(cx-6, cy, size, 0.5, 26, "rgba(255,0,60,0.9)");
@@ -631,688 +402,278 @@ function drawJumpscare(){
     ctx.globalCompositeOperation = "source-over";
   }
   drawFace(cx, cy, size, 1, save.reduceEffects?6:22, "#050505");
-
   if(!save.reduceEffects && Math.random()<0.5){
-    ctx.fillStyle = "rgba(255,255,255,0.06)";
-    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = "rgba(255,255,255,0.06)"; ctx.fillRect(0,0,W,H);
   }
 }
 
-function drawSubliminalText(){
-  ctx.save();
-  ctx.translate(W/2, H*0.4);
-  ctx.rotate(subliminalAngle*Math.PI/180);
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = "700 " + Math.round(Math.min(W,H)*0.075) + "px sans-serif";
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(subliminalText, 0, 0);
-  ctx.restore();
-}
+/* ============================================================
+   Rendu de fond (pièce capitonnée + grain + vignette)
+   ============================================================ */
+let unease = 0; // 0..1, monte avec la progression du test
+function drawRoom(){
+  ctx.fillStyle = "#3a3d44"; ctx.fillRect(0,0,W,H);
 
-function drawCrack(){
-  const alpha = Math.max(0,(crackUntil-now())/900) * 0.45;
-  if(alpha<=0) return;
-  ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-  ctx.lineWidth = 1.5;
-  let x = W*0.5 + ((crackSeed%50)-25), y = 0;
-  ctx.beginPath(); ctx.moveTo(x,y);
-  let rng = crackSeed || 1;
-  for(let i=0;i<9;i++){
-    rng = (rng*9301+49297)%233280;
-    const rx = rng/233280;
-    x += (rx-0.5)*W*0.09;
-    y += H/9;
-    ctx.lineTo(x,y);
+  // dalles capitonnées
+  const tile = Math.max(46, Math.min(W,H)/9);
+  ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 2;
+  for(let y=-tile; y<H+tile; y+=tile){
+    for(let x=-tile; x<W+tile; x+=tile){
+      const g = ctx.createRadialGradient(x+tile/2,y+tile/2,tile*0.05,x+tile/2,y+tile/2,tile*0.62);
+      g.addColorStop(0, "rgba(255,255,255,0.05)");
+      g.addColorStop(1, "rgba(0,0,0,0.12)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x,y,tile,tile);
+      ctx.strokeRect(x,y,tile,tile);
+    }
   }
-  ctx.stroke();
+
+  // sol
+  const floorY = H*0.78;
+  ctx.fillStyle = "#2c2e33";
+  ctx.fillRect(0,floorY,W,H-floorY);
+  ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth=1.5;
+  const ftile = tile*0.8;
+  for(let x=-ftile; x<W+ftile; x+=ftile){
+    ctx.beginPath(); ctx.moveTo(x,floorY); ctx.lineTo(x,H); ctx.stroke();
+  }
+
+  if(!save.reduceEffects){
+    const grainCount = Math.floor(20 + unease*90);
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    for(let i=0;i<grainCount;i++){
+      ctx.fillRect(Math.random()*W, Math.random()*H, 1, 1);
+    }
+  }
+
+  // flicker occasionnel de la lumière
+  if(lightFlickerUntil > now()){
+    ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,W,H);
+  }
+
+  // vignette qui s'assombrit avec le malaise
+  const cx=W/2, cy=H*0.42;
+  const vgn = ctx.createRadialGradient(cx,cy,Math.min(W,H)*0.2,cx,cy,Math.max(W,H)*0.75);
+  vgn.addColorStop(0,"rgba(0,0,0,0)");
+  vgn.addColorStop(1,`rgba(0,0,0,${0.35+unease*0.45})`);
+  ctx.fillStyle = vgn; ctx.fillRect(0,0,W,H);
+}
+let lightFlickerUntil = 0;
+function triggerLightFlicker(){
+  lightFlickerUntil = now() + randRange(90,180);
+  setTimeout(()=>{ if(Math.random()<0.5){ lightFlickerUntil = now()+randRange(70,140); } }, 220);
 }
 
 function drawScene(){
   const shaking = now() < shakeUntil;
   let ox=0, oy=0;
   if(shaking){
-    const mag = save.reduceEffects ? 3 : 18;
+    const mag = save.reduceEffects ? 3 : 16;
     ox = (Math.random()-0.5)*mag; oy = (Math.random()-0.5)*mag;
   }
   ctx.save();
   if(shaking) ctx.translate(ox,oy);
-
   if(now() < jumpscareUntil){
     drawJumpscare();
-  } else if(turnedAround){
-    drawTurnedScene();
-  } else if(currentTrial===2 && state===STATE.PLAYING){
-    drawMirrorTrial();
-    if(now() < subliminalUntil) drawSubliminalText();
   } else {
-    drawNormalScene();
-    if(now() < crackUntil) drawCrack();
-    if(now() < subliminalUntil) drawSubliminalText();
+    drawRoom();
   }
-
   ctx.restore();
 }
-
-function loop(ts){
+function loop(){
   requestAnimationFrame(loop);
-  if(!lastFrame) lastFrame = ts;
-  let dt = (ts - lastFrame)/1000;
-  lastFrame = ts;
-  dt = Math.min(dt, 0.1);
-  if(state === STATE.PLAYING) updateGame(dt);
   drawScene();
 }
-requestAnimationFrame(loop);
 
 /* ============================================================
-   Ambiance : aperçus furtifs + faux glitchs d'OS
+   Fils SVG reliant les boutons au téléviseur
    ============================================================ */
-function scheduleNextGlimpse(){
-  const bonus = held ? 1.6 : 1;
-  nextGlimpseAt = now() + randRange(7000,14000) * bonus;
+function layoutWires(){
+  const tv = document.getElementById("tvBody").getBoundingClientRect();
+  const yesBtn = document.getElementById("btnYes").getBoundingClientRect();
+  const noBtn = document.getElementById("btnNo").getBoundingClientRect();
+  const svg = document.getElementById("wires");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const tvx = tv.left+tv.width*0.5, tvy = tv.bottom-6;
+  const set = (id, bx, by)=>{
+    const path = document.getElementById(id);
+    const midY = (tvy+by)/2;
+    path.setAttribute("d", `M ${tvx} ${tvy} C ${tvx} ${midY}, ${bx} ${midY}, ${bx} ${by}`);
+  };
+  set("wireL", yesBtn.left+yesBtn.width/2, yesBtn.top+4);
+  set("wireR", noBtn.left+noBtn.width/2, noBtn.top+4);
 }
-function triggerGlimpse(){
-  const edge = Math.floor(Math.random()*4);
-  const margin = 0.12;
-  if(edge===0){ glimpseX=randRange(margin,1-margin)*W; glimpseY=H*randRange(0.02,0.14); }
-  else if(edge===1){ glimpseX=randRange(margin,1-margin)*W; glimpseY=H*randRange(0.86,0.98); }
-  else if(edge===2){ glimpseX=W*randRange(0.02,0.14); glimpseY=randRange(margin,1-margin)*H; }
-  else { glimpseX=W*randRange(0.86,0.98); glimpseY=randRange(margin,1-margin)*H; }
-  glimpseSize = randRange(40,90) + threat*60;
-  glimpseUntil = now() + randRange(110,240);
-  whisperSound(0.22);
-  vibrate([10]);
-  if(Math.random()<0.3) flashSubliminal(SUBLIMINAL_AMBIENT[Math.floor(Math.random()*SUBLIMINAL_AMBIENT.length)]);
+
+/* ============================================================
+   Les questions — écriture originale
+   ============================================================ */
+let sessionCount = 0; // rempli au démarrage depuis save.totalSessions
+function timeString(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,"0")+"h"+String(d.getMinutes()).padStart(2,"0");
 }
-function flashSubliminal(text){
-  subliminalText = text;
-  subliminalAngle = randRange(-6,6);
-  subliminalUntil = now() + randRange(70,130);
-}
-function triggerCrack(){
-  crackSeed = Math.floor(Math.random()*100000)+1;
-  crackUntil = now() + randRange(500,900);
-}
-let batteryLevel = 100;
+let batteryLevel = null;
 if(navigator.getBattery){
   navigator.getBattery().then(b=>{
     batteryLevel = Math.round(b.level*100);
     b.addEventListener("levelchange", ()=>{ batteryLevel = Math.round(b.level*100); });
   }).catch(()=>{});
 }
-function updateFakeClock(){
-  const d = new Date();
-  const hh = String(d.getHours()).padStart(2,"0");
-  const mm = String(d.getMinutes()).padStart(2,"0");
-  document.getElementById("fosTime").textContent = hh+":"+mm;
-  document.getElementById("fosBatt").textContent = batteryLevel + "%";
-}
-setInterval(updateFakeClock, 1000);
-const glitchLines = [
-  "il fait plus froid ici qu'il y a une minute.",
-  "quelqu'un respire, mais ce n'est pas toi.",
-  "1 nouvelle présence détectée.",
-  "ne te retourne pas.",
-  "il sait que tu lis ceci.",
-  "batterie : ne le laisse pas s'éteindre.",
+
+const QUESTIONS = [
+  { text:"Es-tu vivant ?", weight:{yes:1,no:-1} },
+  { text:"Comprends-tu ce qu'on te demande ?" },
+  { text:"Vois-tu cet écran clairement ?" },
+  { text:"Es-tu seul, là où tu es ?" },
+  { text:"As-tu déjà répondu à ce genre de question ?" },
+  { text:"Te souviens-tu de ton propre nom, là, tout de suite ?" },
+  { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
+  { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
+  { text:"Sais-tu depuis combien de temps tu es assis là ?" },
+  { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
+  { text:"Tu as déjà répondu à cette question, une fois. T'en souviens-tu ?" },
+  { text:"Pourquoi as-tu changé d'avis, depuis la dernière fois ?" },
+  { text:"Si tu mentais, maintenant, le saurais-tu ?" },
+  { text:"Crois-tu que tes réponses t'appartiennent encore ?" },
+  { text:"Entends-tu ce bruit ?", effect: ()=>whisperSound(0.6) },
+  { text:"Quelqu'un d'autre pourrait-il répondre à ta place sans que tu le remarques ?" },
+  { text:"As-tu vérifié que c'est bien toi qui tiens cet appareil ?" },
+  {
+    text: ()=> sessionCount<=1 ? "C'est la première fois que tu viens ici. Le savais-tu ?" : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?`
+  },
+  { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
+  { text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", weight:{yes:-1,no:1} },
+  { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", weight:{yes:1,no:-1} },
+  { text:"t̸u̴—n'̷e̸s̶—p̵a̴s̸—s̷e̸u̶l̴", corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); } },
+  { text:"...ça va. ce n'était rien. prêt pour la suite ?" },
+  { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", weight:{yes:-1,no:1}, isLast:true },
 ];
-function triggerFakeGlitch(){
-  const fosEl = document.getElementById("fakeOS");
-  const rec = document.getElementById("recDot");
-  const roll = Math.random();
-  if(roll < 0.5){
-    fosEl.style.opacity = "1";
-    const battEl = document.getElementById("fosBatt");
-    const realBatt = batteryLevel;
-    let fake = realBatt;
-    const iv = setInterval(()=>{ fake = Math.max(-1, fake-Math.floor(randRange(3,14))); battEl.textContent = fake+"%"; if(fake<=0) clearInterval(iv); }, 90);
-    setTimeout(()=>{ fosEl.style.opacity="0"; battEl.textContent = realBatt+"%"; }, 1400);
-    vibrate([15]);
-  } else {
-    showFakeNotif(glitchLines[Math.floor(Math.random()*glitchLines.length)]);
-  }
-  if(Math.random()<0.35){
-    rec.style.opacity = "1";
-    setTimeout(()=>{ rec.style.opacity="0"; }, randRange(400,900));
-  }
-  if(Math.random()<0.3) triggerCrack();
-}
-function showFakeNotif(text, from){
-  const n = document.getElementById("fakeNotif");
-  document.getElementById("fnFrom").textContent = from || "Système";
-  document.getElementById("fnMsg").textContent = text;
-  n.classList.add("show");
-  setTimeout(()=>{ n.classList.remove("show"); }, 2600);
-}
-function showFakeNotifOnReturn(awayMs){
-  showFakeNotif("tu étais parti " + fmtDuration(awayMs) + ". il s'est rapproché.", "VEILLE");
-}
+
+let qIndex = -1;
+let compliance = 0;
+let waitingAnswer = false;
 
 /* ============================================================
-   Épreuve 1 : LE SOUFFLE (micro)
+   Machine du test
    ============================================================ */
-let micAnalyser = null, micDataArray = null;
-let micBaselineReady = false, micBaselineSamples = [], micThreshold = 0.12, micBreachSince = 0;
-let currentRms = 0;
-function setupMicFromStream(stream){
-  const audioTracks = stream.getAudioTracks ? stream.getAudioTracks() : [];
-  if(!audioTracks.length){ micAnalyser = null; return; }
-  ensureAudio();
-  if(!actx){ micAnalyser = null; return; }
-  try{
-    const micSource = actx.createMediaStreamSource(stream);
-    micAnalyser = actx.createAnalyser();
-    micAnalyser.fftSize = 512;
-    micDataArray = new Uint8Array(micAnalyser.fftSize);
-    micSource.connect(micAnalyser); // jamais reliée à la sortie
-  }catch(e){ micAnalyser = null; }
+function setTvText(text, corrupt){
+  const el = document.getElementById("tvText");
+  el.textContent = text;
+  el.classList.toggle("corrupt", !!corrupt);
 }
-function checkMic(){
-  if(!micAnalyser){ currentRms = 0; return; }
-  micAnalyser.getByteTimeDomainData(micDataArray);
-  let sumSquares=0;
-  for(let i=0;i<micDataArray.length;i++){ const v=(micDataArray[i]-128)/128; sumSquares+=v*v; }
-  currentRms = Math.sqrt(sumSquares/micDataArray.length);
-
-  const elapsedTrial = now()-trialStart;
-  if(elapsedTrial < 700){ micBaselineSamples.push(currentRms); return; }
-  if(!micBaselineReady){
-    const avg = micBaselineSamples.reduce((a,b)=>a+b,0)/Math.max(1,micBaselineSamples.length);
-    micThreshold = Math.max(0.05, avg*2.3 + 0.035);
-    micBaselineReady = true;
-  }
-  if(currentRms > micThreshold){
-    if(micBreachSince===0) micBreachSince = now();
-    if(now()-micBreachSince > 450){ onCaught("tu as fait du bruit. il t'a entendu."); }
-  } else {
-    micBreachSince = 0;
-  }
+function setButtonsEnabled(on){
+  document.getElementById("btnYes").classList.toggle("disabled", !on);
+  document.getElementById("btnNo").classList.toggle("disabled", !on);
 }
 
-/* ============================================================
-   Épreuve 2 : LE MIROIR (feed caméra plein écran)
-   ============================================================ */
-let mirrorFlashAt=0, mirrorFlashUntil=0, mirrorFX=0.5, mirrorFY=0.5, mirrorCaught=false;
-function scheduleMirrorFlash(){
-  mirrorFlashAt = now() + randRange(3000,7500);
-  mirrorFlashUntil = 0;
-  mirrorCaught = false;
+function nextQuestion(){
+  qIndex++;
+  if(qIndex >= QUESTIONS.length){ concludeTest(); return; }
+  const q = QUESTIONS[qIndex];
+  const txt = typeof q.text === "function" ? q.text() : q.text;
+
+  waitingAnswer = false;
+  setButtonsEnabled(false);
+  setTvText("…", false);
+  unease = Math.min(1, qIndex / (QUESTIONS.length-1));
+  setUnease(unease);
+
+  const delay = q.freeze || randRange(500,900);
+  setTimeout(()=>{
+    if(state!==STATE.PLAYING) return;
+    setTvText(txt, !!q.corrupt);
+    if(q.effect) q.effect();
+    waitingAnswer = !q.corrupt;
+    setButtonsEnabled(!q.corrupt);
+    if(q.corrupt){
+      setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, q.freeze || 1500);
+    }
+  }, delay);
 }
-function updateMirrorTrial(){
-  const trial = TRIALS[2];
-  const elapsedTrial = now()-trialStart;
-  if(!mirrorCaught && mirrorFlashUntil===0 && now()>mirrorFlashAt){
-    mirrorFlashUntil = now()+700;
-    mirrorFX = randRange(0.2,0.8); mirrorFY = randRange(0.28,0.68);
-    whisperSound(0.3);
+
+function answer(isYes){
+  if(!waitingAnswer || state!==STATE.PLAYING) return;
+  waitingAnswer = false;
+  setButtonsEnabled(false);
+  clickSound(!isYes);
+  vibrate([10]);
+
+  const q = QUESTIONS[qIndex];
+  if(q.weight){
+    compliance += isYes ? q.weight.yes : q.weight.no;
   }
-  if(mirrorFlashUntil>0 && now()>mirrorFlashUntil && !mirrorCaught){
-    onCaught("tu ne l'as pas vu à temps.");
+  if(q.isLast){
+    setTimeout(()=>concludeTest(), 500);
     return;
   }
-  if(elapsedTrial > trial.duration && !mirrorCaught){
-    onCaught("tu ne l'as pas vu à temps.");
-  }
+  setTimeout(()=>nextQuestion(), randRange(350,600));
+}
+document.getElementById("btnYes").addEventListener("click", (e)=>{ e.stopPropagation(); answer(true); });
+document.getElementById("btnNo").addEventListener("click", (e)=>{ e.stopPropagation(); answer(false); });
+document.getElementById("btnYes").addEventListener("pointerdown",(e)=>e.stopPropagation());
+document.getElementById("btnNo").addEventListener("pointerdown",(e)=>e.stopPropagation());
+
+function concludeTest(){
+  if(compliance >= 1){ endQuiet(); } else { endJumpscare(); }
 }
 
 /* ============================================================
-   Épreuve 3 : L'IMMOBILITÉ (capteurs mouvement / repli clavier-souris)
+   Fins
    ============================================================ */
-let motionPermissionOK = false, motionPermissionAsked = false;
-let motionEventFired = false, usingInputFallback = false;
-let lastAccelMag = null, tremor = 0;
-let motionBaselineReady = false, motionBaselineSamples = [], motionThreshold = 0.6;
-let stillBrokenSince = 0;
-let fallbackGraceUntil = 0, fallbackViolation = false;
+const STATE = { TITLE:"title", BOOT:"boot", PLAYING:"playing", END:"end" };
+let state = STATE.TITLE;
+let sessionStart = 0;
 
-async function requestMotionPermission(){
-  if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
-    try{
-      const res = await DeviceMotionEvent.requestPermission();
-      motionPermissionOK = (res === "granted");
-    }catch(e){ motionPermissionOK = false; }
-  } else {
-    motionPermissionOK = true;
-  }
-}
-function handleMotion(e){
-  motionEventFired = true;
-  const a = (e.acceleration && e.acceleration.x!==null) ? e.acceleration : e.accelerationIncludingGravity;
-  if(!a) return;
-  const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
-  if(lastAccelMag===null){ lastAccelMag = mag; return; }
-  const delta = Math.abs(mag-lastAccelMag);
-  lastAccelMag = mag;
-  tremor = tremor*0.8 + delta*0.2;
-}
-window.addEventListener("devicemotion", handleMotion);
-window.addEventListener("mousemove", ()=>{
-  if(currentTrial===3 && usingInputFallback && now()>fallbackGraceUntil) fallbackViolation = true;
-});
-window.addEventListener("keydown", (e)=>{
-  if(currentTrial===3 && usingInputFallback && e.code!=="Space" && now()>fallbackGraceUntil) fallbackViolation = true;
-});
-
-function checkStillness(){
-  const elapsedTrial = now()-trialStart;
-
-  if(!usingInputFallback && !motionEventFired && elapsedTrial>900){
-    usingInputFallback = true;
-    fallbackGraceUntil = now() + 700;
-    fallbackViolation = false;
-  }
-
-  if(usingInputFallback){
-    tremor = fallbackViolation ? 1 : 0;
-    if(fallbackViolation && now() > fallbackGraceUntil){
-      onCaught("tu as bougé. il a senti la vibration.");
-    }
-    return;
-  }
-
-  if(elapsedTrial < 700){ motionBaselineSamples.push(tremor); return; }
-  if(!motionBaselineReady){
-    const avg = motionBaselineSamples.reduce((a,b)=>a+b,0)/Math.max(1,motionBaselineSamples.length);
-    motionThreshold = Math.max(0.35, avg*2.5+0.25);
-    motionBaselineReady = true;
-  }
-  if(tremor > motionThreshold){
-    if(stillBrokenSince===0) stillBrokenSince = now();
-    if(now()-stillBrokenSince > 500){ onCaught("tu as bougé. il a senti la vibration."); }
-  } else {
-    stillBrokenSince = 0;
-  }
-}
-
-/* ============================================================
-   Épreuve 4 : DERRIÈRE TOI (finale)
-   ============================================================ */
-let turnedAround = false;
-let somethingBehind = false;
-document.getElementById("turnBtn").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
-document.getElementById("turnBtn").addEventListener("click", (e)=>{
-  e.stopPropagation();
-  if(state !== STATE.PLAYING || currentTrial !== 4) return;
-  const btn = document.getElementById("turnBtn");
-  if(!turnedAround){
-    turnedAround = true;
-    paused = true;
-    somethingBehind = Math.random() < 0.45;
-    whisperSound(somethingBehind ? 0.55 : 0.2);
-    vibrate([20]);
-  } else {
-    turnedAround = false;
-    paused = false;
-    btn.classList.remove("show");
-    if(somethingBehind){
-      onCaught("tu l'as vu juste avant de te retourner.");
-    } else {
-      passTrial();
-    }
-  }
-});
-
-/* ============================================================
-   Machine à épreuves
-   ============================================================ */
-function startTrial(index){
-  currentTrial = index;
-  trialStart = now();
-  const trial = TRIALS[index];
-
-  document.getElementById("trialLabel").textContent = trial.label;
-  document.getElementById("trialHint").textContent = trial.hint;
-  const banner = document.getElementById("trialBanner");
-  banner.classList.add("show");
-  setTimeout(()=>{ banner.classList.remove("show"); }, 2400);
-
-  document.getElementById("camWrap").style.display = (index===2) ? "none" : "";
-
-  if(index===1){
-    micBaselineReady = false; micBaselineSamples = []; micBreachSince = 0; currentRms = 0;
-    // si le micro n'est pas disponible, checkMic() ne pénalise jamais : l'épreuve
-    // se termine simplement au bout de sa durée via le minuteur normal dans updateGame().
-  }
-  if(index===2){ scheduleMirrorFlash(); }
-  if(index===3){
-    stillBrokenSince=0; motionBaselineReady=false; motionBaselineSamples=[];
-    usingInputFallback=false; motionEventFired=false; tremor=0; lastAccelMag=null;
-    fallbackGraceUntil=0; fallbackViolation=false;
-  }
-  if(index===4){
-    turnedAround=false; somethingBehind=false;
-    document.getElementById("turnBtn").classList.add("show");
-  }
-}
-function passTrial(){
-  if(state!==STATE.PLAYING) return;
-  if(currentTrial>=4){ onCleared(); return; }
-  vibrate([12]);
-  whisperSound(0.12);
-  startTrial(currentTrial+1);
-}
-
-/* ============================================================
-   Logique de jeu
-   ============================================================ */
-function updateGame(dt){
-  if(paused) return;
-
-  const dmul = difficultyMul();
-
-  const cutoff = now() - 4000;
-  pointerEvents = pointerEvents.filter(t=>t>cutoff);
-  const freq = pointerEvents.length;
-  const targetPanic = Math.max(0, Math.min(1, (freq-2)/6));
-  panic += (targetPanic - panic) * Math.min(1, dt*1.5);
-
-  if(held){
-    light = Math.min(1, light + dt*0.32);
-    const calmBonus = Math.max(0, 1-panic);
-    threat = Math.max(0, threat - dt*0.07*calmBonus*(1/dmul) + dt*0.055*panic*dmul);
-  } else {
-    light = Math.max(0, light - dt*0.9);
-    threat = Math.min(1, threat + dt*0.17*dmul);
-  }
-  setDread(threat);
-  document.getElementById("hint").style.opacity = (sessionStart && now()-sessionStart>6000) ? "0" : "1";
-
-  if(nextGlimpseAt===0) scheduleNextGlimpse();
-  if(now() > nextGlimpseAt){ triggerGlimpse(); scheduleNextGlimpse(); }
-
-  glitchTimer -= dt;
-  if(glitchTimer <= 0 && now()-sessionStart > 9000){
-    triggerFakeGlitch();
-    glitchTimer = randRange(16,30);
-  }
-
-  if(threat >= 1){ onCaught(); return; }
-
-  const trial = TRIALS[currentTrial];
-  const elapsedTrial = now()-trialStart;
-
-  if(currentTrial===0){
-    if(elapsedTrial > trial.duration) passTrial();
-  } else if(currentTrial===1){
-    checkMic();
-    if(elapsedTrial > trial.duration) passTrial();
-  } else if(currentTrial===2){
-    updateMirrorTrial();
-  } else if(currentTrial===3){
-    checkStillness();
-    if(elapsedTrial > trial.duration) passTrial();
-  }
-  // currentTrial===4 : géré entièrement par le bouton turnBtn
-}
-
-function onPointerDown(){
-  ensureAudio();
-  if(actx && actx.state==="suspended") actx.resume();
-  held = true;
-  pointerEvents.push(now());
-  if(currentTrial===2 && mirrorFlashUntil>0 && now()<mirrorFlashUntil && !mirrorCaught){
-    mirrorCaught = true;
-    vibrate([10]);
-    whisperSound(0.12);
-    passTrial();
-  }
-}
-function onPointerUp(){ held = false; }
-
-/* ============================================================
-   Contrôles : tactile + souris + espace
-   ============================================================ */
-const stage = document.getElementById("app");
-stage.addEventListener("pointerdown", ()=>{ if(state===STATE.PLAYING && !paused){ onPointerDown(); } });
-window.addEventListener("pointerup", ()=>{ onPointerUp(); });
-window.addEventListener("pointercancel", ()=>{ onPointerUp(); });
-window.addEventListener("keydown", (e)=>{
-  if(e.code === "Space" && state===STATE.PLAYING && !paused){ e.preventDefault(); onPointerDown(); }
-});
-window.addEventListener("keyup", (e)=>{ if(e.code === "Space"){ onPointerUp(); } });
-window.addEventListener("blur", ()=>{ onPointerUp(); });
-
-/* ============================================================
-   Caméra + regard (face-api.js, 100% local)
-   ============================================================ */
-let camStream = null;
-let everGranted = false;
-let modelsReady = false;
-let faceApiScriptReady = false;
-let detectTimer = null;
-let looking = true;
-let awaySince = 0;
-let gazeGraceUntil = 0;
-let lastGazeScareAt = 0;
-const AWAY_MIN_MS = 550;
-const GAZE_SCARE_COOLDOWN = 4000;
-
-function loadFaceApiScript(){
-  return new Promise((resolve,reject)=>{
-    if(faceApiScriptReady || window.faceapi){ faceApiScriptReady = true; resolve(); return; }
-    const s = document.createElement("script");
-    s.src = "lib/face-api.min.js";
-    s.onload = ()=>{ faceApiScriptReady = true; resolve(); };
-    s.onerror = ()=> reject(new Error("face-api-load-failed"));
-    document.head.appendChild(s);
-  });
-}
-async function loadModels(){
-  if(modelsReady) return;
-  await window.faceapi.nets.tinyFaceDetector.loadFromUri("models");
-  modelsReady = true;
-}
-async function acquireCamera(){
-  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
-    throw new Error("no-camera-api");
-  }
-  let stream;
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:true});
-  }catch(e){
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
-  }
-  camStream = stream;
-  everGranted = true;
-  const v = document.getElementById("camVideo");
-  v.srcObject = stream;
-  try{ await v.play(); }catch(e){}
-  document.getElementById("camWrap").classList.add("show");
-  setupMicFromStream(stream);
-}
-function stopCamera(){
-  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-  document.getElementById("camWrap").classList.remove("show");
-  micAnalyser = null;
-}
-
-function showCamGate(kind, text){
-  const g = document.getElementById("camGate");
-  const t = document.getElementById("camGateText");
-  const btn = document.getElementById("camGateBtn");
-  if(kind==="ask"){
-    t.textContent = "cinq épreuves t'attendent. il a besoin de te voir, et si possible de t'entendre et de sentir si tu bouges. le flux reste entièrement sur cet appareil — rien n'est envoyé ni enregistré.";
-    btn.textContent = "autoriser"; btn.style.display = "inline-block";
-  } else if(kind==="loading"){
-    t.textContent = "il ouvre les yeux…";
-    btn.style.display = "none";
-  } else if(kind==="denied"){
-    t.textContent = text || "il ne peut pas te voir.";
-    btn.textContent = "réessayer"; btn.style.display = "inline-block";
-  }
-  g.classList.add("show");
-}
-function hideCamGate(){ document.getElementById("camGate").classList.remove("show"); }
-
-let starting = false;
-async function tryStart(){
-  if(starting) return;
-  starting = true;
-  if(!modelsReady || !camStream){
-    showCamGate("loading");
-    try{
-      if(!camStream) await acquireCamera();
-      await loadFaceApiScript();
-      if(!modelsReady) await loadModels();
-      if(!motionPermissionAsked){ await requestMotionPermission(); motionPermissionAsked = true; }
-    }catch(err){
-      starting = false;
-      let msg = "il n'a pas réussi à te voir. réessaie.";
-      if(err && err.name === "NotAllowedError") msg = "caméra refusée. autorise-la dans les réglages du navigateur, puis réessaie.";
-      else if(err && err.message === "no-camera-api") msg = "aucune caméra détectée sur cet appareil. impossible de jouer sans qu'il puisse te voir.";
-      else if(err && err.message === "face-api-load-failed") msg = "le module de vision n'a pas pu charger. vérifie ta connexion et réessaie.";
-      showCamGate("denied", msg);
-      return;
-    }
-  }
-  hideCamGate();
-  startDetectionLoop();
-  startGame();
-  starting = false;
-}
-
-document.getElementById("startBtn").addEventListener("click", (e)=>{
-  e.stopPropagation();
-  if(!everGranted){ showCamGate("ask"); }
-  else { tryStart(); }
-});
-document.getElementById("camGateBtn").addEventListener("click", (e)=>{
-  e.stopPropagation();
-  tryStart();
-});
-document.getElementById("camGateClose").addEventListener("click", (e)=>{
-  e.stopPropagation();
-  hideCamGate();
-});
-document.getElementById("camGate").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
-
-function startDetectionLoop(){
-  stopDetectionLoop();
-  looking = true; awaySince = 0;
-  gazeGraceUntil = now() + 3500;
-  detectTimer = setInterval(async ()=>{
-    if(state!==STATE.PLAYING || paused || document.hidden || !camStream || !window.faceapi) return;
-    const v = document.getElementById("camVideo");
-    if(!v || v.readyState < 2) return;
-    try{
-      const result = await window.faceapi.detectSingleFace(v, new window.faceapi.TinyFaceDetectorOptions({inputSize:160, scoreThreshold:0.5}));
-      handleGaze(!!result);
-    }catch(e){ /* ignore une frame ratée */ }
-  }, 320);
-}
-function stopDetectionLoop(){ if(detectTimer){ clearInterval(detectTimer); detectTimer=null; } }
-
-function handleGaze(seen){
-  const eyeDot = document.getElementById("eyeDot");
-  if(eyeDot) eyeDot.classList.toggle("away", !seen);
-  if(!seen){
-    if(awaySince===0) awaySince = now();
-    looking = false;
-  } else {
-    if(!looking && awaySince>0 && currentTrial===0){
-      const awayFor = now() - awaySince;
-      if(awayFor > AWAY_MIN_MS && now() > gazeGraceUntil && now()-lastGazeScareAt > GAZE_SCARE_COOLDOWN && state===STATE.PLAYING && !paused){
-        lastGazeScareAt = now();
-        onCaught("tu as détourné le regard. il en a profité.");
-      }
-    }
-    awaySince = 0;
-    looking = true;
-  }
-}
-
-/* ============================================================
-   Visibilité de l'onglet
-   ============================================================ */
-document.addEventListener("visibilitychange", ()=>{
-  if(document.hidden){
-    if(state===STATE.PLAYING){ hiddenAt = now(); }
-    stopCamera();
-    stopDetectionLoop();
-  } else {
-    if(state===STATE.PLAYING){
-      const away = now() - hiddenAt;
-      const awaySec = away/1000;
-      const bump = Math.min(0.6, awaySec*0.01);
-      threat = Math.min(1, threat + bump);
-      hiddenAt = 0;
-      if(awaySec > 4) showFakeNotifOnReturn(away);
-      acquireCamera().then(()=>{ startDetectionLoop(); }).catch(()=>{});
-      if(threat>=1) onCaught();
-    }
-  }
-});
-
-/* ============================================================
-   Mort / capture
-   ============================================================ */
-function onCaught(customLine){
-  if(state === STATE.DEAD) return;
-  state = STATE.DEAD;
-  const survived = now() - sessionStart;
-  save.deaths += 1;
-  save.longestSurvivalMs = Math.max(save.longestSurvivalMs, survived);
+function endQuiet(){
+  state = STATE.END;
+  save.quietEndings = (save.quietEndings||0)+1;
   save.lastVisit = now();
   writeSave(save);
-  stopCamera();
-  stopDetectionLoop();
+  setButtonsEnabled(false);
+  setTvText("TEST TERMINÉ.", false);
+  unease = 0.3; setUnease(unease);
 
-  const jsDuration = save.reduceEffects ? 400 : 850;
+  setTimeout(()=>{
+    document.getElementById("endTitle").textContent = "MERCI.";
+    document.getElementById("endTitle").style.color = "#8fb0c9";
+    document.getElementById("endSub").textContent = "on se revoit bientôt. tu ne sauras pas quand.";
+    document.getElementById("endScreen").classList.add("show");
+  }, 1200);
+
+  setTimeout(()=>{ whisperSound(0.3); }, 3200);
+
+  setTimeout(()=>{
+    document.getElementById("endScreen").classList.remove("show");
+    backToTitle();
+  }, 6000);
+}
+function endJumpscare(){
+  state = STATE.END;
+  save.badEndings = (save.badEndings||0)+1;
+  save.lastVisit = now();
+  writeSave(save);
+  setButtonsEnabled(false);
+  setTvText("……", true);
+
+  const jsDuration = save.reduceEffects ? 400 : 900;
   jumpscareUntil = now() + jsDuration;
   shakeUntil = jumpscareUntil;
-  flashSubliminal(SUBLIMINAL_DEATH[Math.floor(Math.random()*SUBLIMINAL_DEATH.length)]);
   scareSound();
   vibrate([0,90,30,90,30,260]);
   flashScreen();
 
   setTimeout(()=>{
-    const diedSub = document.getElementById("diedSub");
-    const lines = [
-      "tu as lâché prise.",
-      "tu as paniqué. il a senti chaque battement.",
-      "il attendait juste ça.",
-      "tu croyais que rester calme suffirait.",
-    ];
-    const base = customLine || lines[Math.floor(Math.random()*lines.length)];
-    diedSub.textContent = base + "  —  survécu " + fmtDuration(survived) + ".";
-    document.getElementById("diedScreen").classList.add("show");
-  }, 550);
+    document.getElementById("endTitle").textContent = "TU N'AURAIS PAS DÛ VOULOIR SAVOIR.";
+    document.getElementById("endTitle").style.color = "#8a1f1f";
+    document.getElementById("endSub").textContent = "le test recommencera. il recommence toujours.";
+    document.getElementById("endScreen").classList.add("show");
+  }, 700);
 
   setTimeout(()=>{
-    document.getElementById("diedScreen").classList.remove("show");
+    document.getElementById("endScreen").classList.remove("show");
     backToTitle();
-  }, 3200);
+  }, 4600);
 }
-
-/* ============================================================
-   Victoire : nuit survécue
-   ============================================================ */
-function onCleared(){
-  state = STATE.CLEARED;
-  const survived = now() - sessionStart;
-  save.nightsCompleted = (save.nightsCompleted||0) + 1;
-  save.longestSurvivalMs = Math.max(save.longestSurvivalMs, survived);
-  save.lastVisit = now();
-  writeSave(save);
-  stopCamera();
-  stopDetectionLoop();
-
-  document.getElementById("clearedSub").textContent = "nuit n°" + save.nightsCompleted + " — tu as tenu " + fmtDuration(survived) + ".";
-  document.getElementById("clearedScreen").classList.add("show");
-  vibrate([0,40,30,40]);
-
-  setTimeout(()=>{
-    flashSubliminal("pour l'instant.");
-    whisperSound(0.35);
-    vibrate([0,30,20,30]);
-  }, 1600);
-
-  setTimeout(()=>{
-    document.getElementById("clearedScreen").classList.remove("show");
-    backToTitle();
-  }, 4400);
-}
-
 function flashScreen(){
   const f = document.getElementById("flashLayer");
   if(save.reduceEffects){ f.style.opacity="0.25"; setTimeout(()=>f.style.opacity="0",180); return; }
@@ -1325,78 +686,105 @@ function flashScreen(){
 }
 
 /* ============================================================
-   Transitions d'écran
+   Titre — mémoire entre sessions
+   ============================================================ */
+function buildTitleFlavor(){
+  const delta = now() - save.lastVisit;
+  let msg;
+  if(save.totalSessions === 0){
+    msg = "assieds-toi. réponds sincèrement. ça ne prendra pas longtemps.";
+  } else if(delta < 60000){
+    msg = "tu es revenu tout de suite. il ne t'a pas vu partir.";
+  } else if(delta < 3600000){
+    msg = "tu es parti " + fmtDuration(delta) + ". la salle t'a attendu, telle quelle.";
+  } else if(delta < 86400000){
+    msg = "ça fait " + fmtDuration(delta) + ". les questions ont eu le temps de changer.";
+  } else {
+    msg = "ça fait " + fmtDuration(delta) + ". tu ne devrais peut-être pas revenir.";
+  }
+  document.getElementById("flavorText").textContent = msg;
+  const stat = document.getElementById("statText");
+  const parts = [];
+  if(save.totalSessions>0) parts.push("tests passés : "+save.totalSessions);
+  if(save.badEndings>0) parts.push("mauvaises réponses : "+save.badEndings);
+  stat.textContent = parts.join("   ·   ");
+}
+
+/* ============================================================
+   Transitions
    ============================================================ */
 function backToTitle(){
   state = STATE.TITLE;
-  light = 1; threat = 0; panic = 0; held = false; paused = false; turnedAround = false;
-  currentTrial = -1;
   buildTitleFlavor();
   document.getElementById("veil").classList.remove("hidden");
-  document.getElementById("turnBtn").classList.remove("show");
 }
-function startGame(){
+function startBoot(){
   ensureAudio();
   if(actx && actx.state==="suspended") actx.resume();
+  state = STATE.BOOT;
+  document.getElementById("veil").classList.add("hidden");
+  const boot = document.getElementById("boot");
+  boot.classList.remove("hidden");
+  setTimeout(()=>{
+    boot.classList.add("hidden");
+    startTest();
+  }, 2000);
+}
+function startTest(){
   save.totalSessions += 1;
   save.lastVisit = now();
   writeSave(save);
+  sessionCount = save.totalSessions;
 
   state = STATE.PLAYING;
   sessionStart = now();
-  light = 1;
-  threat = startingThreat();
-  panic = 0;
+  qIndex = -1;
+  compliance = 0;
+  unease = 0; setUnease(0);
   entitySeed = Math.random()*1000;
-  glitchTimer = randRange(14,24);
-  pointerEvents = [];
-  held = false;
-  paused = false;
+  jumpscareUntil = 0; shakeUntil = 0;
+  lightFlickerUntil = 0;
 
-  nextGlimpseAt = 0; glimpseUntil = 0; jumpscareUntil = 0; shakeUntil = 0;
-  crackUntil = 0; subliminalUntil = 0;
-
-  document.getElementById("veil").classList.add("hidden");
-  document.getElementById("hint").style.opacity = "1";
-
-  startTrial(0);
+  resize();
+  requestAnimationFrame(()=>layoutWires());
+  nextQuestion();
 }
 
+document.getElementById("startBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  startBoot();
+});
 document.getElementById("resetBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
   save = loadSave();
   buildTitleFlavor();
 });
-
-/* ============================================================
-   Paramètres
-   ============================================================ */
 document.getElementById("gear").addEventListener("click", (e)=>{
   e.stopPropagation();
   save.reduceEffects = !save.reduceEffects;
   writeSave(save);
-  showFakeNotif(save.reduceEffects ? "effets réduits." : "effets normaux.", "VEILLE");
 });
 
 /* ============================================================
-   Sauvegarde périodique
+   Sauvegarde périodique + service worker
    ============================================================ */
 setInterval(()=>{
   if(state===STATE.PLAYING){ save.lastVisit = now(); writeSave(save); }
 }, 5000);
 window.addEventListener("beforeunload", ()=>{ save.lastVisit = now(); writeSave(save); });
 
-/* ============================================================
-   Service worker (offline / PWA)
-   ============================================================ */
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>{
     navigator.serviceWorker.register("sw.js").catch(()=>{});
   });
 }
 
+/* Init */
+resize();
+requestAnimationFrame(()=>layoutWires());
 buildTitleFlavor();
+requestAnimationFrame(loop);
 
 })();
 </script>
