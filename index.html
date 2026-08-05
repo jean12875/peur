@@ -561,12 +561,15 @@ function triggerDisturb(severity){
 }
 // dix secondes de blanc silencieux, puis retour à la normale sans rien dire —
 // pas de coupure rouge ici : le malaise vient justement de l'absence de suite.
+let overlayActive = false; // vrai pendant le blanc ou le noir total : les grésillements ambiants se taisent
 function triggerHeavenThenHell(){
   const overlay = document.getElementById("heavenOverlay");
+  overlayActive = true;
   overlay.classList.add("show");
   heavenSound(10);
   setTimeout(()=>{ if(state===STATE.PLAYING) heavenSound(4); }, 5200);
   setTimeout(()=>{
+    overlayActive = false;
     if(state!==STATE.PLAYING) return;
     overlay.classList.remove("show");
   }, 10000);
@@ -595,7 +598,7 @@ function buildTvStaticTexture(){
   document.getElementById("tvStatic").style.backgroundImage = `url(${c.toDataURL()})`;
 }
 function triggerAmbientGlitch(){
-  if(state!==STATE.PLAYING || staticEffectBusy) return;
+  if(state!==STATE.PLAYING || staticEffectBusy || overlayActive) return;
   staticEffectBusy = true;
   buildTvStaticTexture();
   const dur = randRange(1600, 3800);
@@ -626,7 +629,9 @@ setInterval(()=>{
    seconde exactement, puis tout redevient net d'un coup.
    ============================================================ */
 function triggerTvRollGlitch(){
-  if(state!==STATE.PLAYING || staticEffectBusy) return;
+  if(state!==STATE.PLAYING || staticEffectBusy || overlayActive) return;
+  const currentQ = QUESTIONS[qIndex];
+  if(currentQ && currentQ.corrupt) return; // pas de cumul avec la ligne déjà corrompue
   staticEffectBusy = true;
   buildTvStaticTexture();
   const staticEl = document.getElementById("tvStatic");
@@ -657,7 +662,7 @@ setInterval(()=>{
    haut. Différent du grésillement TV : ici tout l'écran part.
    ============================================================ */
 function triggerSignalCorruption(){
-  if(state!==STATE.PLAYING) return;
+  if(state!==STATE.PLAYING || overlayActive) return;
   const app = document.getElementById("app");
   ensureAudio();
   const flashes = 3 + Math.floor(Math.random()*3);
@@ -747,11 +752,15 @@ function operationSound(duration){
 }
 function triggerBlackout(duration){
   const bo = document.getElementById("blackout");
+  overlayActive = true;
   bo.classList.add("show");
   ensureAudio();
   operationSound(duration/1000);
   vibrate(save.reduceEffects ? [] : [0,20,320,20]);
-  setTimeout(()=>{ if(state===STATE.PLAYING) bo.classList.remove("show"); }, duration);
+  setTimeout(()=>{
+    overlayActive = false;
+    if(state===STATE.PLAYING) bo.classList.remove("show");
+  }, duration);
 }
 
 /* ============================================================
@@ -1041,7 +1050,7 @@ const QUESTIONS = [
   { text: ()=> sessionCount<=1
       ? "C'est la première fois que tu viens ici. Le savais-tu ?"
       : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
-  { text:"As-tu vérifié la porte, derrière toi, avant de commencer ?" },
+  { text:"La porte, derrière toi. Est-elle toujours fermée ?" },
 
   /* 36 une défaillance signalée — puis le noir */
   { text:"Une défaillance vient d'être signalée quelque part dans cette pièce. Reste tranquille, ça ne prendra qu'un instant.", freeze:1100, auto:true, holdFor:10200, effect: ()=>triggerBlackout(9200) },
@@ -1290,6 +1299,7 @@ function startTest(){
   redPulseUntil = 0; glimpseUntil = 0;
   lightFlickerUntil = 0;
   staticEffectBusy = false;
+  overlayActive = false;
   document.getElementById("app").classList.remove("shake","shakeHard");
   document.getElementById("buttonRow").classList.remove("hide");
   document.getElementById("heavenOverlay").classList.remove("show");
