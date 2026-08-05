@@ -54,6 +54,11 @@
     mix-blend-mode:multiply;
   }
   .tvGlow{ position:absolute; inset:0; pointer-events:none; z-index:1; background:radial-gradient(ellipse at 50% 20%, rgba(255,255,255,0.12), transparent 60%); }
+  #tvStatic{
+    position:absolute; inset:0; pointer-events:none; z-index:4; opacity:0;
+    background-size:64px 64px; mix-blend-mode:overlay; transition:opacity .15s ease;
+  }
+  #tvStatic.show{ opacity:0.85; }
   #tvDials{ width:16%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10%; }
   .dial{ width:70%; aspect-ratio:1; border-radius:50%; background:#cfcbc2; box-shadow:inset 0 0 0 2px rgba(0,0,0,0.25), inset 0 2px 3px rgba(0,0,0,0.3); }
   #antenna{
@@ -101,13 +106,20 @@
     background:transparent; color:#ddd; font-size:1rem; cursor:pointer; font-family:inherit; flex-shrink:0;
   }
 
-  /* ---------- faux paradis puis rouge ---------- */
+  /* ---------- faux paradis (blanc, silencieux, sans suite) ---------- */
   #heavenOverlay{
     position:absolute; inset:0; z-index:40; background:#fff; opacity:0; pointer-events:none;
-    transition:opacity 1.3s ease, background-color .2s ease;
+    transition:opacity 2.4s ease, background-color .2s ease;
   }
   #heavenOverlay.show{ opacity:1; }
   #heavenOverlay.hell{ background:#4a0808; }
+
+  /* ---------- noir total (bruits d'opération) ---------- */
+  #blackout{
+    position:absolute; inset:0; z-index:42; background:#000; opacity:0; pointer-events:none;
+    transition:opacity .8s ease;
+  }
+  #blackout.show{ opacity:1; }
 
   /* ---------- écrans overlay ---------- */
   #boot{
@@ -127,6 +139,7 @@
     transition:opacity 1.2s ease; z-index:70;
   }
   #veil.hidden{ opacity:0; pointer-events:none; }
+  .levelTag{ font-size:0.72rem; color:#6a6a6a; letter-spacing:0.35em; text-transform:uppercase; margin-bottom:0.6em; }
   .title{ font-size:clamp(2rem, 8vw, 3.4rem); font-weight:200; letter-spacing:0.3em; margin:0; color:#e6e6e6; text-shadow:0 0 18px rgba(255,255,255,0.08); }
   .flavor{ font-size:clamp(0.82rem, 2.5vw, 1rem); font-weight:300; color:#8a8a8a; max-width:32em; line-height:1.6em; min-height:3em; }
   .stat{ font-size:0.76rem; color:#5c5c5c; letter-spacing:0.1em; text-transform:uppercase; }
@@ -218,7 +231,19 @@
   }
   #app.shakeHard{ animation:shakeHard 0.65s linear; }
 
-  @media (prefers-reduced-motion: reduce){ #hourglass{ animation:none; } #app.shake{ animation:none; } #app.shakeHard{ animation:none; } }
+  /* ---------- corruption du signal : flash RVB désaligné, rare et brutal ---------- */
+  #app.corruptFlash{ filter:invert(1) hue-rotate(140deg) saturate(4) contrast(1.4); }
+
+  /* ---------- deux mots dans le noir, juste avant le titre ---------- */
+  #wakeText{
+    position:absolute; inset:0; z-index:44; display:flex; align-items:center; justify-content:center;
+    color:#c9c9c9; font-size:clamp(1.4rem,6vw,2.4rem); letter-spacing:0.5em; text-transform:uppercase;
+    font-weight:200; opacity:0; pointer-events:none; text-shadow:0 0 22px rgba(255,255,255,0.15);
+    transition:opacity .4s ease;
+  }
+  #wakeText.show{ opacity:1; }
+
+  @media (prefers-reduced-motion: reduce){ #hourglass{ animation:none; } #app.shake{ animation:none; } #app.shakeHard{ animation:none; } #app.corruptFlash{ filter:none; } }
 </style>
 </head>
 <body>
@@ -240,6 +265,7 @@
           <div id="tvText"></div>
           <div class="tvGlow"></div>
           <div class="scanlines"></div>
+          <div id="tvStatic"></div>
         </div>
       </div>
       <div id="tvDials"><div class="dial"></div><div class="dial"></div></div>
@@ -259,6 +285,8 @@
   </div>
 
   <div id="heavenOverlay"></div>
+  <div id="blackout"></div>
+  <div id="wakeText">réveille-toi.</div>
 
   <div id="boot" class="hidden">
     <div id="hourglass">⧗</div>
@@ -266,6 +294,7 @@
   </div>
 
   <div id="veil">
+    <div class="levelTag">niveau 1</div>
     <div class="title" id="titleText">LE TEST</div>
     <div class="flavor" id="flavorText">assieds-toi. réponds sincèrement. ça ne prendra pas longtemps.</div>
     <div class="stat" id="statText"></div>
@@ -442,18 +471,25 @@ function glitchBurstSound(){
   o.connect(g2); g2.connect(masterGain);
   o.start(t); o.stop(t+0.11);
 }
-function heavenSound(){
+function heavenSound(duration){
   if(!actx) return;
+  const dur = duration || 2.8;
   const t = actx.currentTime;
+  const attack = Math.max(0.5, dur*0.12);
+  const release = Math.max(0.8, dur*0.18);
   const g = actx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(0.075, t+0.9);
-  g.gain.linearRampToValueAtTime(0.0001, t+2.7);
+  g.gain.linearRampToValueAtTime(0.075, t+attack);
+  g.gain.setValueAtTime(0.075, t+Math.max(attack, dur-release));
+  g.gain.linearRampToValueAtTime(0.0001, t+dur);
   g.connect(masterGain);
   // deux paires légèrement désaccordées : un choeur qui sonne presque juste, mais pas tout à fait
   [523.25, 527.4, 659.25, 664.6, 784.0, 789.9].forEach((f)=>{
     const o = actx.createOscillator(); o.type = "sine"; o.frequency.value = f;
-    o.connect(g); o.start(t); o.stop(t+2.8);
+    // dérive très lente de fréquence, pour que le choeur ne soit jamais tout à fait stable
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.linearRampToValueAtTime(f + (Math.random()<0.5?-0.6:0.6), t+dur);
+    o.connect(g); o.start(t); o.stop(t+dur+0.05);
   });
 }
 function hellCutSound(){
@@ -531,20 +567,167 @@ function triggerDisturb(severity){
   if(severity>=2){ setTimeout(()=>{ if(state===STATE.PLAYING) glitchBurstSound(); }, 160); }
   vibrate(save.reduceEffects ? [20] : (severity>=2 ? [0,50,20,50,20,70] : [0,35,15,35]));
 }
+// dix secondes de blanc silencieux, puis retour à la normale sans rien dire —
+// pas de coupure rouge ici : le malaise vient justement de l'absence de suite.
 function triggerHeavenThenHell(){
   const overlay = document.getElementById("heavenOverlay");
-  heavenSound();
   overlay.classList.remove("hell");
   overlay.classList.add("show");
+  heavenSound(10);
+  setTimeout(()=>{ if(state===STATE.PLAYING) heavenSound(4); }, 5200);
   setTimeout(()=>{
     if(state!==STATE.PLAYING) return;
-    overlay.classList.add("hell");
-    hellCutSound();
-    triggerDisturb(2);
-  }, 2200);
+    overlay.classList.remove("show");
+  }, 10000);
+}
+
+/* ============================================================
+   Grésillements ambiants — quelques secondes de statique sur
+   l'écran, la scène qui tremble, une teinte rouge. Se déclenchent
+   seuls, au hasard, de plus en plus souvent à mesure que le malaise
+   grandit — pas seulement en réaction à une réponse.
+   ============================================================ */
+let tvStaticBuilt = false;
+function buildTvStaticTexture(){
+  if(tvStaticBuilt) return;
+  tvStaticBuilt = true;
+  const c = document.createElement("canvas");
+  c.width = 48; c.height = 48;
+  const cx2 = c.getContext("2d");
+  const id = cx2.createImageData(48,48);
+  for(let i=0;i<id.data.length;i+=4){
+    const v = Math.random()*255;
+    id.data[i]=v; id.data[i+1]=v; id.data[i+2]=v; id.data[i+3]=255;
+  }
+  cx2.putImageData(id,0,0);
+  document.getElementById("tvStatic").style.backgroundImage = `url(${c.toDataURL()})`;
+}
+function triggerAmbientGlitch(){
+  if(state!==STATE.PLAYING) return;
+  buildTvStaticTexture();
+  const dur = randRange(1600, 3800);
+  const staticEl = document.getElementById("tvStatic");
+  staticEl.classList.add("show");
+  const iv = setInterval(()=>{
+    staticEl.style.backgroundPosition = `${(Math.random()*48).toFixed(0)}px ${(Math.random()*48).toFixed(0)}px`;
+  }, 70);
+  triggerDisturb(unease > 0.5 ? 2 : 1);
+  const crackles = Math.floor(dur/650);
+  for(let i=1;i<=crackles;i++){
+    setTimeout(()=>{ if(state===STATE.PLAYING) glitchBurstSound(); }, i*650 + randRange(-140,140));
+  }
   setTimeout(()=>{
-    overlay.classList.remove("show","hell");
-  }, 3100);
+    clearInterval(iv);
+    staticEl.classList.remove("show");
+  }, dur);
+}
+setInterval(()=>{
+  if(state!==STATE.PLAYING) return;
+  const chance = 0.05 + unease*0.14;
+  if(Math.random() < chance) triggerAmbientGlitch();
+}, 4000);
+
+/* ============================================================
+   Corruption du signal — flash RVB désaligné plein écran, très
+   bref et très brutal, réservé aux moments où le malaise est déjà
+   haut. Différent du grésillement TV : ici tout l'écran part.
+   ============================================================ */
+function triggerSignalCorruption(){
+  if(state!==STATE.PLAYING) return;
+  const app = document.getElementById("app");
+  ensureAudio();
+  const flashes = 3 + Math.floor(Math.random()*3);
+  let t = 0;
+  for(let i=0;i<flashes;i++){
+    const on = t;
+    const off = t + randRange(60,140);
+    setTimeout(()=>{ if(state===STATE.PLAYING) app.classList.add("corruptFlash"); }, on);
+    setTimeout(()=>{ app.classList.remove("corruptFlash"); }, off);
+    t = off + randRange(70,220);
+  }
+  setTimeout(()=>{ if(state===STATE.PLAYING) glitchBurstSound(); }, 0);
+  setTimeout(()=>{ if(state===STATE.PLAYING) glitchBurstSound(); }, Math.floor(t*0.5));
+  vibrate(save.reduceEffects ? [] : [0,30,40,30,40,60]);
+}
+setInterval(()=>{
+  if(state!==STATE.PLAYING) return;
+  if(unease < 0.45) return;
+  if(Math.random() < 0.04 + unease*0.06) triggerSignalCorruption();
+}, 6000);
+
+/* ============================================================
+   Noir total + bruits d'opération — un moment où on ne voit plus
+   rien, mais où on entend. Jamais expliqué.
+   ============================================================ */
+function sawSound(t0, dur){
+  if(!actx) return;
+  const o = actx.createOscillator(); o.type = "sawtooth";
+  o.frequency.setValueAtTime(68, t0);
+  const trem = actx.createOscillator(); trem.frequency.value = 11;
+  const tremGain = actx.createGain(); tremGain.gain.value = 16;
+  trem.connect(tremGain); tremGain.connect(o.frequency);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(0.11, t0+0.35);
+  g.gain.setValueAtTime(0.11, t0+Math.max(0.4,dur-0.5));
+  g.gain.linearRampToValueAtTime(0.0001, t0+dur);
+  o.connect(g); g.connect(masterGain);
+  o.start(t0); trem.start(t0); o.stop(t0+dur); trem.stop(t0+dur);
+}
+function metalClinkSound(t0){
+  if(!actx) return;
+  const o = actx.createOscillator(); o.type = "square";
+  o.frequency.setValueAtTime(1500+Math.random()*1100, t0);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.05, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+0.12);
+  o.connect(g); g.connect(masterGain);
+  o.start(t0); o.stop(t0+0.13);
+}
+function heartbeepSound(t0, flatline){
+  if(!actx) return;
+  const o = actx.createOscillator(); o.type = "sine";
+  const g = actx.createGain();
+  if(flatline){
+    o.frequency.setValueAtTime(840, t0);
+    g.gain.setValueAtTime(0.055, t0);
+    g.gain.setValueAtTime(0.055, t0+1.8);
+    g.gain.linearRampToValueAtTime(0.0001, t0+2.0);
+    o.connect(g); g.connect(masterGain);
+    o.start(t0); o.stop(t0+2.0);
+    return;
+  }
+  o.frequency.setValueAtTime(740, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(0.075, t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+0.18);
+  o.connect(g); g.connect(masterGain);
+  o.start(t0); o.stop(t0+0.2);
+}
+function operationSound(duration){
+  if(!actx) return;
+  const t0 = actx.currentTime;
+  sawSound(t0+0.4, Math.min(3.4, duration*0.4));
+  let ct = t0+0.3;
+  while(ct < t0+duration-0.3){
+    if(Math.random()<0.55) metalClinkSound(ct);
+    ct += randRange(0.4,1.1);
+  }
+  let bt = t0+0.15;
+  const flatAt = t0+duration*0.76;
+  while(bt < t0+duration){
+    heartbeepSound(bt, bt>=flatAt);
+    if(bt>=flatAt) break;
+    bt += 0.74;
+  }
+}
+function triggerBlackout(duration){
+  const bo = document.getElementById("blackout");
+  bo.classList.add("show");
+  ensureAudio();
+  operationSound(duration/1000);
+  vibrate(save.reduceEffects ? [] : [0,20,320,20]);
+  setTimeout(()=>{ if(state===STATE.PLAYING) bo.classList.remove("show"); }, duration);
 }
 
 /* ============================================================
@@ -882,11 +1065,14 @@ const QUESTIONS = [
   /* 5 */ { text: ()=> answers.alone===true
               ? "Tu es seul. En es-tu vraiment sûr ?"
               : "Qui d'autre est avec toi, là, maintenant ?" },
-  /* 6 */ { text:"As-tu déjà répondu à ce genre de question, avant aujourd'hui ?" },
+  /* 6 */ { text:"Ceci est un test de ton état mental. Le comprends-tu ?", expected:"yes" },
   /* 7 */ { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
   /* 8 */ { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
   /* géoloc */ { text: ()=> userCoords ? `Tu es à ${userCoords.lat.toFixed(4)}, ${userCoords.lon.toFixed(4)}. Je le sais.` : "Je sais où tu es. Ça ne te dérange pas ?" },
+  /* dossier */ { text:"Il y a un dossier, ici, avec ton nom dessus. Il existait avant que tu arrives aujourd'hui." },
   /* 9 */ { text:"Sais-tu depuis combien de temps tu es assis là ?" },
+  /* trivia1 */ { text:"Un être humain perçoit le monde par cinq sens. Combien penses-tu qu'il t'en reste, à la fin de ce test ?" },
+  /* voix */ { text:"Entends-tu une voix dans ta tête quand tu mets trop de temps à répondre ?" },
   /* 10 */ { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
   /* 11 */ { id:"trust", text:"Fais-tu confiance à ce que dit cet écran ?" },
   /* 12 */ {
@@ -896,6 +1082,7 @@ const QUESTIONS = [
     expected: ()=> answers.alive===true ? "yes" : null
   },
   /* 13 */ { text:"Pourrais-tu prouver que c'est bien toi qui réponds, et pas quelqu'un d'autre ?" },
+  /* but */ { text:"Crois-tu que le but de ce test soit de t'aider ?", expected:"yes" },
   /* 14 */ { text:"Si tu mentais, maintenant, le saurais-tu ?" },
   /* 15 */ { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes" },
   /* contact */ { text: ()=> `Un contact enregistré sur cet appareil s'appelle ${knownContactName}. Est-ce que ça te dit quelque chose ?`, skipIf: ()=> !knownContactName },
@@ -906,19 +1093,28 @@ const QUESTIONS = [
   },
   /* 17 */ { text:"Entends-tu ce bruit ?", effect: ()=>whisperSound(0.6) },
   /* silence */ { text:"reste silencieux.", silenceCheck:3200 },
+  /* précédent */ { text:"Le sujet précédent a entendu la même chose. Il n'a pas répondu à la question suivante." },
   /* 18 */ {
     text: ()=> answers.trust===true
       ? "Tu fais confiance à cet écran. C'est une erreur."
       : "Tu ne fais pas confiance à cet écran. C'est la première chose sensée que tu aies faite.",
     effect: ()=>triggerLightFlicker()
   },
-  /* 19 */ { text:"As-tu vérifié que c'est bien toi qui tiens cet appareil ?" },
+  /* 19 */ { text:"En signe de bonne volonté, on t'a laissé quelque chose près de toi. Tu ne le vois pas d'ici. Le sens-tu ?" },
+  /* chat */ { text:"S'il y avait un chat dans cette pièce, là, maintenant, essaierais-tu de l'attraper ?" },
+  /* félicitations */ { text:"Félicitations. Tu viens de terminer une partie du test.", effect: ()=>{ unease = Math.max(0, unease-0.08); setUnease(unease); } },
+  /* pause */ { text:"Veuillez patienter. Le test va reprendre sous peu.", auto:true, holdFor:3400 },
+  /* reprise */ { text:"Le test reprend. Merci pour toute ta participation jusqu'ici.", auto:true, holdFor:1600 },
+  /* caviardé */ { text:"Le sujet a été jugé ██████ pour la suite du protocole." },
   /* 20 */ { text:"Ferme les yeux. Est-ce que tu vois quelque chose de blanc ?", effect: ()=>triggerHeavenThenHell() },
   /* 21 */ { text:"……ça va mieux. tu peux rouvrir les yeux." },
+  /* case */ { text:"Il y a une case, sur une feuille, juste à côté de ton nom. Elle dit VIVANT. Pour l'instant." },
   /* 22 */ { text: ()=> sessionCount<=1
               ? "C'est la première fois que tu viens ici. Le savais-tu ?"
               : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
   /* 23 */ { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
+  /* noir */ { text:"Reste tranquille. Ça ne prendra qu'un instant.", freeze:1100, effect: ()=>triggerBlackout(9200) },
+  /* noir-après */ { text:"…voilà. tu n'as rien senti, n'est-ce pas ? c'est normal." },
   /* 24 */ { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
   /* 25 */ { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", expected:"yes" },
   /* 26 */ {
@@ -929,6 +1125,8 @@ const QUESTIONS = [
               ? "...ça va. tu as quand même voulu savoir. prêt pour la suite ?"
               : "...ça va. ce n'était rien. prêt pour la suite ?" },
   /* 28 */ { text:"Si je te disais que quelqu'un d'autre a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no" },
+  /* remplaçable */ { text:"Tu n'es pas le premier sujet, aujourd'hui. Tu ne seras pas non plus le dernier." },
+  /* protocole */ { text:"Le protocole est presque terminé. Les résultats seront transmis, quelle que soit ta réponse." },
   /* 29 */ { text:"Dernière chance de partir. Veux-tu vraiment continuer ?", expected:"yes" },
   /* 30 */ { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", expected:"no", isLast:true },
 ];
@@ -986,10 +1184,10 @@ function nextQuestion(){
       setTimeout(()=>field.focus(), 60);
       return;
     }
-    waitingAnswer = !q.corrupt;
-    setButtonsEnabled(!q.corrupt);
-    if(q.corrupt){
-      setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, q.freeze || 1500);
+    waitingAnswer = !q.corrupt && !q.auto;
+    setButtonsEnabled(!q.corrupt && !q.auto);
+    if(q.corrupt || q.auto){
+      setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, q.holdFor || q.freeze || 1500);
     }
   }, delay);
 }
@@ -1107,9 +1305,16 @@ function endQuiet(){
 
   setTimeout(()=>{ whisperSound(0.3); }, 3200);
 
+  // juste avant de revenir au titre, un noir total avec deux mots — jamais expliqués,
+  // jamais répétés, jamais montrés si le joueur relance : le malaise vient de ne pas savoir pourquoi.
   setTimeout(()=>{
     document.getElementById("endScreen").classList.remove("show");
-    backToTitle();
+    const bo = document.getElementById("blackout");
+    bo.classList.add("show");
+    const wakeEl = document.getElementById("wakeText");
+    setTimeout(()=>{ if(wakeEl){ wakeEl.classList.add("show"); heartbeepSound(actx?actx.currentTime:0,false); } }, 500);
+    setTimeout(()=>{ if(wakeEl) wakeEl.classList.remove("show"); }, 2200);
+    setTimeout(()=>{ bo.classList.remove("show"); backToTitle(); }, 3000);
   }, 6000);
 }
 function endDisturbing(){
@@ -1220,6 +1425,10 @@ function startTest(){
   document.getElementById("nameRow").classList.remove("show");
   document.getElementById("buttonRow").classList.remove("hide");
   document.getElementById("heavenOverlay").classList.remove("show","hell");
+  document.getElementById("tvStatic").classList.remove("show");
+  document.getElementById("blackout").classList.remove("show");
+  document.getElementById("wakeText").classList.remove("show");
+  document.getElementById("app").classList.remove("corruptFlash");
 
   resize();
   requestAnimationFrame(()=>layoutWires());

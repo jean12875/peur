@@ -44,7 +44,11 @@ Une salle capitonnée blanche, vue de face, fixe : le téléviseur, les boutons 
 
 ## Escalade
 
-Une réponse "inattendue" fait trembler l'écran et le teinte de rouge — l'intensité de cette réaction grandit avec la progression du test (secousse plus forte, rouge plus profond, son plus dur en fin de partie). Une séquence dédiée transforme brièvement toute la pièce en blanc immaculé, avec une musique étrange et légèrement désaccordée, avant de basculer brutalement dans le rouge. Aucun jumpscare classique nulle part : tout reste ambiance et rupture de rythme, jamais un visage qui surgit.
+Une réponse "inattendue" fait trembler l'écran et le teinte de rouge — l'intensité de cette réaction grandit avec la progression du test (secousse plus forte, rouge plus profond, son plus dur en fin de partie). Des grésillements surviennent aussi sans prévenir : l'écran se couvre de statique, la pièce tremble, tout devient rouge quelques secondes, de plus en plus souvent à mesure que le malaise grandit — indépendamment de tes réponses. De temps en temps, un flash bref désaligne complètement les couleurs de l'écran, comme un signal qui lâche.
+
+Une séquence dédiée transforme la pièce en blanc immaculé pendant dix bonnes secondes, avec une musique étrange et légèrement désaccordée — puis tout redevient normal, en silence, comme si de rien n'était. Aucune coupure rouge, aucune explication : c'est cette absence de suite qui dérange. Un autre moment plonge l'écran dans un noir total, avec des bruits d'opération (scie, cliquetis métalliques, un moniteur cardiaque qui finit par s'aplatir) — jamais expliqué non plus.
+
+Le scénario distille aussi, sans jamais le dire explicitement, l'idée que ce test décide de quelque chose d'important pour le joueur : un dossier qui existait avant son arrivée, une case "VIVANT" sur une feuille, un sujet précédent qui n'a pas eu de suite, un texte partiellement caviardé. Aucun jumpscare classique nulle part : tout reste ambiance et rupture de rythme, jamais un visage qui surgit à l'écran.
 
 ## Structure du repo
 
