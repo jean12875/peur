@@ -1,10 +1,13 @@
-const CACHE = "veille-v1";
+const CACHE = "veille-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "./lib/face-api.min.js",
+  "./models/tiny_face_detector_model-weights_manifest.json",
+  "./models/tiny_face_detector_model-shard1"
 ];
 
 self.addEventListener("install", (e) => {

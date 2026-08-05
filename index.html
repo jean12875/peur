@@ -4,15 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="VEILLE — un jeu qui n'oublie jamais que tu es parti.">
+<meta name="description" content="VEILLE — il a besoin de te voir pour commencer.">
 <title>VEILLE</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
 <style>
-  :root{
-    color-scheme: dark;
-  }
+  :root{ color-scheme: dark; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body{
     margin:0; padding:0; width:100%; height:100%;
@@ -22,10 +20,7 @@
     touch-action:none;
     overscroll-behavior:none;
   }
-  #app{
-    position:fixed; inset:0; width:100vw; height:100dvh;
-    background:#000;
-  }
+  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#000; }
   canvas{ position:absolute; inset:0; display:block; }
 
   #veil{
@@ -40,38 +35,25 @@
   #veil.hidden{ opacity:0; pointer-events:none; }
 
   .title{
-    font-size:clamp(2.4rem, 9vw, 4.4rem);
-    font-weight:200;
-    letter-spacing:0.35em;
-    margin:0 0 0.1em 0;
-    color:#e6e6e6;
-    text-shadow:0 0 18px rgba(255,255,255,0.08);
+    font-size:clamp(2.4rem, 9vw, 4.4rem); font-weight:200; letter-spacing:0.35em;
+    margin:0 0 0.1em 0; color:#e6e6e6; text-shadow:0 0 18px rgba(255,255,255,0.08);
   }
-  .glitchtext{ position:relative; display:inline-block; }
-
   .flavor{
-    font-size:clamp(0.85rem, 2.6vw, 1.05rem);
-    font-weight:300; color:#8a8a8a; max-width:34em; line-height:1.6em;
-    min-height:3.2em;
+    font-size:clamp(0.85rem, 2.6vw, 1.05rem); font-weight:300; color:#8a8a8a;
+    max-width:34em; line-height:1.6em; min-height:3.2em;
   }
-  .stat{
-    font-size:0.78rem; color:#5c5c5c; letter-spacing:0.1em; text-transform:uppercase;
-  }
+  .stat{ font-size:0.78rem; color:#5c5c5c; letter-spacing:0.1em; text-transform:uppercase; }
   .startbtn{
-    margin-top:0.6em;
-    padding:0.85em 2.4em;
-    background:transparent;
-    border:1px solid rgba(255,255,255,0.25);
-    color:#d8d8d8;
+    margin-top:0.6em; padding:0.85em 2.4em; background:transparent;
+    border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
     font-size:0.85rem; letter-spacing:0.25em; text-transform:uppercase;
-    cursor:pointer;
-    font-family:inherit;
+    cursor:pointer; font-family:inherit;
   }
   .startbtn:active{ background:rgba(255,255,255,0.08); }
 
   .miniline{
-    position:absolute; bottom:2.2em; left:0; right:0;
-    text-align:center; font-size:0.7rem; color:#4a4a4a; letter-spacing:0.15em;
+    position:absolute; bottom:2.2em; left:0; right:0; text-align:center;
+    font-size:0.7rem; color:#4a4a4a; letter-spacing:0.15em;
   }
   .miniline button{
     background:none;border:none;color:#4a4a4a;font-size:0.7rem;letter-spacing:0.15em;
@@ -81,9 +63,17 @@
   #hint{
     position:absolute; left:0; right:0; bottom:9vh; text-align:center;
     color:rgba(255,255,255,0.35); font-size:0.75rem; letter-spacing:0.3em;
-    text-transform:uppercase; pointer-events:none; transition:opacity 2s ease;
-    z-index:5;
+    text-transform:uppercase; pointer-events:none; transition:opacity 2s ease; z-index:5;
   }
+
+  #turnBtn{
+    position:absolute; left:50%; bottom:9vh; transform:translateX(-50%);
+    padding:0.7em 1.6em; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.25);
+    color:#ddd; font-size:0.72rem; letter-spacing:0.22em; text-transform:uppercase;
+    opacity:0; pointer-events:none; transition:opacity 1.4s ease; z-index:12; cursor:pointer;
+    font-family:inherit;
+  }
+  #turnBtn.show{ opacity:0.9; pointer-events:auto; }
 
   #diedScreen{
     position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
@@ -94,9 +84,7 @@
   #diedScreen .diedTitle{ color:#8a1f1f; font-size:clamp(1.6rem,7vw,2.6rem); letter-spacing:0.3em; font-weight:200; }
   #diedScreen .diedSub{ color:#666; font-size:0.85rem; letter-spacing:0.1em; max-width:30em; line-height:1.7em; }
 
-  #flashLayer{
-    position:absolute; inset:0; z-index:30; pointer-events:none; background:#fff; opacity:0;
-  }
+  #flashLayer{ position:absolute; inset:0; z-index:30; pointer-events:none; background:#fff; opacity:0; }
 
   #fakeOS{
     position:absolute; top:0; left:0; right:0; z-index:40; pointer-events:none;
@@ -127,31 +115,41 @@
   #camWrap.show{ opacity:0.85; }
   #camWrap video{ width:100%; height:100%; object-fit:cover; filter:grayscale(1) contrast(1.6) brightness(0.65); transform:scaleX(-1); }
   #camWrap .camlabel{ position:absolute; bottom:2px; left:4px; font-size:0.55rem; color:#c0392b; letter-spacing:0.1em; }
-
-  #modal{
-    position:absolute; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
-    background:rgba(0,0,0,0.88); padding:6vh 8vw; text-align:center;
+  #camWrap .eyeDot{
+    position:absolute; top:4px; right:4px; width:6px; height:6px; border-radius:50%;
+    background:#2ecc71; box-shadow:0 0 5px #2ecc71; transition:background .3s ease, box-shadow .3s ease;
   }
-  #modal.show{ display:flex; }
-  #modal .box{ max-width:26em; display:flex; flex-direction:column; gap:1.3em; }
-  #modal p{ color:#ccc; font-size:0.92rem; line-height:1.7em; letter-spacing:0.02em; }
-  #modal .row{ display:flex; gap:0.8em; justify-content:center; }
-  #modal button{
-    padding:0.7em 1.6em; background:transparent; border:1px solid rgba(255,255,255,0.25);
-    color:#ddd; font-size:0.78rem; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer;
+  #camWrap .eyeDot.away{ background:#c0392b; box-shadow:0 0 5px #c0392b; }
+
+  #camGate{
+    position:absolute; inset:0; z-index:55; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.94); padding:6vh 8vw; text-align:center;
+  }
+  #camGate.show{ display:flex; }
+  #camGate .box{ max-width:26em; display:flex; flex-direction:column; gap:1.2em; align-items:center; }
+  #camGate p{ color:#ccc; font-size:0.92rem; line-height:1.75em; letter-spacing:0.02em; margin:0; }
+  #camGate .row{ display:flex; gap:0.8em; justify-content:center; }
+  #camGate button{
+    padding:0.75em 1.8em; background:transparent; border:1px solid rgba(255,255,255,0.25);
+    color:#ddd; font-size:0.78rem; letter-spacing:0.18em; text-transform:uppercase; cursor:pointer;
     font-family:inherit;
+  }
+  #camGate .miniclose{
+    border:none; color:#555; font-size:0.7rem; text-decoration:underline; letter-spacing:0.1em; background:none;
+    padding:0.4em;
+  }
+  #camGate .eye{
+    width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,0.2);
+    display:flex; align-items:center; justify-content:center; color:#888; font-size:1.1rem;
   }
 
   #gear{
     position:absolute; top:1em; left:1em; z-index:60; width:34px; height:34px;
     border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
-    color:#999; display:flex; align-items:center; justify-content:center; font-size:0.9rem;
-    cursor:pointer;
+    color:#999; display:flex; align-items:center; justify-content:center; font-size:0.9rem; cursor:pointer;
   }
 
-  @media (prefers-reduced-motion: reduce){
-    #flashLayer{ transition:none; }
-  }
+  @media (prefers-reduced-motion: reduce){ #flashLayer{ transition:none; } }
 </style>
 </head>
 <body>
@@ -159,6 +157,7 @@
   <canvas id="c"></canvas>
 
   <div id="hint">tiens</div>
+  <button id="turnBtn">se retourner</button>
 
   <div id="recDot"></div>
   <div id="fakeOS">
@@ -167,11 +166,11 @@
   </div>
   <div id="fakeNotif"><b id="fnFrom">Inconnu</b><span id="fnMsg"></span></div>
 
-  <div id="camWrap"><video id="camVideo" autoplay playsinline muted></video><div class="camlabel">● REC</div></div>
+  <div id="camWrap"><video id="camVideo" autoplay playsinline muted></video><div class="eyeDot" id="eyeDot"></div><div class="camlabel">● REC</div></div>
 
   <div id="veil">
-    <div class="title glitchtext" id="titleText">VEILLE</div>
-    <div class="flavor" id="flavorText">pose ton doigt sur l'écran. ne le retire pas.</div>
+    <div class="title" id="titleText">VEILLE</div>
+    <div class="flavor" id="flavorText">il a besoin de te voir pour commencer.</div>
     <div class="stat" id="statText"></div>
     <button class="startbtn" id="startBtn">entrer</button>
     <div class="miniline"><button id="resetBtn">tout oublier</button></div>
@@ -184,13 +183,12 @@
 
   <div id="flashLayer"></div>
 
-  <div id="modal">
+  <div id="camGate">
     <div class="box">
-      <p id="modalText">il aimerait te voir. le flux reste sur cet appareil — rien n'est envoyé ni enregistré. tu peux refuser.</p>
-      <div class="row">
-        <button id="modalYes">oui</button>
-        <button id="modalNo">non</button>
-      </div>
+      <div class="eye">◉</div>
+      <p id="camGateText">il a besoin de te voir pour commencer. le flux reste entièrement sur cet appareil — rien n'est envoyé ni enregistré. si tu détournes le regard puis reviens, il le saura.</p>
+      <div class="row"><button id="camGateBtn">autoriser</button></div>
+      <button class="miniclose" id="camGateClose">retour</button>
     </div>
   </div>
 
@@ -204,7 +202,7 @@
 /* ============================================================
    VEILLE — utilitaires & état persistant
    ============================================================ */
-const SAVE_KEY = "veille_save_v1";
+const SAVE_KEY = "veille_save_v2";
 const now = () => Date.now();
 const REDUCE_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function randRange(a,b){ return a + Math.random()*(b-a); }
@@ -215,18 +213,11 @@ function loadSave(){
     if(raw) return JSON.parse(raw);
   }catch(e){}
   return {
-    firstVisit: now(),
-    lastVisit: now(),
-    deaths: 0,
-    longestSurvivalMs: 0,
-    totalSessions: 0,
-    cameraChoice: null, // null | 'granted' | 'denied'
-    reduceEffects: REDUCE_MOTION
+    firstVisit: now(), lastVisit: now(), deaths: 0,
+    longestSurvivalMs: 0, totalSessions: 0, reduceEffects: REDUCE_MOTION
   };
 }
-function writeSave(s){
-  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){}
-}
+function writeSave(s){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){} }
 let save = loadSave();
 
 function fmtDuration(ms){
@@ -289,7 +280,7 @@ function ensureAudio(){
   noiseSrc.connect(filter); filter.connect(noiseGain); noiseGain.connect(masterGain);
   noiseSrc.start();
 }
-function setDread(level){ // 0..1
+function setDread(level){
   if(!actx) return;
   const t = actx.currentTime;
   droneGain.gain.setTargetAtTime(0.04 + level*0.09, t, 0.4);
@@ -362,9 +353,9 @@ const STATE = { TITLE:"title", PLAYING:"playing", DEAD:"dead" };
 let state = STATE.TITLE;
 
 let held = false;
-let light = 1;      // 0..1
-let threat = 0;      // 0..1 (1 = attrapé)
-let panic = 0;       // 0..1
+let light = 1;
+let threat = 0;
+let panic = 0;
 let sessionStart = 0;
 let sessionElapsed = 0;
 let actPhase = 1;
@@ -372,12 +363,10 @@ let paused = false;
 let lastFrame = 0;
 let hiddenAt = 0;
 
-let pointerEvents = []; // timestamps des pointerdown récents (panique)
+let pointerEvents = [];
 let entitySeed = Math.random()*1000;
 let glitchTimer = randRange(18,34);
-let camAsked = false;
 
-// contenu / progression
 let nextGlimpseAt = 0;
 let nextSurgeAt = 0;
 let nearMissCooldownUntil = 0;
@@ -388,15 +377,15 @@ let shakeUntil = 0;
 let crackUntil = 0, crackSeed = 0;
 let subliminalUntil = 0, subliminalText = "", subliminalAngle = 0;
 
+let turnedAround = false;
+let turnPromptShown = false;
+let turnPromptAt = 0;
+let somethingBehind = false;
+
 const SUBLIMINAL_AMBIENT = ["derrière toi","il respire","ne bouge pas","chut","il sait","reste calme","trop tard","regarde"];
 const SUBLIMINAL_DEATH = ["NON.","IL T'A EU.","COURS.","TROP TARD.","REGARDE-LE."];
 
-/* Difficulté progressive selon les morts précédentes */
-function difficultyMul(){
-  return 1 + Math.min(save.deaths, 12) * 0.045;
-}
-
-/* Menace de départ liée au temps réel écoulé depuis la dernière visite */
+function difficultyMul(){ return 1 + Math.min(save.deaths, 12) * 0.045; }
 function startingThreat(){
   const hours = (now() - save.lastVisit) / 3600000;
   return Math.min(0.42, Math.log2(1+hours) * 0.09);
@@ -410,7 +399,7 @@ function buildTitleFlavor(){
   const d = save.deaths;
   let msg;
   if(save.totalSessions === 0){
-    msg = "pose ton doigt sur l'écran. ne le retire pas. reste calme — s'agiter attire l'attention.";
+    msg = "il a besoin de te voir pour commencer. autorise la caméra, puis pose ton doigt sur l'écran et ne le retire pas.";
   } else if(delta < 60000){
     msg = "tu es encore là. il n'a pas eu le temps de partir non plus.";
   } else if(delta < 3600000){
@@ -442,8 +431,7 @@ function buildTitleFlavor(){
 }
 
 /* ============================================================
-   Visage procédural de l'entité — réutilisé pour le monstre
-   principal, les glimpses, le near-miss et le jumpscare
+   Visage procédural de l'entité
    ============================================================ */
 function drawFace(x,y,size,alpha,jitter,fillStyle){
   ctx.save();
@@ -451,7 +439,6 @@ function drawFace(x,y,size,alpha,jitter,fillStyle){
   ctx.translate(x,y);
   ctx.fillStyle = fillStyle || "#050505";
 
-  // tête irrégulière
   ctx.beginPath();
   const pts = 16;
   for(let i=0;i<=pts;i++){
@@ -461,17 +448,14 @@ function drawFace(x,y,size,alpha,jitter,fillStyle){
     const py = Math.sin(a)*jr;
     if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
   }
-  ctx.closePath();
-  ctx.fill();
+  ctx.closePath(); ctx.fill();
 
-  // yeux
   ctx.fillStyle = "#f3f3f3";
   const eyeY = -size*0.08, eyeDX = size*0.22;
   const eyeW = size*0.09*(0.7+Math.random()*0.6), eyeH = size*0.15*(0.6+Math.random()*0.8);
   ctx.beginPath(); ctx.ellipse(-eyeDX,eyeY,eyeW,eyeH,0,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(eyeDX,eyeY,eyeW*0.8,eyeH*0.9,0,0,Math.PI*2); ctx.fill();
 
-  // bouche déchiquetée
   ctx.fillStyle = "#000";
   ctx.beginPath();
   const mw = size*0.32, my = size*0.28;
@@ -482,14 +466,13 @@ function drawFace(x,y,size,alpha,jitter,fillStyle){
     ctx.lineTo(px,py);
   }
   ctx.lineTo(mw,my+size*0.14); ctx.lineTo(-mw,my+size*0.14);
-  ctx.closePath();
-  ctx.fill();
+  ctx.closePath(); ctx.fill();
 
   ctx.restore();
 }
 
 /* ============================================================
-   Boucle de rendu
+   Rendu
    ============================================================ */
 function drawNormalScene(){
   ctx.fillStyle = "#000";
@@ -507,7 +490,6 @@ function drawNormalScene(){
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,W,H);
 
-  // entité principale : silhouette + visage quand elle est assez proche
   if(threat > 0.05){
     const distFromLight = radius * (1.5 - threat*1.05);
     const ang = Math.sin(entitySeed + performance.now()*0.00025) * 0.6;
@@ -518,19 +500,15 @@ function drawNormalScene(){
     drawFace(ex, ey, size, Math.min(0.92, threat*0.95+0.05), jitter, "#050505");
   }
 
-  // aperçu furtif de l'entité (indépendant de la menace réelle)
   if(now() < glimpseUntil){
     drawFace(glimpseX, glimpseY, glimpseSize, 0.85, 10, "#020202");
   }
-
-  // fausse alerte / near-miss
   if(now() < nearMissUntil){
     const t = 1 - Math.max(0,(nearMissUntil-now())/480);
     const size = Math.min(W,H) * (0.25 + 0.35*Math.sin(t*Math.PI));
     drawFace(W/2, H*0.48, size, 0.7*Math.sin(t*Math.PI), 20, "#0a0000");
   }
 
-  // grain léger
   if(!save.reduceEffects){
     const grainCount = Math.floor(35 + threat*120);
     ctx.fillStyle = "rgba(255,255,255,0.035)";
@@ -540,7 +518,6 @@ function drawNormalScene(){
     }
   }
 
-  // vignette teintée (vire au rouge sombre quand la menace monte)
   const vr = Math.floor(0+threat*70), vb = Math.floor(0+threat*14);
   const vgn = ctx.createRadialGradient(cx,cy,radius*0.9,cx,cy,Math.max(W,H)*0.75);
   vgn.addColorStop(0,"rgba(0,0,0,0)");
@@ -549,11 +526,30 @@ function drawNormalScene(){
   ctx.fillRect(0,0,W,H);
 }
 
+function drawTurnedScene(){
+  ctx.fillStyle = "#050505";
+  ctx.fillRect(0,0,W,H);
+  const cx=W/2, cy=H*0.5;
+  const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*0.6);
+  grad.addColorStop(0,"rgba(40,35,35,0.35)");
+  grad.addColorStop(1,"rgba(0,0,0,0.95)");
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+  if(somethingBehind){
+    const pulse = 0.28 + 0.15*Math.sin(performance.now()*0.004);
+    drawFace(cx + Math.sin(performance.now()*0.0006)*W*0.06, cy, Math.min(W,H)*0.22, pulse, 10, "#000");
+  }
+  if(!save.reduceEffects){
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    for(let i=0;i<50;i++){ ctx.fillRect(Math.random()*W, Math.random()*H, 1, 1); }
+  }
+}
+
 function drawJumpscare(){
   ctx.fillStyle = "#000";
   ctx.fillRect(0,0,W,H);
-  const remain = Math.max(0, jumpscareUntil-now());
   const dur = save.reduceEffects ? 400 : 850;
+  const remain = Math.max(0, jumpscareUntil-now());
   const t = 1 - remain/dur;
   const size = Math.min(W,H) * (0.5 + 0.55*Math.min(1,t*3));
   const cx = W/2 + (save.reduceEffects?0:(Math.random()-0.5)*10);
@@ -614,6 +610,8 @@ function drawScene(){
 
   if(now() < jumpscareUntil){
     drawJumpscare();
+  } else if(turnedAround){
+    drawTurnedScene();
   } else {
     drawNormalScene();
     if(now() < crackUntil) drawCrack();
@@ -629,23 +627,20 @@ function loop(ts){
   let dt = (ts - lastFrame)/1000;
   lastFrame = ts;
   dt = Math.min(dt, 0.1);
-
-  if(state === STATE.PLAYING){
-    updateGame(dt);
-  }
+  if(state === STATE.PLAYING) updateGame(dt);
   drawScene();
 }
 requestAnimationFrame(loop);
 
 /* ============================================================
-   Contenu ambiant : aperçus, fausses alertes, sursauts, fissures
+   Contenu ambiant
    ============================================================ */
 function scheduleNextGlimpse(){
   let range;
   if(actPhase===1) range=[11000,19000];
   else if(actPhase===2) range=[6000,11000];
   else range=[3000,7000];
-  const bonus = held ? 1.6 : 1; // rester calme réduit les apparitions gratuites
+  const bonus = held ? 1.6 : 1;
   nextGlimpseAt = now() + randRange(range[0],range[1]) * bonus;
 }
 function triggerGlimpse(){
@@ -665,14 +660,14 @@ function triggerNearMiss(){
   nearMissUntil = now() + 480;
   whisperSound(0.55);
   vibrate([0,60,20,60]);
-  threat = Math.max(0, threat - 0.22); // soulagement après la fausse alerte
+  threat = Math.max(0, threat - 0.22);
   nearMissCooldownUntil = now() + randRange(28000,48000);
 }
 function triggerSurge(){
   flashSubliminal("il approche");
   whisperSound(0.4);
   setTimeout(()=>{
-    if(state===STATE.PLAYING){
+    if(state===STATE.PLAYING && !paused){
       threat = Math.min(1, threat + randRange(0.12,0.18));
       vibrate([0,40,20,40,20,120]);
     }
@@ -700,7 +695,6 @@ function updateGame(dt){
   const phaseMul = actPhase===1 ? 0.75 : (actPhase===2 ? 1.0 : 1.3);
   const dmul = difficultyMul();
 
-  // panique : fréquence des pressions récentes
   const cutoff = now() - 4000;
   pointerEvents = pointerEvents.filter(t=>t>cutoff);
   const freq = pointerEvents.length;
@@ -717,25 +711,20 @@ function updateGame(dt){
   }
 
   setDread(threat);
-
   document.getElementById("hint").style.opacity = (sessionStart && now()-sessionStart>6000) ? "0" : "1";
 
-  // aperçus ambiants (donnent l'impression que "quelque chose se passe" en permanence)
   if(nextGlimpseAt===0) scheduleNextGlimpse();
   if(now() > nextGlimpseAt){ triggerGlimpse(); scheduleNextGlimpse(); }
 
-  // fausse alerte : uniquement si tu fais tout bien mais que la menace était déjà haute
   if(threat>0.65 && held && actPhase>=2 && now()>nearMissCooldownUntil && Math.random() < dt*0.12){
     triggerNearMiss();
   }
 
-  // sursauts scriptés en phase avancée
   if(actPhase>=2){
     if(nextSurgeAt===0) nextSurgeAt = now() + randRange(30000,45000);
     if(now() > nextSurgeAt) triggerSurge();
   }
 
-  // glitchs factices d'OS
   glitchTimer -= dt;
   const glitchIntervalMul = actPhase===3 ? 0.6 : 1;
   if(glitchTimer <= 0 && now()-sessionStart > 12000){
@@ -744,15 +733,13 @@ function updateGame(dt){
     if(Math.random()<0.3) triggerCrack();
   }
 
-  // proposition caméra une fois, autour de 20-32s
-  if(!camAsked && save.cameraChoice===null && now()-sessionStart > randRange(20000,32000)){
-    camAsked = true;
-    askCamera();
+  // proposition "se retourner" — une seule fois par partie
+  if(!turnPromptShown && sessionElapsed > turnPromptAt){
+    turnPromptShown = true;
+    document.getElementById("turnBtn").classList.add("show");
   }
 
-  if(threat >= 1){
-    onCaught();
-  }
+  if(threat >= 1){ onCaught(); }
 }
 
 function onPointerDown(){
@@ -761,12 +748,10 @@ function onPointerDown(){
   held = true;
   pointerEvents.push(now());
 }
-function onPointerUp(){
-  held = false;
-}
+function onPointerUp(){ held = false; }
 
 /* ============================================================
-   Contrôles : tactile + souris + espace (clavier desktop)
+   Contrôles : tactile + souris + espace
    ============================================================ */
 const stage = document.getElementById("app");
 stage.addEventListener("pointerdown", ()=>{ if(state===STATE.PLAYING && !paused){ onPointerDown(); } });
@@ -775,35 +760,197 @@ window.addEventListener("pointercancel", ()=>{ onPointerUp(); });
 window.addEventListener("keydown", (e)=>{
   if(e.code === "Space" && state===STATE.PLAYING && !paused){ e.preventDefault(); onPointerDown(); }
 });
-window.addEventListener("keyup", (e)=>{
-  if(e.code === "Space"){ onPointerUp(); }
-});
+window.addEventListener("keyup", (e)=>{ if(e.code === "Space"){ onPointerUp(); } });
 window.addEventListener("blur", ()=>{ onPointerUp(); });
 
 /* ============================================================
-   Punition d'absence + arrêt caméra : Page Visibility API
+   "Se retourner" — mini-mécanique, une fois par partie
+   ============================================================ */
+document.getElementById("turnBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  if(state !== STATE.PLAYING) return;
+  const btn = document.getElementById("turnBtn");
+  if(!turnedAround){
+    turnedAround = true;
+    paused = true;
+    somethingBehind = Math.random() < 0.45;
+    whisperSound(somethingBehind ? 0.55 : 0.2);
+    vibrate([20]);
+    btn.textContent = "se retourner";
+  } else {
+    const line = somethingBehind
+      ? "tu l'as vu juste avant de te retourner."
+      : "il n'y avait rien derrière toi. il était déjà devant.";
+    btn.classList.remove("show");
+    onCaught(line);
+  }
+});
+
+/* ============================================================
+   Caméra + détection du regard (face-api.js, 100% local)
+   ============================================================ */
+let camStream = null;
+let everGranted = false;
+let modelsReady = false;
+let faceApiScriptReady = false;
+let detectTimer = null;
+let looking = true;
+let awaySince = 0;
+let gazeGraceUntil = 0;
+let lastGazeScareAt = 0;
+const AWAY_MIN_MS = 550;
+const GAZE_SCARE_COOLDOWN = 4000;
+
+function loadFaceApiScript(){
+  return new Promise((resolve,reject)=>{
+    if(faceApiScriptReady || window.faceapi){ faceApiScriptReady = true; resolve(); return; }
+    const s = document.createElement("script");
+    s.src = "lib/face-api.min.js";
+    s.onload = ()=>{ faceApiScriptReady = true; resolve(); };
+    s.onerror = ()=> reject(new Error("face-api-load-failed"));
+    document.head.appendChild(s);
+  });
+}
+async function loadModels(){
+  if(modelsReady) return;
+  await window.faceapi.nets.tinyFaceDetector.loadFromUri("models");
+  modelsReady = true;
+}
+async function acquireCamera(){
+  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+    const err = new Error("no-camera-api"); throw err;
+  }
+  const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
+  camStream = stream;
+  everGranted = true;
+  const v = document.getElementById("camVideo");
+  v.srcObject = stream;
+  try{ await v.play(); }catch(e){}
+  document.getElementById("camWrap").classList.add("show");
+}
+function stopCamera(){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+  document.getElementById("camWrap").classList.remove("show");
+}
+
+function showCamGate(kind, text){
+  const g = document.getElementById("camGate");
+  const t = document.getElementById("camGateText");
+  const btn = document.getElementById("camGateBtn");
+  if(kind==="ask"){
+    t.textContent = "il a besoin de te voir pour commencer. le flux reste entièrement sur cet appareil — rien n'est envoyé ni enregistré. si tu détournes le regard puis reviens, il le saura.";
+    btn.textContent = "autoriser"; btn.style.display = "inline-block";
+  } else if(kind==="loading"){
+    t.textContent = "il ouvre les yeux…";
+    btn.style.display = "none";
+  } else if(kind==="denied"){
+    t.textContent = text || "il ne peut pas te voir.";
+    btn.textContent = "réessayer"; btn.style.display = "inline-block";
+  }
+  g.classList.add("show");
+}
+function hideCamGate(){ document.getElementById("camGate").classList.remove("show"); }
+
+let starting = false;
+async function tryStart(){
+  if(starting) return;
+  starting = true;
+  if(!modelsReady || !camStream){
+    showCamGate("loading");
+    try{
+      if(!camStream) await acquireCamera();
+      await loadFaceApiScript();
+      if(!modelsReady) await loadModels();
+    }catch(err){
+      starting = false;
+      let msg = "il n'a pas réussi à te voir. réessaie.";
+      if(err && err.name === "NotAllowedError") msg = "caméra refusée. autorise-la dans les réglages du navigateur, puis réessaie.";
+      else if(err && err.message === "no-camera-api") msg = "aucune caméra détectée sur cet appareil. impossible de jouer sans qu'il puisse te voir.";
+      else if(err && err.message === "face-api-load-failed") msg = "le module de vision n'a pas pu charger. vérifie ta connexion et réessaie.";
+      showCamGate("denied", msg);
+      return;
+    }
+  }
+  hideCamGate();
+  startDetectionLoop();
+  startGame();
+  starting = false;
+}
+
+document.getElementById("startBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  if(!everGranted){ showCamGate("ask"); }
+  else { tryStart(); }
+});
+document.getElementById("camGateBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  tryStart();
+});
+document.getElementById("camGateClose").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  hideCamGate();
+});
+document.getElementById("camGate").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
+
+function startDetectionLoop(){
+  stopDetectionLoop();
+  looking = true; awaySince = 0;
+  gazeGraceUntil = now() + 3500;
+  detectTimer = setInterval(async ()=>{
+    if(state!==STATE.PLAYING || paused || document.hidden || !camStream || !window.faceapi) return;
+    const v = document.getElementById("camVideo");
+    if(!v || v.readyState < 2) return;
+    try{
+      const result = await window.faceapi.detectSingleFace(v, new window.faceapi.TinyFaceDetectorOptions({inputSize:160, scoreThreshold:0.5}));
+      handleGaze(!!result);
+    }catch(e){ /* ignore une frame ratée */ }
+  }, 320);
+}
+function stopDetectionLoop(){ if(detectTimer){ clearInterval(detectTimer); detectTimer=null; } }
+
+function handleGaze(seen){
+  const eyeDot = document.getElementById("eyeDot");
+  if(eyeDot) eyeDot.classList.toggle("away", !seen);
+  if(!seen){
+    if(awaySince===0) awaySince = now();
+    looking = false;
+  } else {
+    if(!looking && awaySince>0){
+      const awayFor = now() - awaySince;
+      if(awayFor > AWAY_MIN_MS && now() > gazeGraceUntil && now()-lastGazeScareAt > GAZE_SCARE_COOLDOWN && state===STATE.PLAYING && !paused){
+        lastGazeScareAt = now();
+        onCaught("tu as détourné le regard. il en a profité.");
+      }
+    }
+    awaySince = 0;
+    looking = true;
+  }
+}
+
+/* ============================================================
+   Visibilité de l'onglet : coupe la caméra, punit l'absence
    ============================================================ */
 document.addEventListener("visibilitychange", ()=>{
   if(document.hidden){
     if(state===STATE.PLAYING){ hiddenAt = now(); }
     stopCamera();
+    stopDetectionLoop();
   } else {
-    if(state===STATE.PLAYING && hiddenAt){
+    if(state===STATE.PLAYING){
       const away = now() - hiddenAt;
       const awaySec = away/1000;
       const bump = Math.min(0.6, awaySec*0.01);
       threat = Math.min(1, threat + bump);
       hiddenAt = 0;
-      if(awaySec > 4){
-        showFakeNotifOnReturn(away);
-      }
+      if(awaySec > 4) showFakeNotifOnReturn(away);
+      acquireCamera().then(()=>{ startDetectionLoop(); }).catch(()=>{});
       if(threat>=1) onCaught();
     }
   }
 });
 
 /* ============================================================
-   Faux glitchs d'interface (purement cosmétiques, dans la page)
+   Faux glitchs d'interface (cosmétiques uniquement)
    ============================================================ */
 let batteryLevel = 100;
 if(navigator.getBattery){
@@ -812,7 +959,6 @@ if(navigator.getBattery){
     b.addEventListener("levelchange", ()=>{ batteryLevel = Math.round(b.level*100); });
   }).catch(()=>{});
 }
-
 function updateFakeClock(){
   const d = new Date();
   const hh = String(d.getHours()).padStart(2,"0");
@@ -862,54 +1008,9 @@ function showFakeNotifOnReturn(awayMs){
 }
 
 /* ============================================================
-   Caméra optionnelle (100% locale, jamais transmise ni stockée)
-   ============================================================ */
-let camStream = null;
-function askCamera(){
-  paused = true;
-  const modal = document.getElementById("modal");
-  modal.classList.add("show");
-
-  const finish = ()=>{ modal.classList.remove("show"); paused = false; };
-
-  document.getElementById("modalYes").onclick = (e)=>{
-    e.stopPropagation();
-    modal.classList.remove("show");
-    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
-      navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false}).then(stream=>{
-        camStream = stream;
-        const v = document.getElementById("camVideo");
-        v.srcObject = stream;
-        document.getElementById("camWrap").classList.add("show");
-        save.cameraChoice = "granted"; writeSave(save);
-        paused = false;
-      }).catch(()=>{
-        save.cameraChoice = "denied"; writeSave(save);
-        showFakeNotif("il ne peut pas te voir. pas encore.", "VEILLE");
-        paused = false;
-      });
-    } else {
-      save.cameraChoice = "denied"; writeSave(save);
-      paused = false;
-    }
-  };
-  document.getElementById("modalNo").onclick = (e)=>{
-    e.stopPropagation();
-    save.cameraChoice = "denied"; writeSave(save);
-    showFakeNotif("il ne peut pas te voir. pas encore.", "VEILLE");
-    finish();
-  };
-}
-document.getElementById("modal").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
-function stopCamera(){
-  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-  document.getElementById("camWrap").classList.remove("show");
-}
-
-/* ============================================================
    Mort / capture
    ============================================================ */
-function onCaught(){
+function onCaught(customLine){
   if(state === STATE.DEAD) return;
   state = STATE.DEAD;
   const survived = now() - sessionStart;
@@ -918,6 +1019,7 @@ function onCaught(){
   save.lastVisit = now();
   writeSave(save);
   stopCamera();
+  stopDetectionLoop();
 
   const jsDuration = save.reduceEffects ? 400 : 850;
   jumpscareUntil = now() + jsDuration;
@@ -931,12 +1033,12 @@ function onCaught(){
     const diedSub = document.getElementById("diedSub");
     const lines = [
       "tu as lâché prise.",
-      "tu as regardé ailleurs.",
       "tu as paniqué. il a senti chaque battement.",
       "il attendait juste ça.",
       "tu croyais que rester calme suffirait.",
     ];
-    diedSub.textContent = lines[Math.floor(Math.random()*lines.length)] + "  —  survécu " + fmtDuration(survived) + ".";
+    const base = customLine || lines[Math.floor(Math.random()*lines.length)];
+    diedSub.textContent = base + "  —  survécu " + fmtDuration(survived) + ".";
     document.getElementById("diedScreen").classList.add("show");
   }, 550);
 
@@ -961,9 +1063,10 @@ function flashScreen(){
    ============================================================ */
 function backToTitle(){
   state = STATE.TITLE;
-  light = 1; threat = 0; panic = 0; held = false;
+  light = 1; threat = 0; panic = 0; held = false; paused = false; turnedAround = false;
   buildTitleFlavor();
   document.getElementById("veil").classList.remove("hidden");
+  document.getElementById("turnBtn").classList.remove("show");
 }
 function startGame(){
   ensureAudio();
@@ -981,7 +1084,6 @@ function startGame(){
   panic = 0;
   entitySeed = Math.random()*1000;
   glitchTimer = randRange(16,26);
-  camAsked = (save.cameraChoice !== null);
   pointerEvents = [];
   held = false;
   paused = false;
@@ -990,14 +1092,14 @@ function startGame(){
   glimpseUntil = 0; nearMissUntil = 0; jumpscareUntil = 0; shakeUntil = 0;
   crackUntil = 0; subliminalUntil = 0;
 
+  turnedAround = false; turnPromptShown = false; somethingBehind = false;
+  turnPromptAt = randRange(15000,50000);
+  document.getElementById("turnBtn").classList.remove("show");
+
   document.getElementById("veil").classList.add("hidden");
   document.getElementById("hint").style.opacity = "1";
 }
 
-document.getElementById("startBtn").addEventListener("click", (e)=>{
-  e.stopPropagation();
-  startGame();
-});
 document.getElementById("resetBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
@@ -1016,14 +1118,12 @@ document.getElementById("gear").addEventListener("click", (e)=>{
 });
 
 /* ============================================================
-   Sauvegarde périodique de lastVisit tant qu'on joue
+   Sauvegarde périodique
    ============================================================ */
 setInterval(()=>{
   if(state===STATE.PLAYING){ save.lastVisit = now(); writeSave(save); }
 }, 5000);
-window.addEventListener("beforeunload", ()=>{
-  save.lastVisit = now(); writeSave(save);
-});
+window.addEventListener("beforeunload", ()=>{ save.lastVisit = now(); writeSave(save); });
 
 /* ============================================================
    Service worker (offline / PWA)
@@ -1034,7 +1134,6 @@ if("serviceWorker" in navigator){
   });
 }
 
-/* Init */
 buildTitleFlavor();
 
 })();
