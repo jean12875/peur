@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="VEILLE — il a besoin de te voir pour commencer.">
+<meta name="description" content="VEILLE — cinq épreuves. il regarde, il écoute, il attend.">
 <title>VEILLE</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -66,6 +66,14 @@
     text-transform:uppercase; pointer-events:none; transition:opacity 2s ease; z-index:5;
   }
 
+  #trialBanner{
+    position:absolute; left:0; right:0; top:9vh; text-align:center; z-index:14;
+    opacity:0; transition:opacity 0.8s ease; pointer-events:none;
+  }
+  #trialBanner.show{ opacity:1; }
+  #trialBanner .lbl{ color:#eee; font-size:0.95rem; letter-spacing:0.4em; text-transform:uppercase; font-weight:300; }
+  #trialBanner .hnt{ color:#777; font-size:0.72rem; letter-spacing:0.1em; margin-top:0.4em; }
+
   #turnBtn{
     position:absolute; left:50%; bottom:9vh; transform:translateX(-50%);
     padding:0.7em 1.6em; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.25);
@@ -75,14 +83,16 @@
   }
   #turnBtn.show{ opacity:0.9; pointer-events:auto; }
 
-  #diedScreen{
+  #diedScreen, #clearedScreen{
     position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
     background:#000; opacity:0; pointer-events:none; transition:opacity 0.6s ease;
     flex-direction:column; gap:0.6em; text-align:center; padding:6vh 6vw;
   }
-  #diedScreen.show{ opacity:1; pointer-events:auto; }
+  #diedScreen.show, #clearedScreen.show{ opacity:1; pointer-events:auto; }
   #diedScreen .diedTitle{ color:#8a1f1f; font-size:clamp(1.6rem,7vw,2.6rem); letter-spacing:0.3em; font-weight:200; }
   #diedScreen .diedSub{ color:#666; font-size:0.85rem; letter-spacing:0.1em; max-width:30em; line-height:1.7em; }
+  #clearedScreen .clearedTitle{ color:#7fa8c9; font-size:clamp(1.4rem,6vw,2.2rem); letter-spacing:0.3em; font-weight:200; }
+  #clearedScreen .clearedSub{ color:#666; font-size:0.85rem; letter-spacing:0.1em; max-width:30em; line-height:1.7em; }
 
   #flashLayer{ position:absolute; inset:0; z-index:30; pointer-events:none; background:#fff; opacity:0; }
 
@@ -157,6 +167,7 @@
   <canvas id="c"></canvas>
 
   <div id="hint">tiens</div>
+  <div id="trialBanner"><div class="lbl" id="trialLabel"></div><div class="hnt" id="trialHint"></div></div>
   <button id="turnBtn">se retourner</button>
 
   <div id="recDot"></div>
@@ -170,7 +181,7 @@
 
   <div id="veil">
     <div class="title" id="titleText">VEILLE</div>
-    <div class="flavor" id="flavorText">il a besoin de te voir pour commencer.</div>
+    <div class="flavor" id="flavorText">cinq épreuves. il a besoin de te voir pour commencer.</div>
     <div class="stat" id="statText"></div>
     <button class="startbtn" id="startBtn">entrer</button>
     <div class="miniline"><button id="resetBtn">tout oublier</button></div>
@@ -181,12 +192,17 @@
     <div class="diedSub" id="diedSub"></div>
   </div>
 
+  <div id="clearedScreen">
+    <div class="clearedTitle">NUIT SURVÉCUE</div>
+    <div class="clearedSub" id="clearedSub"></div>
+  </div>
+
   <div id="flashLayer"></div>
 
   <div id="camGate">
     <div class="box">
       <div class="eye">◉</div>
-      <p id="camGateText">il a besoin de te voir pour commencer. le flux reste entièrement sur cet appareil — rien n'est envoyé ni enregistré. si tu détournes le regard puis reviens, il le saura.</p>
+      <p id="camGateText">cinq épreuves t'attendent. il a besoin de te voir, et si possible de t'entendre et de sentir si tu bouges. le flux reste entièrement sur cet appareil — rien n'est envoyé ni enregistré.</p>
       <div class="row"><button id="camGateBtn">autoriser</button></div>
       <button class="miniclose" id="camGateClose">retour</button>
     </div>
@@ -202,7 +218,7 @@
 /* ============================================================
    VEILLE — utilitaires & état persistant
    ============================================================ */
-const SAVE_KEY = "veille_save_v2";
+const SAVE_KEY = "veille_save_v3";
 const now = () => Date.now();
 const REDUCE_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function randRange(a,b){ return a + Math.random()*(b-a); }
@@ -213,7 +229,7 @@ function loadSave(){
     if(raw) return JSON.parse(raw);
   }catch(e){}
   return {
-    firstVisit: now(), lastVisit: now(), deaths: 0,
+    firstVisit: now(), lastVisit: now(), deaths: 0, nightsCompleted: 0,
     longestSurvivalMs: 0, totalSessions: 0, reduceEffects: REDUCE_MOTION
   };
 }
@@ -349,7 +365,7 @@ function vibrate(pattern){
 /* ============================================================
    État de jeu
    ============================================================ */
-const STATE = { TITLE:"title", PLAYING:"playing", DEAD:"dead" };
+const STATE = { TITLE:"title", PLAYING:"playing", DEAD:"dead", CLEARED:"cleared" };
 let state = STATE.TITLE;
 
 let held = false;
@@ -357,8 +373,6 @@ let light = 1;
 let threat = 0;
 let panic = 0;
 let sessionStart = 0;
-let sessionElapsed = 0;
-let actPhase = 1;
 let paused = false;
 let lastFrame = 0;
 let hiddenAt = 0;
@@ -368,19 +382,11 @@ let entitySeed = Math.random()*1000;
 let glitchTimer = randRange(18,34);
 
 let nextGlimpseAt = 0;
-let nextSurgeAt = 0;
-let nearMissCooldownUntil = 0;
 let glimpseUntil = 0, glimpseX=0, glimpseY=0, glimpseSize=0;
-let nearMissUntil = 0;
 let jumpscareUntil = 0;
 let shakeUntil = 0;
 let crackUntil = 0, crackSeed = 0;
 let subliminalUntil = 0, subliminalText = "", subliminalAngle = 0;
-
-let turnedAround = false;
-let turnPromptShown = false;
-let turnPromptAt = 0;
-let somethingBehind = false;
 
 const SUBLIMINAL_AMBIENT = ["derrière toi","il respire","ne bouge pas","chut","il sait","reste calme","trop tard","regarde"];
 const SUBLIMINAL_DEATH = ["NON.","IL T'A EU.","COURS.","TROP TARD.","REGARDE-LE."];
@@ -388,8 +394,21 @@ const SUBLIMINAL_DEATH = ["NON.","IL T'A EU.","COURS.","TROP TARD.","REGARDE-LE.
 function difficultyMul(){ return 1 + Math.min(save.deaths, 12) * 0.045; }
 function startingThreat(){
   const hours = (now() - save.lastVisit) / 3600000;
-  return Math.min(0.42, Math.log2(1+hours) * 0.09);
+  return Math.min(0.3, Math.log2(1+hours) * 0.06);
 }
+
+/* ============================================================
+   Les cinq épreuves
+   ============================================================ */
+const TRIALS = [
+  { id:"regard",      label:"LE REGARD",       hint:"ne détourne pas les yeux.",              duration:16000 },
+  { id:"souffle",     label:"LE SOUFFLE",      hint:"ne fais aucun bruit.",                    duration:15000 },
+  { id:"miroir",      label:"LE MIROIR",       hint:"touche l'écran quand tu le vois.",        duration:12000 },
+  { id:"immobilite",  label:"L'IMMOBILITÉ",    hint:"ne bouge pas l'appareil.",                 duration:15000 },
+  { id:"retourner",   label:"DERRIÈRE TOI",    hint:"retourne-toi. puis reviens.",              duration:0 },
+];
+let currentTrial = -1;
+let trialStart = 0;
 
 /* ============================================================
    Titre — texte qui se souvient
@@ -399,7 +418,7 @@ function buildTitleFlavor(){
   const d = save.deaths;
   let msg;
   if(save.totalSessions === 0){
-    msg = "il a besoin de te voir pour commencer. autorise la caméra, puis pose ton doigt sur l'écran et ne le retire pas.";
+    msg = "cinq épreuves. il a besoin de te voir pour commencer — et si tu le laisses, de t'entendre et de sentir si tu bouges.";
   } else if(delta < 60000){
     msg = "tu es encore là. il n'a pas eu le temps de partir non plus.";
   } else if(delta < 3600000){
@@ -422,6 +441,7 @@ function buildTitleFlavor(){
   const stat = document.getElementById("statText");
   const parts = [];
   if(d>0) parts.push("morts : "+d);
+  if(save.nightsCompleted>0) parts.push("nuits survécues : "+save.nightsCompleted);
   if(save.longestSurvivalMs>0) parts.push("record : "+fmtDuration(save.longestSurvivalMs));
   stat.textContent = parts.join("   ·   ");
 
@@ -474,6 +494,38 @@ function drawFace(x,y,size,alpha,jitter,fillStyle){
 /* ============================================================
    Rendu
    ============================================================ */
+function threatVignette(){
+  const vr = Math.floor(threat*70), vb = Math.floor(threat*14);
+  const cx=W/2, cy=H/2;
+  const vgn = ctx.createRadialGradient(cx,cy,Math.min(W,H)*0.28,cx,cy,Math.max(W,H)*0.75);
+  vgn.addColorStop(0,"rgba(0,0,0,0)");
+  vgn.addColorStop(1,`rgba(${vr},0,${vb},0.55)`);
+  ctx.fillStyle = vgn;
+  ctx.fillRect(0,0,W,H);
+}
+
+function drawMicMeter(){
+  const cx=W/2, cy=H*0.84;
+  const r = 16 + currentRms*160;
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = (micBaselineReady && currentRms>micThreshold) ? "#c0392b" : "rgba(255,255,255,0.4)";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx,cy,Math.max(6,r),0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+function drawTremorMeter(){
+  const cx=W/2, cy=H*0.84;
+  const w=140, h=6;
+  const t = Math.min(1, tremor/(motionThreshold||1));
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.strokeRect(cx-w/2,cy,w,h);
+  ctx.fillStyle = t>0.8 ? "#c0392b" : "rgba(255,255,255,0.55)";
+  ctx.fillRect(cx-w/2,cy,w*t,h);
+  ctx.restore();
+}
+
 function drawNormalScene(){
   ctx.fillStyle = "#000";
   ctx.fillRect(0,0,W,H);
@@ -503,11 +555,6 @@ function drawNormalScene(){
   if(now() < glimpseUntil){
     drawFace(glimpseX, glimpseY, glimpseSize, 0.85, 10, "#020202");
   }
-  if(now() < nearMissUntil){
-    const t = 1 - Math.max(0,(nearMissUntil-now())/480);
-    const size = Math.min(W,H) * (0.25 + 0.35*Math.sin(t*Math.PI));
-    drawFace(W/2, H*0.48, size, 0.7*Math.sin(t*Math.PI), 20, "#0a0000");
-  }
 
   if(!save.reduceEffects){
     const grainCount = Math.floor(35 + threat*120);
@@ -518,12 +565,34 @@ function drawNormalScene(){
     }
   }
 
-  const vr = Math.floor(0+threat*70), vb = Math.floor(0+threat*14);
-  const vgn = ctx.createRadialGradient(cx,cy,radius*0.9,cx,cy,Math.max(W,H)*0.75);
-  vgn.addColorStop(0,"rgba(0,0,0,0)");
-  vgn.addColorStop(1,`rgba(${vr},0,${vb},0.58)`);
-  ctx.fillStyle = vgn;
-  ctx.fillRect(0,0,W,H);
+  threatVignette();
+  if(currentTrial===1) drawMicMeter();
+  if(currentTrial===3) drawTremorMeter();
+}
+
+function drawMirrorTrial(){
+  ctx.save();
+  ctx.filter = "grayscale(1) contrast(1.5) brightness(0.55)";
+  const v = document.getElementById("camVideo");
+  if(v && v.videoWidth){
+    const vw=v.videoWidth, vh=v.videoHeight;
+    const scale = Math.max(W/vw, H/vh);
+    const dw=vw*scale, dh=vh*scale;
+    ctx.drawImage(v, (W-dw)/2, (H-dh)/2, dw, dh);
+  } else {
+    ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H);
+  }
+  ctx.filter = "none";
+  ctx.restore();
+
+  if(mirrorFlashUntil>0 && now()<mirrorFlashUntil){
+    drawFace(mirrorFX*W, mirrorFY*H, Math.min(W,H)*0.16, 0.85, 14, "#000");
+  }
+  if(!save.reduceEffects){
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    for(let i=0;i<40;i++){ ctx.fillRect(Math.random()*W, Math.random()*H, 1, 1); }
+  }
+  threatVignette();
 }
 
 function drawTurnedScene(){
@@ -612,6 +681,9 @@ function drawScene(){
     drawJumpscare();
   } else if(turnedAround){
     drawTurnedScene();
+  } else if(currentTrial===2 && state===STATE.PLAYING){
+    drawMirrorTrial();
+    if(now() < subliminalUntil) drawSubliminalText();
   } else {
     drawNormalScene();
     if(now() < crackUntil) drawCrack();
@@ -633,15 +705,11 @@ function loop(ts){
 requestAnimationFrame(loop);
 
 /* ============================================================
-   Contenu ambiant
+   Ambiance : aperçus furtifs + faux glitchs d'OS
    ============================================================ */
 function scheduleNextGlimpse(){
-  let range;
-  if(actPhase===1) range=[11000,19000];
-  else if(actPhase===2) range=[6000,11000];
-  else range=[3000,7000];
   const bonus = held ? 1.6 : 1;
-  nextGlimpseAt = now() + randRange(range[0],range[1]) * bonus;
+  nextGlimpseAt = now() + randRange(7000,14000) * bonus;
 }
 function triggerGlimpse(){
   const edge = Math.floor(Math.random()*4);
@@ -652,27 +720,9 @@ function triggerGlimpse(){
   else { glimpseX=W*randRange(0.86,0.98); glimpseY=randRange(margin,1-margin)*H; }
   glimpseSize = randRange(40,90) + threat*60;
   glimpseUntil = now() + randRange(110,240);
-  whisperSound(0.25);
-  vibrate([12]);
-  if(Math.random()<0.35) flashSubliminal(SUBLIMINAL_AMBIENT[Math.floor(Math.random()*SUBLIMINAL_AMBIENT.length)]);
-}
-function triggerNearMiss(){
-  nearMissUntil = now() + 480;
-  whisperSound(0.55);
-  vibrate([0,60,20,60]);
-  threat = Math.max(0, threat - 0.22);
-  nearMissCooldownUntil = now() + randRange(28000,48000);
-}
-function triggerSurge(){
-  flashSubliminal("il approche");
-  whisperSound(0.4);
-  setTimeout(()=>{
-    if(state===STATE.PLAYING && !paused){
-      threat = Math.min(1, threat + randRange(0.12,0.18));
-      vibrate([0,40,20,40,20,120]);
-    }
-  }, 700);
-  nextSurgeAt = now() + randRange(38000,62000);
+  whisperSound(0.22);
+  vibrate([10]);
+  if(Math.random()<0.3) flashSubliminal(SUBLIMINAL_AMBIENT[Math.floor(Math.random()*SUBLIMINAL_AMBIENT.length)]);
 }
 function flashSubliminal(text){
   subliminalText = text;
@@ -683,6 +733,264 @@ function triggerCrack(){
   crackSeed = Math.floor(Math.random()*100000)+1;
   crackUntil = now() + randRange(500,900);
 }
+let batteryLevel = 100;
+if(navigator.getBattery){
+  navigator.getBattery().then(b=>{
+    batteryLevel = Math.round(b.level*100);
+    b.addEventListener("levelchange", ()=>{ batteryLevel = Math.round(b.level*100); });
+  }).catch(()=>{});
+}
+function updateFakeClock(){
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2,"0");
+  const mm = String(d.getMinutes()).padStart(2,"0");
+  document.getElementById("fosTime").textContent = hh+":"+mm;
+  document.getElementById("fosBatt").textContent = batteryLevel + "%";
+}
+setInterval(updateFakeClock, 1000);
+const glitchLines = [
+  "il fait plus froid ici qu'il y a une minute.",
+  "quelqu'un respire, mais ce n'est pas toi.",
+  "1 nouvelle présence détectée.",
+  "ne te retourne pas.",
+  "il sait que tu lis ceci.",
+  "batterie : ne le laisse pas s'éteindre.",
+];
+function triggerFakeGlitch(){
+  const fosEl = document.getElementById("fakeOS");
+  const rec = document.getElementById("recDot");
+  const roll = Math.random();
+  if(roll < 0.5){
+    fosEl.style.opacity = "1";
+    const battEl = document.getElementById("fosBatt");
+    const realBatt = batteryLevel;
+    let fake = realBatt;
+    const iv = setInterval(()=>{ fake = Math.max(-1, fake-Math.floor(randRange(3,14))); battEl.textContent = fake+"%"; if(fake<=0) clearInterval(iv); }, 90);
+    setTimeout(()=>{ fosEl.style.opacity="0"; battEl.textContent = realBatt+"%"; }, 1400);
+    vibrate([15]);
+  } else {
+    showFakeNotif(glitchLines[Math.floor(Math.random()*glitchLines.length)]);
+  }
+  if(Math.random()<0.35){
+    rec.style.opacity = "1";
+    setTimeout(()=>{ rec.style.opacity="0"; }, randRange(400,900));
+  }
+  if(Math.random()<0.3) triggerCrack();
+}
+function showFakeNotif(text, from){
+  const n = document.getElementById("fakeNotif");
+  document.getElementById("fnFrom").textContent = from || "Système";
+  document.getElementById("fnMsg").textContent = text;
+  n.classList.add("show");
+  setTimeout(()=>{ n.classList.remove("show"); }, 2600);
+}
+function showFakeNotifOnReturn(awayMs){
+  showFakeNotif("tu étais parti " + fmtDuration(awayMs) + ". il s'est rapproché.", "VEILLE");
+}
+
+/* ============================================================
+   Épreuve 1 : LE SOUFFLE (micro)
+   ============================================================ */
+let micAnalyser = null, micDataArray = null;
+let micBaselineReady = false, micBaselineSamples = [], micThreshold = 0.12, micBreachSince = 0;
+let currentRms = 0;
+function setupMicFromStream(stream){
+  const audioTracks = stream.getAudioTracks ? stream.getAudioTracks() : [];
+  if(!audioTracks.length){ micAnalyser = null; return; }
+  ensureAudio();
+  if(!actx){ micAnalyser = null; return; }
+  try{
+    const micSource = actx.createMediaStreamSource(stream);
+    micAnalyser = actx.createAnalyser();
+    micAnalyser.fftSize = 512;
+    micDataArray = new Uint8Array(micAnalyser.fftSize);
+    micSource.connect(micAnalyser); // jamais reliée à la sortie
+  }catch(e){ micAnalyser = null; }
+}
+function checkMic(){
+  if(!micAnalyser){ currentRms = 0; return; }
+  micAnalyser.getByteTimeDomainData(micDataArray);
+  let sumSquares=0;
+  for(let i=0;i<micDataArray.length;i++){ const v=(micDataArray[i]-128)/128; sumSquares+=v*v; }
+  currentRms = Math.sqrt(sumSquares/micDataArray.length);
+
+  const elapsedTrial = now()-trialStart;
+  if(elapsedTrial < 700){ micBaselineSamples.push(currentRms); return; }
+  if(!micBaselineReady){
+    const avg = micBaselineSamples.reduce((a,b)=>a+b,0)/Math.max(1,micBaselineSamples.length);
+    micThreshold = Math.max(0.05, avg*2.3 + 0.035);
+    micBaselineReady = true;
+  }
+  if(currentRms > micThreshold){
+    if(micBreachSince===0) micBreachSince = now();
+    if(now()-micBreachSince > 450){ onCaught("tu as fait du bruit. il t'a entendu."); }
+  } else {
+    micBreachSince = 0;
+  }
+}
+
+/* ============================================================
+   Épreuve 2 : LE MIROIR (feed caméra plein écran)
+   ============================================================ */
+let mirrorFlashAt=0, mirrorFlashUntil=0, mirrorFX=0.5, mirrorFY=0.5, mirrorCaught=false;
+function scheduleMirrorFlash(){
+  mirrorFlashAt = now() + randRange(3000,7500);
+  mirrorFlashUntil = 0;
+  mirrorCaught = false;
+}
+function updateMirrorTrial(){
+  const trial = TRIALS[2];
+  const elapsedTrial = now()-trialStart;
+  if(!mirrorCaught && mirrorFlashUntil===0 && now()>mirrorFlashAt){
+    mirrorFlashUntil = now()+700;
+    mirrorFX = randRange(0.2,0.8); mirrorFY = randRange(0.28,0.68);
+    whisperSound(0.3);
+  }
+  if(mirrorFlashUntil>0 && now()>mirrorFlashUntil && !mirrorCaught){
+    onCaught("tu ne l'as pas vu à temps.");
+    return;
+  }
+  if(elapsedTrial > trial.duration && !mirrorCaught){
+    onCaught("tu ne l'as pas vu à temps.");
+  }
+}
+
+/* ============================================================
+   Épreuve 3 : L'IMMOBILITÉ (capteurs mouvement / repli clavier-souris)
+   ============================================================ */
+let motionPermissionOK = false, motionPermissionAsked = false;
+let motionEventFired = false, usingInputFallback = false;
+let lastAccelMag = null, tremor = 0;
+let motionBaselineReady = false, motionBaselineSamples = [], motionThreshold = 0.6;
+let stillBrokenSince = 0;
+let fallbackGraceUntil = 0, fallbackViolation = false;
+
+async function requestMotionPermission(){
+  if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
+    try{
+      const res = await DeviceMotionEvent.requestPermission();
+      motionPermissionOK = (res === "granted");
+    }catch(e){ motionPermissionOK = false; }
+  } else {
+    motionPermissionOK = true;
+  }
+}
+function handleMotion(e){
+  motionEventFired = true;
+  const a = (e.acceleration && e.acceleration.x!==null) ? e.acceleration : e.accelerationIncludingGravity;
+  if(!a) return;
+  const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
+  if(lastAccelMag===null){ lastAccelMag = mag; return; }
+  const delta = Math.abs(mag-lastAccelMag);
+  lastAccelMag = mag;
+  tremor = tremor*0.8 + delta*0.2;
+}
+window.addEventListener("devicemotion", handleMotion);
+window.addEventListener("mousemove", ()=>{
+  if(currentTrial===3 && usingInputFallback && now()>fallbackGraceUntil) fallbackViolation = true;
+});
+window.addEventListener("keydown", (e)=>{
+  if(currentTrial===3 && usingInputFallback && e.code!=="Space" && now()>fallbackGraceUntil) fallbackViolation = true;
+});
+
+function checkStillness(){
+  const elapsedTrial = now()-trialStart;
+
+  if(!usingInputFallback && !motionEventFired && elapsedTrial>900){
+    usingInputFallback = true;
+    fallbackGraceUntil = now() + 700;
+    fallbackViolation = false;
+  }
+
+  if(usingInputFallback){
+    tremor = fallbackViolation ? 1 : 0;
+    if(fallbackViolation && now() > fallbackGraceUntil){
+      onCaught("tu as bougé. il a senti la vibration.");
+    }
+    return;
+  }
+
+  if(elapsedTrial < 700){ motionBaselineSamples.push(tremor); return; }
+  if(!motionBaselineReady){
+    const avg = motionBaselineSamples.reduce((a,b)=>a+b,0)/Math.max(1,motionBaselineSamples.length);
+    motionThreshold = Math.max(0.35, avg*2.5+0.25);
+    motionBaselineReady = true;
+  }
+  if(tremor > motionThreshold){
+    if(stillBrokenSince===0) stillBrokenSince = now();
+    if(now()-stillBrokenSince > 500){ onCaught("tu as bougé. il a senti la vibration."); }
+  } else {
+    stillBrokenSince = 0;
+  }
+}
+
+/* ============================================================
+   Épreuve 4 : DERRIÈRE TOI (finale)
+   ============================================================ */
+let turnedAround = false;
+let somethingBehind = false;
+document.getElementById("turnBtn").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
+document.getElementById("turnBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  if(state !== STATE.PLAYING || currentTrial !== 4) return;
+  const btn = document.getElementById("turnBtn");
+  if(!turnedAround){
+    turnedAround = true;
+    paused = true;
+    somethingBehind = Math.random() < 0.45;
+    whisperSound(somethingBehind ? 0.55 : 0.2);
+    vibrate([20]);
+  } else {
+    turnedAround = false;
+    paused = false;
+    btn.classList.remove("show");
+    if(somethingBehind){
+      onCaught("tu l'as vu juste avant de te retourner.");
+    } else {
+      passTrial();
+    }
+  }
+});
+
+/* ============================================================
+   Machine à épreuves
+   ============================================================ */
+function startTrial(index){
+  currentTrial = index;
+  trialStart = now();
+  const trial = TRIALS[index];
+
+  document.getElementById("trialLabel").textContent = trial.label;
+  document.getElementById("trialHint").textContent = trial.hint;
+  const banner = document.getElementById("trialBanner");
+  banner.classList.add("show");
+  setTimeout(()=>{ banner.classList.remove("show"); }, 2400);
+
+  document.getElementById("camWrap").style.display = (index===2) ? "none" : "";
+
+  if(index===1){
+    micBaselineReady = false; micBaselineSamples = []; micBreachSince = 0; currentRms = 0;
+    // si le micro n'est pas disponible, checkMic() ne pénalise jamais : l'épreuve
+    // se termine simplement au bout de sa durée via le minuteur normal dans updateGame().
+  }
+  if(index===2){ scheduleMirrorFlash(); }
+  if(index===3){
+    stillBrokenSince=0; motionBaselineReady=false; motionBaselineSamples=[];
+    usingInputFallback=false; motionEventFired=false; tremor=0; lastAccelMag=null;
+    fallbackGraceUntil=0; fallbackViolation=false;
+  }
+  if(index===4){
+    turnedAround=false; somethingBehind=false;
+    document.getElementById("turnBtn").classList.add("show");
+  }
+}
+function passTrial(){
+  if(state!==STATE.PLAYING) return;
+  if(currentTrial>=4){ onCleared(); return; }
+  vibrate([12]);
+  whisperSound(0.12);
+  startTrial(currentTrial+1);
+}
 
 /* ============================================================
    Logique de jeu
@@ -690,9 +998,6 @@ function triggerCrack(){
 function updateGame(dt){
   if(paused) return;
 
-  sessionElapsed = now() - sessionStart;
-  actPhase = sessionElapsed < 22000 ? 1 : (sessionElapsed < 65000 ? 2 : 3);
-  const phaseMul = actPhase===1 ? 0.75 : (actPhase===2 ? 1.0 : 1.3);
   const dmul = difficultyMul();
 
   const cutoff = now() - 4000;
@@ -704,42 +1009,40 @@ function updateGame(dt){
   if(held){
     light = Math.min(1, light + dt*0.32);
     const calmBonus = Math.max(0, 1-panic);
-    threat = Math.max(0, threat - dt*0.075*calmBonus*(1/dmul) + dt*0.06*panic*dmul*phaseMul);
+    threat = Math.max(0, threat - dt*0.07*calmBonus*(1/dmul) + dt*0.055*panic*dmul);
   } else {
     light = Math.max(0, light - dt*0.9);
-    threat = Math.min(1, threat + dt*0.20*dmul*phaseMul);
+    threat = Math.min(1, threat + dt*0.17*dmul);
   }
-
   setDread(threat);
   document.getElementById("hint").style.opacity = (sessionStart && now()-sessionStart>6000) ? "0" : "1";
 
   if(nextGlimpseAt===0) scheduleNextGlimpse();
   if(now() > nextGlimpseAt){ triggerGlimpse(); scheduleNextGlimpse(); }
 
-  if(threat>0.65 && held && actPhase>=2 && now()>nearMissCooldownUntil && Math.random() < dt*0.12){
-    triggerNearMiss();
-  }
-
-  if(actPhase>=2){
-    if(nextSurgeAt===0) nextSurgeAt = now() + randRange(30000,45000);
-    if(now() > nextSurgeAt) triggerSurge();
-  }
-
   glitchTimer -= dt;
-  const glitchIntervalMul = actPhase===3 ? 0.6 : 1;
-  if(glitchTimer <= 0 && now()-sessionStart > 12000){
+  if(glitchTimer <= 0 && now()-sessionStart > 9000){
     triggerFakeGlitch();
-    glitchTimer = randRange(18,34) * glitchIntervalMul;
-    if(Math.random()<0.3) triggerCrack();
+    glitchTimer = randRange(16,30);
   }
 
-  // proposition "se retourner" — une seule fois par partie
-  if(!turnPromptShown && sessionElapsed > turnPromptAt){
-    turnPromptShown = true;
-    document.getElementById("turnBtn").classList.add("show");
-  }
+  if(threat >= 1){ onCaught(); return; }
 
-  if(threat >= 1){ onCaught(); }
+  const trial = TRIALS[currentTrial];
+  const elapsedTrial = now()-trialStart;
+
+  if(currentTrial===0){
+    if(elapsedTrial > trial.duration) passTrial();
+  } else if(currentTrial===1){
+    checkMic();
+    if(elapsedTrial > trial.duration) passTrial();
+  } else if(currentTrial===2){
+    updateMirrorTrial();
+  } else if(currentTrial===3){
+    checkStillness();
+    if(elapsedTrial > trial.duration) passTrial();
+  }
+  // currentTrial===4 : géré entièrement par le bouton turnBtn
 }
 
 function onPointerDown(){
@@ -747,6 +1050,12 @@ function onPointerDown(){
   if(actx && actx.state==="suspended") actx.resume();
   held = true;
   pointerEvents.push(now());
+  if(currentTrial===2 && mirrorFlashUntil>0 && now()<mirrorFlashUntil && !mirrorCaught){
+    mirrorCaught = true;
+    vibrate([10]);
+    whisperSound(0.12);
+    passTrial();
+  }
 }
 function onPointerUp(){ held = false; }
 
@@ -764,30 +1073,7 @@ window.addEventListener("keyup", (e)=>{ if(e.code === "Space"){ onPointerUp(); }
 window.addEventListener("blur", ()=>{ onPointerUp(); });
 
 /* ============================================================
-   "Se retourner" — mini-mécanique, une fois par partie
-   ============================================================ */
-document.getElementById("turnBtn").addEventListener("click", (e)=>{
-  e.stopPropagation();
-  if(state !== STATE.PLAYING) return;
-  const btn = document.getElementById("turnBtn");
-  if(!turnedAround){
-    turnedAround = true;
-    paused = true;
-    somethingBehind = Math.random() < 0.45;
-    whisperSound(somethingBehind ? 0.55 : 0.2);
-    vibrate([20]);
-    btn.textContent = "se retourner";
-  } else {
-    const line = somethingBehind
-      ? "tu l'as vu juste avant de te retourner."
-      : "il n'y avait rien derrière toi. il était déjà devant.";
-    btn.classList.remove("show");
-    onCaught(line);
-  }
-});
-
-/* ============================================================
-   Caméra + détection du regard (face-api.js, 100% local)
+   Caméra + regard (face-api.js, 100% local)
    ============================================================ */
 let camStream = null;
 let everGranted = false;
@@ -818,19 +1104,26 @@ async function loadModels(){
 }
 async function acquireCamera(){
   if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
-    const err = new Error("no-camera-api"); throw err;
+    throw new Error("no-camera-api");
   }
-  const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:true});
+  }catch(e){
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false});
+  }
   camStream = stream;
   everGranted = true;
   const v = document.getElementById("camVideo");
   v.srcObject = stream;
   try{ await v.play(); }catch(e){}
   document.getElementById("camWrap").classList.add("show");
+  setupMicFromStream(stream);
 }
 function stopCamera(){
   if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
   document.getElementById("camWrap").classList.remove("show");
+  micAnalyser = null;
 }
 
 function showCamGate(kind, text){
@@ -838,7 +1131,7 @@ function showCamGate(kind, text){
   const t = document.getElementById("camGateText");
   const btn = document.getElementById("camGateBtn");
   if(kind==="ask"){
-    t.textContent = "il a besoin de te voir pour commencer. le flux reste entièrement sur cet appareil — rien n'est envoyé ni enregistré. si tu détournes le regard puis reviens, il le saura.";
+    t.textContent = "cinq épreuves t'attendent. il a besoin de te voir, et si possible de t'entendre et de sentir si tu bouges. le flux reste entièrement sur cet appareil — rien n'est envoyé ni enregistré.";
     btn.textContent = "autoriser"; btn.style.display = "inline-block";
   } else if(kind==="loading"){
     t.textContent = "il ouvre les yeux…";
@@ -861,6 +1154,7 @@ async function tryStart(){
       if(!camStream) await acquireCamera();
       await loadFaceApiScript();
       if(!modelsReady) await loadModels();
+      if(!motionPermissionAsked){ await requestMotionPermission(); motionPermissionAsked = true; }
     }catch(err){
       starting = false;
       let msg = "il n'a pas réussi à te voir. réessaie.";
@@ -915,7 +1209,7 @@ function handleGaze(seen){
     if(awaySince===0) awaySince = now();
     looking = false;
   } else {
-    if(!looking && awaySince>0){
+    if(!looking && awaySince>0 && currentTrial===0){
       const awayFor = now() - awaySince;
       if(awayFor > AWAY_MIN_MS && now() > gazeGraceUntil && now()-lastGazeScareAt > GAZE_SCARE_COOLDOWN && state===STATE.PLAYING && !paused){
         lastGazeScareAt = now();
@@ -928,7 +1222,7 @@ function handleGaze(seen){
 }
 
 /* ============================================================
-   Visibilité de l'onglet : coupe la caméra, punit l'absence
+   Visibilité de l'onglet
    ============================================================ */
 document.addEventListener("visibilitychange", ()=>{
   if(document.hidden){
@@ -948,64 +1242,6 @@ document.addEventListener("visibilitychange", ()=>{
     }
   }
 });
-
-/* ============================================================
-   Faux glitchs d'interface (cosmétiques uniquement)
-   ============================================================ */
-let batteryLevel = 100;
-if(navigator.getBattery){
-  navigator.getBattery().then(b=>{
-    batteryLevel = Math.round(b.level*100);
-    b.addEventListener("levelchange", ()=>{ batteryLevel = Math.round(b.level*100); });
-  }).catch(()=>{});
-}
-function updateFakeClock(){
-  const d = new Date();
-  const hh = String(d.getHours()).padStart(2,"0");
-  const mm = String(d.getMinutes()).padStart(2,"0");
-  document.getElementById("fosTime").textContent = hh+":"+mm;
-  document.getElementById("fosBatt").textContent = batteryLevel + "%";
-}
-setInterval(updateFakeClock, 1000);
-
-const glitchLines = [
-  "il fait plus froid ici qu'il y a une minute.",
-  "quelqu'un respire, mais ce n'est pas toi.",
-  "1 nouvelle présence détectée.",
-  "ne te retourne pas.",
-  "il sait que tu lis ceci.",
-  "batterie : ne le laisse pas s'éteindre.",
-];
-function triggerFakeGlitch(){
-  const fosEl = document.getElementById("fakeOS");
-  const rec = document.getElementById("recDot");
-  const roll = Math.random();
-  if(roll < 0.5){
-    fosEl.style.opacity = "1";
-    const battEl = document.getElementById("fosBatt");
-    const realBatt = batteryLevel;
-    let fake = realBatt;
-    const iv = setInterval(()=>{ fake = Math.max(-1, fake-Math.floor(randRange(3,14))); battEl.textContent = fake+"%"; if(fake<=0) clearInterval(iv); }, 90);
-    setTimeout(()=>{ fosEl.style.opacity="0"; battEl.textContent = realBatt+"%"; }, 1400);
-    vibrate([15]);
-  } else {
-    showFakeNotif(glitchLines[Math.floor(Math.random()*glitchLines.length)]);
-  }
-  if(Math.random()<0.35){
-    rec.style.opacity = "1";
-    setTimeout(()=>{ rec.style.opacity="0"; }, randRange(400,900));
-  }
-}
-function showFakeNotif(text, from){
-  const n = document.getElementById("fakeNotif");
-  document.getElementById("fnFrom").textContent = from || "Système";
-  document.getElementById("fnMsg").textContent = text;
-  n.classList.add("show");
-  setTimeout(()=>{ n.classList.remove("show"); }, 2600);
-}
-function showFakeNotifOnReturn(awayMs){
-  showFakeNotif("tu étais parti " + fmtDuration(awayMs) + ". il s'est rapproché.", "VEILLE");
-}
 
 /* ============================================================
    Mort / capture
@@ -1047,6 +1283,36 @@ function onCaught(customLine){
     backToTitle();
   }, 3200);
 }
+
+/* ============================================================
+   Victoire : nuit survécue
+   ============================================================ */
+function onCleared(){
+  state = STATE.CLEARED;
+  const survived = now() - sessionStart;
+  save.nightsCompleted = (save.nightsCompleted||0) + 1;
+  save.longestSurvivalMs = Math.max(save.longestSurvivalMs, survived);
+  save.lastVisit = now();
+  writeSave(save);
+  stopCamera();
+  stopDetectionLoop();
+
+  document.getElementById("clearedSub").textContent = "nuit n°" + save.nightsCompleted + " — tu as tenu " + fmtDuration(survived) + ".";
+  document.getElementById("clearedScreen").classList.add("show");
+  vibrate([0,40,30,40]);
+
+  setTimeout(()=>{
+    flashSubliminal("pour l'instant.");
+    whisperSound(0.35);
+    vibrate([0,30,20,30]);
+  }, 1600);
+
+  setTimeout(()=>{
+    document.getElementById("clearedScreen").classList.remove("show");
+    backToTitle();
+  }, 4400);
+}
+
 function flashScreen(){
   const f = document.getElementById("flashLayer");
   if(save.reduceEffects){ f.style.opacity="0.25"; setTimeout(()=>f.style.opacity="0",180); return; }
@@ -1064,6 +1330,7 @@ function flashScreen(){
 function backToTitle(){
   state = STATE.TITLE;
   light = 1; threat = 0; panic = 0; held = false; paused = false; turnedAround = false;
+  currentTrial = -1;
   buildTitleFlavor();
   document.getElementById("veil").classList.remove("hidden");
   document.getElementById("turnBtn").classList.remove("show");
@@ -1077,27 +1344,22 @@ function startGame(){
 
   state = STATE.PLAYING;
   sessionStart = now();
-  sessionElapsed = 0;
-  actPhase = 1;
   light = 1;
   threat = startingThreat();
   panic = 0;
   entitySeed = Math.random()*1000;
-  glitchTimer = randRange(16,26);
+  glitchTimer = randRange(14,24);
   pointerEvents = [];
   held = false;
   paused = false;
 
-  nextGlimpseAt = 0; nextSurgeAt = 0; nearMissCooldownUntil = 0;
-  glimpseUntil = 0; nearMissUntil = 0; jumpscareUntil = 0; shakeUntil = 0;
+  nextGlimpseAt = 0; glimpseUntil = 0; jumpscareUntil = 0; shakeUntil = 0;
   crackUntil = 0; subliminalUntil = 0;
-
-  turnedAround = false; turnPromptShown = false; somethingBehind = false;
-  turnPromptAt = randRange(15000,50000);
-  document.getElementById("turnBtn").classList.remove("show");
 
   document.getElementById("veil").classList.add("hidden");
   document.getElementById("hint").style.opacity = "1";
+
+  startTrial(0);
 }
 
 document.getElementById("resetBtn").addEventListener("click", (e)=>{
@@ -1108,7 +1370,7 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
 });
 
 /* ============================================================
-   Paramètres (réduire les effets)
+   Paramètres
    ============================================================ */
 document.getElementById("gear").addEventListener("click", (e)=>{
   e.stopPropagation();

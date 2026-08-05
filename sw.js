@@ -1,4 +1,4 @@
-const CACHE = "veille-v2";
+const CACHE = "veille-v3";
 const ASSETS = [
   "./",
   "./index.html",
