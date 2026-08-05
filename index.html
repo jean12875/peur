@@ -186,7 +186,7 @@
 
   <div id="modal">
     <div class="box">
-      <p id="modalText"></p>
+      <p id="modalText">il aimerait te voir. le flux reste sur cet appareil — rien n'est envoyé ni enregistré. tu peux refuser.</p>
       <div class="row">
         <button id="modalYes">oui</button>
         <button id="modalNo">non</button>
@@ -207,6 +207,7 @@
 const SAVE_KEY = "veille_save_v1";
 const now = () => Date.now();
 const REDUCE_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function randRange(a,b){ return a + Math.random()*(b-a); }
 
 function loadSave(){
   try{
@@ -220,7 +221,6 @@ function loadSave(){
     longestSurvivalMs: 0,
     totalSessions: 0,
     cameraChoice: null, // null | 'granted' | 'denied'
-    askedCameraOnce: false,
     reduceEffects: REDUCE_MOTION
   };
 }
@@ -268,20 +268,17 @@ function ensureAudio(){
   masterGain = actx.createGain(); masterGain.gain.value = 0.5;
   masterGain.connect(actx.destination);
 
-  // drone grave
   const osc = actx.createOscillator();
   osc.type = "sine"; osc.frequency.value = 55;
   droneGain = actx.createGain(); droneGain.gain.value = 0.05;
   osc.connect(droneGain); droneGain.connect(masterGain);
   osc.start();
 
-  // trémolo lent
   lfo = actx.createOscillator(); lfo.frequency.value = 0.18;
   lfoGain = actx.createGain(); lfoGain.gain.value = 0.03;
   lfo.connect(lfoGain); lfoGain.connect(droneGain.gain);
   lfo.start();
 
-  // bruit filtré (texture de fond)
   const bufSize = actx.sampleRate * 2;
   const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
   const data = buf.getChannelData(0);
@@ -298,35 +295,40 @@ function setDread(level){ // 0..1
   droneGain.gain.setTargetAtTime(0.04 + level*0.09, t, 0.4);
   noiseGain.gain.setTargetAtTime(0.015 + level*0.08, t, 0.4);
   filter.frequency.setTargetAtTime(250 + level*1800, t, 0.5);
-  const osc2freq = 55 - level*8;
-  // subtle detune via lfo rate
   lfo.frequency.setTargetAtTime(0.18 + level*0.6, t, 1);
 }
-function beep(freq, dur, type, vol){
+function whisperSound(intensity){
   if(!actx) return;
-  const o = actx.createOscillator(); const g = actx.createGain();
-  o.type = type||"sine"; o.frequency.value = freq;
-  g.gain.value = 0; o.connect(g); g.connect(masterGain);
   const t = actx.currentTime;
-  g.gain.linearRampToValueAtTime(vol||0.2, t+0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
-  o.start(t); o.stop(t+dur+0.05);
+  const bufSize = Math.floor(actx.sampleRate*0.35);
+  const buf = actx.createBuffer(1,bufSize,actx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1);
+  const src = actx.createBufferSource(); src.buffer = buf;
+  const f = actx.createBiquadFilter(); f.type = "bandpass";
+  f.frequency.setValueAtTime(1800,t);
+  f.frequency.exponentialRampToValueAtTime(300, t+0.3);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.14*intensity, t+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.35);
+  src.connect(f); f.connect(g); g.connect(masterGain);
+  src.start(t);
 }
 function scareSound(){
   if(!actx) return;
   const t = actx.currentTime;
-  // burst de bruit
-  const bufSize = actx.sampleRate * 0.6;
+  const bufSize = Math.floor(actx.sampleRate * 0.6);
   const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
   const data = buf.getChannelData(0);
   for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1);
   const src = actx.createBufferSource(); src.buffer = buf;
-  const g = actx.createGain(); g.gain.setValueAtTime(0.5, t);
+  const g = actx.createGain(); g.gain.setValueAtTime(0.55, t);
   g.gain.exponentialRampToValueAtTime(0.001, t+0.55);
   const f = actx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=900;
   src.connect(f); f.connect(g); g.connect(masterGain);
   src.start(t);
-  // sweep grave
+
   const o = actx.createOscillator(); o.type="sawtooth";
   o.frequency.setValueAtTime(220, t);
   o.frequency.exponentialRampToValueAtTime(40, t+0.5);
@@ -334,6 +336,16 @@ function scareSound(){
   g2.gain.exponentialRampToValueAtTime(0.001, t+0.6);
   o.connect(g2); g2.connect(masterGain);
   o.start(t); o.stop(t+0.65);
+
+  const o3 = actx.createOscillator(); o3.type="square";
+  o3.frequency.setValueAtTime(320, t);
+  o3.frequency.exponentialRampToValueAtTime(1500, t+0.15);
+  o3.frequency.exponentialRampToValueAtTime(160, t+0.55);
+  const g3 = actx.createGain(); g3.gain.setValueAtTime(0.0001, t);
+  g3.gain.linearRampToValueAtTime(0.32, t+0.05);
+  g3.gain.exponentialRampToValueAtTime(0.0001, t+0.6);
+  o3.connect(g3); g3.connect(masterGain);
+  o3.start(t); o3.stop(t+0.65);
 }
 
 /* ============================================================
@@ -354,6 +366,9 @@ let light = 1;      // 0..1
 let threat = 0;      // 0..1 (1 = attrapé)
 let panic = 0;       // 0..1
 let sessionStart = 0;
+let sessionElapsed = 0;
+let actPhase = 1;
+let paused = false;
 let lastFrame = 0;
 let hiddenAt = 0;
 
@@ -362,7 +377,19 @@ let entitySeed = Math.random()*1000;
 let glitchTimer = randRange(18,34);
 let camAsked = false;
 
-function randRange(a,b){ return a + Math.random()*(b-a); }
+// contenu / progression
+let nextGlimpseAt = 0;
+let nextSurgeAt = 0;
+let nearMissCooldownUntil = 0;
+let glimpseUntil = 0, glimpseX=0, glimpseY=0, glimpseSize=0;
+let nearMissUntil = 0;
+let jumpscareUntil = 0;
+let shakeUntil = 0;
+let crackUntil = 0, crackSeed = 0;
+let subliminalUntil = 0, subliminalText = "", subliminalAngle = 0;
+
+const SUBLIMINAL_AMBIENT = ["derrière toi","il respire","ne bouge pas","chut","il sait","reste calme","trop tard","regarde"];
+const SUBLIMINAL_DEATH = ["NON.","IL T'A EU.","COURS.","TROP TARD.","REGARDE-LE."];
 
 /* Difficulté progressive selon les morts précédentes */
 function difficultyMul(){
@@ -399,6 +426,7 @@ function buildTitleFlavor(){
     "il n'a plus besoin du noir pour te trouver.",
     "il compte les fois où tu as lâché prise.",
     "il n'attend plus que tu recommences.",
+    "il n'est plus vraiment dans l'écran.",
   ];
   const tierIdx = Math.min(Math.floor(d/3), tiers.length-1);
   document.getElementById("flavorText").textContent = msg + (tierIdx>0 ? "  " + tiers[tierIdx] : "");
@@ -414,10 +442,56 @@ function buildTitleFlavor(){
 }
 
 /* ============================================================
+   Visage procédural de l'entité — réutilisé pour le monstre
+   principal, les glimpses, le near-miss et le jumpscare
+   ============================================================ */
+function drawFace(x,y,size,alpha,jitter,fillStyle){
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.translate(x,y);
+  ctx.fillStyle = fillStyle || "#050505";
+
+  // tête irrégulière
+  ctx.beginPath();
+  const pts = 16;
+  for(let i=0;i<=pts;i++){
+    const a = (i/pts) * Math.PI*2;
+    const jr = size*(0.5+0.5*Math.sin(a*2.7+entitySeed)) + (Math.random()-0.5)*jitter;
+    const px = Math.cos(a)*jr*0.62;
+    const py = Math.sin(a)*jr;
+    if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // yeux
+  ctx.fillStyle = "#f3f3f3";
+  const eyeY = -size*0.08, eyeDX = size*0.22;
+  const eyeW = size*0.09*(0.7+Math.random()*0.6), eyeH = size*0.15*(0.6+Math.random()*0.8);
+  ctx.beginPath(); ctx.ellipse(-eyeDX,eyeY,eyeW,eyeH,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(eyeDX,eyeY,eyeW*0.8,eyeH*0.9,0,0,Math.PI*2); ctx.fill();
+
+  // bouche déchiquetée
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  const mw = size*0.32, my = size*0.28;
+  ctx.moveTo(-mw,my);
+  for(let i=0;i<=8;i++){
+    const px = -mw + (mw*2*i/8);
+    const py = my + Math.sin(i*1.7+entitySeed)*size*0.05 + (Math.random()-0.5)*jitter*0.6;
+    ctx.lineTo(px,py);
+  }
+  ctx.lineTo(mw,my+size*0.14); ctx.lineTo(-mw,my+size*0.14);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/* ============================================================
    Boucle de rendu
    ============================================================ */
-function drawScene(dt){
-  ctx.clearRect(0,0,W,H);
+function drawNormalScene(){
   ctx.fillStyle = "#000";
   ctx.fillRect(0,0,W,H);
 
@@ -425,7 +499,6 @@ function drawScene(dt){
   const baseRadius = Math.max(W,H) * (0.16 + light*0.30 - threat*0.10);
   const radius = Math.max(30, baseRadius);
 
-  // halo de lumière
   const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,radius*1.9);
   const lum = 0.10 + light*0.16;
   grad.addColorStop(0, `rgba(255,244,222,${0.55*light+0.08})`);
@@ -434,35 +507,32 @@ function drawScene(dt){
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,W,H);
 
-  // silhouette de l'entité, plus visible/proche à mesure que threat augmente
+  // entité principale : silhouette + visage quand elle est assez proche
   if(threat > 0.05){
-    const distFromLight = radius * (1.5 - threat*1.05); // se rapproche
+    const distFromLight = radius * (1.5 - threat*1.05);
     const ang = Math.sin(entitySeed + performance.now()*0.00025) * 0.6;
     const ex = cx + Math.cos(ang) * distFromLight * 0.9;
     const ey = cy + Math.sin(ang*0.6) * distFromLight * 0.35 + H*0.06;
-    const size = 40 + threat*(H*0.55);
-    ctx.save();
-    ctx.translate(ex, ey);
-    ctx.globalAlpha = Math.min(0.85, threat*0.9 + 0.05);
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    const jitter = threat*14;
-    const pts = 14;
-    for(let i=0;i<=pts;i++){
-      const a = (i/pts) * Math.PI*2;
-      const jr = size*(0.55+0.45*Math.sin(a*3.1+entitySeed+performance.now()*0.002)) + (Math.random()-0.5)*jitter;
-      const px = Math.cos(a)*jr*0.55;
-      const py = Math.sin(a)*jr;
-      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    const size = 40 + threat*(H*0.5);
+    const jitter = threat*16;
+    drawFace(ex, ey, size, Math.min(0.92, threat*0.95+0.05), jitter, "#050505");
   }
 
-  // grain / bruit léger
+  // aperçu furtif de l'entité (indépendant de la menace réelle)
+  if(now() < glimpseUntil){
+    drawFace(glimpseX, glimpseY, glimpseSize, 0.85, 10, "#020202");
+  }
+
+  // fausse alerte / near-miss
+  if(now() < nearMissUntil){
+    const t = 1 - Math.max(0,(nearMissUntil-now())/480);
+    const size = Math.min(W,H) * (0.25 + 0.35*Math.sin(t*Math.PI));
+    drawFace(W/2, H*0.48, size, 0.7*Math.sin(t*Math.PI), 20, "#0a0000");
+  }
+
+  // grain léger
   if(!save.reduceEffects){
-    const grainCount = Math.floor(40 + threat*140);
+    const grainCount = Math.floor(35 + threat*120);
     ctx.fillStyle = "rgba(255,255,255,0.035)";
     for(let i=0;i<grainCount;i++){
       const gx = Math.random()*W, gy = Math.random()*H;
@@ -470,12 +540,87 @@ function drawScene(dt){
     }
   }
 
-  // vignette
+  // vignette teintée (vire au rouge sombre quand la menace monte)
+  const vr = Math.floor(0+threat*70), vb = Math.floor(0+threat*14);
   const vgn = ctx.createRadialGradient(cx,cy,radius*0.9,cx,cy,Math.max(W,H)*0.75);
   vgn.addColorStop(0,"rgba(0,0,0,0)");
-  vgn.addColorStop(1,"rgba(0,0,0,0.55)");
+  vgn.addColorStop(1,`rgba(${vr},0,${vb},0.58)`);
   ctx.fillStyle = vgn;
   ctx.fillRect(0,0,W,H);
+}
+
+function drawJumpscare(){
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0,0,W,H);
+  const remain = Math.max(0, jumpscareUntil-now());
+  const dur = save.reduceEffects ? 400 : 850;
+  const t = 1 - remain/dur;
+  const size = Math.min(W,H) * (0.5 + 0.55*Math.min(1,t*3));
+  const cx = W/2 + (save.reduceEffects?0:(Math.random()-0.5)*10);
+  const cy = H/2 + (save.reduceEffects?0:(Math.random()-0.5)*10);
+
+  if(!save.reduceEffects){
+    ctx.globalCompositeOperation = "lighter";
+    drawFace(cx-6, cy, size, 0.5, 26, "rgba(255,0,60,0.9)");
+    drawFace(cx+6, cy, size, 0.5, 26, "rgba(0,230,255,0.7)");
+    ctx.globalCompositeOperation = "source-over";
+  }
+  drawFace(cx, cy, size, 1, save.reduceEffects?6:22, "#050505");
+
+  if(!save.reduceEffects && Math.random()<0.5){
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.fillRect(0,0,W,H);
+  }
+}
+
+function drawSubliminalText(){
+  ctx.save();
+  ctx.translate(W/2, H*0.4);
+  ctx.rotate(subliminalAngle*Math.PI/180);
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.font = "700 " + Math.round(Math.min(W,H)*0.075) + "px sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(subliminalText, 0, 0);
+  ctx.restore();
+}
+
+function drawCrack(){
+  const alpha = Math.max(0,(crackUntil-now())/900) * 0.45;
+  if(alpha<=0) return;
+  ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+  ctx.lineWidth = 1.5;
+  let x = W*0.5 + ((crackSeed%50)-25), y = 0;
+  ctx.beginPath(); ctx.moveTo(x,y);
+  let rng = crackSeed || 1;
+  for(let i=0;i<9;i++){
+    rng = (rng*9301+49297)%233280;
+    const rx = rng/233280;
+    x += (rx-0.5)*W*0.09;
+    y += H/9;
+    ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+
+function drawScene(){
+  const shaking = now() < shakeUntil;
+  let ox=0, oy=0;
+  if(shaking){
+    const mag = save.reduceEffects ? 3 : 18;
+    ox = (Math.random()-0.5)*mag; oy = (Math.random()-0.5)*mag;
+  }
+  ctx.save();
+  if(shaking) ctx.translate(ox,oy);
+
+  if(now() < jumpscareUntil){
+    drawJumpscare();
+  } else {
+    drawNormalScene();
+    if(now() < crackUntil) drawCrack();
+    if(now() < subliminalUntil) drawSubliminalText();
+  }
+
+  ctx.restore();
 }
 
 function loop(ts){
@@ -488,44 +633,118 @@ function loop(ts){
   if(state === STATE.PLAYING){
     updateGame(dt);
   }
-  drawScene(dt);
+  drawScene();
 }
 requestAnimationFrame(loop);
+
+/* ============================================================
+   Contenu ambiant : aperçus, fausses alertes, sursauts, fissures
+   ============================================================ */
+function scheduleNextGlimpse(){
+  let range;
+  if(actPhase===1) range=[11000,19000];
+  else if(actPhase===2) range=[6000,11000];
+  else range=[3000,7000];
+  const bonus = held ? 1.6 : 1; // rester calme réduit les apparitions gratuites
+  nextGlimpseAt = now() + randRange(range[0],range[1]) * bonus;
+}
+function triggerGlimpse(){
+  const edge = Math.floor(Math.random()*4);
+  const margin = 0.12;
+  if(edge===0){ glimpseX=randRange(margin,1-margin)*W; glimpseY=H*randRange(0.02,0.14); }
+  else if(edge===1){ glimpseX=randRange(margin,1-margin)*W; glimpseY=H*randRange(0.86,0.98); }
+  else if(edge===2){ glimpseX=W*randRange(0.02,0.14); glimpseY=randRange(margin,1-margin)*H; }
+  else { glimpseX=W*randRange(0.86,0.98); glimpseY=randRange(margin,1-margin)*H; }
+  glimpseSize = randRange(40,90) + threat*60;
+  glimpseUntil = now() + randRange(110,240);
+  whisperSound(0.25);
+  vibrate([12]);
+  if(Math.random()<0.35) flashSubliminal(SUBLIMINAL_AMBIENT[Math.floor(Math.random()*SUBLIMINAL_AMBIENT.length)]);
+}
+function triggerNearMiss(){
+  nearMissUntil = now() + 480;
+  whisperSound(0.55);
+  vibrate([0,60,20,60]);
+  threat = Math.max(0, threat - 0.22); // soulagement après la fausse alerte
+  nearMissCooldownUntil = now() + randRange(28000,48000);
+}
+function triggerSurge(){
+  flashSubliminal("il approche");
+  whisperSound(0.4);
+  setTimeout(()=>{
+    if(state===STATE.PLAYING){
+      threat = Math.min(1, threat + randRange(0.12,0.18));
+      vibrate([0,40,20,40,20,120]);
+    }
+  }, 700);
+  nextSurgeAt = now() + randRange(38000,62000);
+}
+function flashSubliminal(text){
+  subliminalText = text;
+  subliminalAngle = randRange(-6,6);
+  subliminalUntil = now() + randRange(70,130);
+}
+function triggerCrack(){
+  crackSeed = Math.floor(Math.random()*100000)+1;
+  crackUntil = now() + randRange(500,900);
+}
 
 /* ============================================================
    Logique de jeu
    ============================================================ */
 function updateGame(dt){
+  if(paused) return;
+
+  sessionElapsed = now() - sessionStart;
+  actPhase = sessionElapsed < 22000 ? 1 : (sessionElapsed < 65000 ? 2 : 3);
+  const phaseMul = actPhase===1 ? 0.75 : (actPhase===2 ? 1.0 : 1.3);
   const dmul = difficultyMul();
 
   // panique : fréquence des pressions récentes
   const cutoff = now() - 4000;
   pointerEvents = pointerEvents.filter(t=>t>cutoff);
-  const freq = pointerEvents.length; // nb d'appuis sur 4s
+  const freq = pointerEvents.length;
   const targetPanic = Math.max(0, Math.min(1, (freq-2)/6));
   panic += (targetPanic - panic) * Math.min(1, dt*1.5);
 
   if(held){
-    light = Math.min(1, light + dt*0.30);
+    light = Math.min(1, light + dt*0.32);
     const calmBonus = Math.max(0, 1-panic);
-    threat = Math.max(0, threat - dt*0.055*calmBonus*(1/dmul) + dt*0.05*panic*dmul);
+    threat = Math.max(0, threat - dt*0.075*calmBonus*(1/dmul) + dt*0.06*panic*dmul*phaseMul);
   } else {
     light = Math.max(0, light - dt*0.9);
-    threat = Math.min(1, threat + dt*0.16*dmul);
+    threat = Math.min(1, threat + dt*0.20*dmul*phaseMul);
   }
 
   setDread(threat);
 
   document.getElementById("hint").style.opacity = (sessionStart && now()-sessionStart>6000) ? "0" : "1";
 
-  // glitchs factices d'OS
-  glitchTimer -= dt;
-  if(glitchTimer <= 0 && now()-sessionStart > 14000){
-    triggerFakeGlitch();
-    glitchTimer = randRange(22,42);
+  // aperçus ambiants (donnent l'impression que "quelque chose se passe" en permanence)
+  if(nextGlimpseAt===0) scheduleNextGlimpse();
+  if(now() > nextGlimpseAt){ triggerGlimpse(); scheduleNextGlimpse(); }
+
+  // fausse alerte : uniquement si tu fais tout bien mais que la menace était déjà haute
+  if(threat>0.65 && held && actPhase>=2 && now()>nearMissCooldownUntil && Math.random() < dt*0.12){
+    triggerNearMiss();
   }
 
-  // proposition caméra une fois, autour de 20-40s
+  // sursauts scriptés en phase avancée
+  if(actPhase>=2){
+    if(nextSurgeAt===0) nextSurgeAt = now() + randRange(30000,45000);
+    if(now() > nextSurgeAt) triggerSurge();
+  }
+
+  // glitchs factices d'OS
+  glitchTimer -= dt;
+  const glitchIntervalMul = actPhase===3 ? 0.6 : 1;
+  if(glitchTimer <= 0 && now()-sessionStart > 12000){
+    triggerFakeGlitch();
+    glitchTimer = randRange(18,34) * glitchIntervalMul;
+    if(Math.random()<0.3) triggerCrack();
+  }
+
+  // proposition caméra une fois, autour de 20-32s
   if(!camAsked && save.cameraChoice===null && now()-sessionStart > randRange(20000,32000)){
     camAsked = true;
     askCamera();
@@ -541,9 +760,6 @@ function onPointerDown(){
   if(actx && actx.state==="suspended") actx.resume();
   held = true;
   pointerEvents.push(now());
-  if(state === STATE.TITLE){
-    // ignore, start handled by button
-  }
 }
 function onPointerUp(){
   held = false;
@@ -553,11 +769,11 @@ function onPointerUp(){
    Contrôles : tactile + souris + espace (clavier desktop)
    ============================================================ */
 const stage = document.getElementById("app");
-stage.addEventListener("pointerdown", (e)=>{ if(state===STATE.PLAYING){ onPointerDown(); } });
+stage.addEventListener("pointerdown", ()=>{ if(state===STATE.PLAYING && !paused){ onPointerDown(); } });
 window.addEventListener("pointerup", ()=>{ onPointerUp(); });
 window.addEventListener("pointercancel", ()=>{ onPointerUp(); });
 window.addEventListener("keydown", (e)=>{
-  if(e.code === "Space" && state===STATE.PLAYING){ e.preventDefault(); onPointerDown(); }
+  if(e.code === "Space" && state===STATE.PLAYING && !paused){ e.preventDefault(); onPointerDown(); }
 });
 window.addEventListener("keyup", (e)=>{
   if(e.code === "Space"){ onPointerUp(); }
@@ -565,11 +781,12 @@ window.addEventListener("keyup", (e)=>{
 window.addEventListener("blur", ()=>{ onPointerUp(); });
 
 /* ============================================================
-   Punition d'absence : Page Visibility API
+   Punition d'absence + arrêt caméra : Page Visibility API
    ============================================================ */
 document.addEventListener("visibilitychange", ()=>{
   if(document.hidden){
     if(state===STATE.PLAYING){ hiddenAt = now(); }
+    stopCamera();
   } else {
     if(state===STATE.PLAYING && hiddenAt){
       const away = now() - hiddenAt;
@@ -649,40 +866,51 @@ function showFakeNotifOnReturn(awayMs){
    ============================================================ */
 let camStream = null;
 function askCamera(){
+  paused = true;
   const modal = document.getElementById("modal");
-  document.getElementById("modalText").textContent = "il aimerait te voir. le flux reste sur cet appareil — rien n'est envoyé ni enregistré. tu peux refuser.";
   modal.classList.add("show");
-  document.getElementById("modalYes").onclick = ()=>{
+
+  const finish = ()=>{ modal.classList.remove("show"); paused = false; };
+
+  document.getElementById("modalYes").onclick = (e)=>{
+    e.stopPropagation();
     modal.classList.remove("show");
-    navigator.mediaDevices?.getUserMedia({video:{facingMode:"user"}, audio:false}).then(stream=>{
-      camStream = stream;
-      const v = document.getElementById("camVideo");
-      v.srcObject = stream;
-      document.getElementById("camWrap").classList.add("show");
-      save.cameraChoice = "granted"; writeSave(save);
-    }).catch(()=>{
+    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+      navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}, audio:false}).then(stream=>{
+        camStream = stream;
+        const v = document.getElementById("camVideo");
+        v.srcObject = stream;
+        document.getElementById("camWrap").classList.add("show");
+        save.cameraChoice = "granted"; writeSave(save);
+        paused = false;
+      }).catch(()=>{
+        save.cameraChoice = "denied"; writeSave(save);
+        showFakeNotif("il ne peut pas te voir. pas encore.", "VEILLE");
+        paused = false;
+      });
+    } else {
       save.cameraChoice = "denied"; writeSave(save);
-      showFakeNotif("il ne peut pas te voir. pas encore.", "VEILLE");
-    });
+      paused = false;
+    }
   };
-  document.getElementById("modalNo").onclick = ()=>{
-    modal.classList.remove("show");
+  document.getElementById("modalNo").onclick = (e)=>{
+    e.stopPropagation();
     save.cameraChoice = "denied"; writeSave(save);
     showFakeNotif("il ne peut pas te voir. pas encore.", "VEILLE");
+    finish();
   };
 }
+document.getElementById("modal").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
 function stopCamera(){
   if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
   document.getElementById("camWrap").classList.remove("show");
 }
-document.addEventListener("visibilitychange", ()=>{
-  if(document.hidden) stopCamera();
-});
 
 /* ============================================================
    Mort / capture
    ============================================================ */
 function onCaught(){
+  if(state === STATE.DEAD) return;
   state = STATE.DEAD;
   const survived = now() - sessionStart;
   save.deaths += 1;
@@ -691,25 +919,31 @@ function onCaught(){
   writeSave(save);
   stopCamera();
 
+  const jsDuration = save.reduceEffects ? 400 : 850;
+  jumpscareUntil = now() + jsDuration;
+  shakeUntil = jumpscareUntil;
+  flashSubliminal(SUBLIMINAL_DEATH[Math.floor(Math.random()*SUBLIMINAL_DEATH.length)]);
   scareSound();
-  vibrate([0,80,40,80,40,220]);
+  vibrate([0,90,30,90,30,260]);
   flashScreen();
 
-  const diedTitle = document.getElementById("diedTitle");
-  const diedSub = document.getElementById("diedSub");
-  const lines = [
-    "tu as lâché prise.",
-    "tu as regardé ailleurs.",
-    "tu as paniqué. il a senti chaque battement.",
-    "il attendait juste ça.",
-  ];
-  diedSub.textContent = lines[Math.floor(Math.random()*lines.length)] + "  —  survécu " + fmtDuration(survived) + ".";
-  document.getElementById("diedScreen").classList.add("show");
+  setTimeout(()=>{
+    const diedSub = document.getElementById("diedSub");
+    const lines = [
+      "tu as lâché prise.",
+      "tu as regardé ailleurs.",
+      "tu as paniqué. il a senti chaque battement.",
+      "il attendait juste ça.",
+      "tu croyais que rester calme suffirait.",
+    ];
+    diedSub.textContent = lines[Math.floor(Math.random()*lines.length)] + "  —  survécu " + fmtDuration(survived) + ".";
+    document.getElementById("diedScreen").classList.add("show");
+  }, 550);
 
   setTimeout(()=>{
     document.getElementById("diedScreen").classList.remove("show");
     backToTitle();
-  }, 2600);
+  }, 3200);
 }
 function flashScreen(){
   const f = document.getElementById("flashLayer");
@@ -727,7 +961,7 @@ function flashScreen(){
    ============================================================ */
 function backToTitle(){
   state = STATE.TITLE;
-  light = 1; threat = 0; panic = 0;
+  light = 1; threat = 0; panic = 0; held = false;
   buildTitleFlavor();
   document.getElementById("veil").classList.remove("hidden");
 }
@@ -740,6 +974,8 @@ function startGame(){
 
   state = STATE.PLAYING;
   sessionStart = now();
+  sessionElapsed = 0;
+  actPhase = 1;
   light = 1;
   threat = startingThreat();
   panic = 0;
@@ -748,6 +984,11 @@ function startGame(){
   camAsked = (save.cameraChoice !== null);
   pointerEvents = [];
   held = false;
+  paused = false;
+
+  nextGlimpseAt = 0; nextSurgeAt = 0; nearMissCooldownUntil = 0;
+  glimpseUntil = 0; nearMissUntil = 0; jumpscareUntil = 0; shakeUntil = 0;
+  crackUntil = 0; subliminalUntil = 0;
 
   document.getElementById("veil").classList.add("hidden");
   document.getElementById("hint").style.opacity = "1";
