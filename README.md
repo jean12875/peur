@@ -40,9 +40,9 @@ Tôt dans le test, l'écran demande le prénom et le nom du joueur — une vraie
 
 ## Regarder autour de soi
 
-La pièce est une vraie géométrie en 3D (quatre plans assemblés avec `perspective` + `transform-style: preserve-3d` en CSS) : mur avant avec le téléviseur, mur gauche avec un lit, mur droit avec une porte sans poignée surveillée par une petite caméra au plafond (LED rouge qui clignote), et un sol. Glisser le doigt fait vraiment pivoter la caméra autour de son axe (jusqu'à 100° de chaque côté), avec la perspective réelle du navigateur — les murs se déforment et se rapprochent comme dans une vraie pièce, pas un décor plat qui glisse. Le rendu est calé sur le rafraîchissement de l'écran (une seule mise à jour par frame, capture de pointeur) pour rester fluide même sur un téléphone modeste.
+L'écran, les boutons et les fils sont ancrés dans la pièce, pas dans la caméra : glisser le doigt à gauche ou à droite fait pivoter la vue et révèle le reste de la salle capitonnée blanche. Le décor (dalles, sol, lit, porte sans poignée, caméra au plafond) est dessiné sur Canvas 2D avec de vraies lignes de fuite qui convergent vers un point de fuite mobile — c'est ce qui donne l'impression de profondeur, plutôt qu'une transformation 3D du navigateur (essayé, mais la composition 3D du CSS s'est révélée trop fragile à ajuster sans aperçu visuel direct de l'environnement de développement — ça rendait complètement de travers). Le téléviseur a son propre léger effet de perspective (il se détourne visuellement quand on regarde ailleurs). Le rendu est calé sur le rafraîchissement de l'écran (une seule mise à jour par frame, capture de pointeur) pour rester fluide même sur un téléphone modeste.
 
-Deux inscriptions différentes griffonnées sur les murs latéraux ne sont visibles qu'en tournant la tête. Ce n'est pas un moteur 3D dédié (pas de WebGL/Three.js) — seulement les transformations 3D natives du CSS — pour rester léger et fiable sur mobile.
+Deux inscriptions différentes griffonnées sur les murs ne sont visibles qu'en tournant la tête.
 
 ## Escalade
 
