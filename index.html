@@ -82,6 +82,32 @@
   .bigbtn.disabled{ filter:grayscale(0.7) brightness(0.6); pointer-events:none; }
   #btnYes{ background:radial-gradient(circle at 35% 30%, #4bdc72, #1f9e46); }
   #btnNo{ background:radial-gradient(circle at 35% 30%, #ff6a5e, #c62a1f); }
+  #buttonRow.hide{ display:none; }
+
+  /* ---------- saisie du nom (une seule fois, mémorisée) ---------- */
+  #nameRow{
+    position:absolute; left:0; right:0; bottom:8vh; z-index:6; display:none;
+    justify-content:center; align-items:center; gap:0.6em; padding:0 8vw;
+  }
+  #nameRow.show{ display:flex; }
+  #nameField{
+    flex:1; max-width:220px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.25);
+    color:#e6e6e6; font-family:inherit; font-size:0.92rem; padding:0.75em 0.9em; border-radius:4px;
+    text-align:center; letter-spacing:0.02em; user-select:text; -webkit-user-select:text;
+  }
+  #nameField:focus{ outline:none; border-color:rgba(255,255,255,0.5); }
+  #nameConfirm{
+    width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,0.25);
+    background:transparent; color:#ddd; font-size:1rem; cursor:pointer; font-family:inherit; flex-shrink:0;
+  }
+
+  /* ---------- faux paradis puis rouge ---------- */
+  #heavenOverlay{
+    position:absolute; inset:0; z-index:40; background:#fff; opacity:0; pointer-events:none;
+    transition:opacity 1.3s ease, background-color .2s ease;
+  }
+  #heavenOverlay.show{ opacity:1; }
+  #heavenOverlay.hell{ background:#4a0808; }
 
   /* ---------- écrans overlay ---------- */
   #boot{
@@ -180,7 +206,19 @@
   }
   #app.shake{ animation:shake 0.4s linear; }
 
-  @media (prefers-reduced-motion: reduce){ #hourglass{ animation:none; } #app.shake{ animation:none; } }
+  @keyframes shakeHard{
+    0%{ transform:translate(0,0) rotate(0); }
+    15%{ transform:translate(-14px,8px) rotate(-1.2deg); }
+    30%{ transform:translate(13px,-10px) rotate(1.1deg); }
+    45%{ transform:translate(-12px,-7px) rotate(-0.8deg); }
+    60%{ transform:translate(12px,6px) rotate(1deg); }
+    75%{ transform:translate(-9px,9px) rotate(-0.6deg); }
+    90%{ transform:translate(6px,-4px); }
+    100%{ transform:translate(0,0) rotate(0); }
+  }
+  #app.shakeHard{ animation:shakeHard 0.65s linear; }
+
+  @media (prefers-reduced-motion: reduce){ #hourglass{ animation:none; } #app.shake{ animation:none; } #app.shakeHard{ animation:none; } }
 </style>
 </head>
 <body>
@@ -215,6 +253,13 @@
     <button class="bigbtn" id="btnNo">NON</button>
   </div>
 
+  <div id="nameRow">
+    <input id="nameField" type="text" maxlength="40" autocomplete="off" autocapitalize="words" spellcheck="false">
+    <button id="nameConfirm">✓</button>
+  </div>
+
+  <div id="heavenOverlay"></div>
+
   <div id="boot" class="hidden">
     <div id="hourglass">⧗</div>
     <div id="bootLabel">chargement</div>
@@ -239,13 +284,13 @@
     <button id="permGateBack">←</button>
     <div class="box">
       <div id="permGrid">
-        <button class="permBtn" data-key="camera">◉</button>
-        <button class="permBtn" data-key="mic">▲</button>
-        <button class="permBtn" data-key="geo">◆</button>
-        <button class="permBtn" data-key="motion">✥</button>
-        <button class="permBtn" data-key="notif">✉</button>
+        <button class="permBtn" data-key="camera"></button>
+        <button class="permBtn" data-key="mic"></button>
+        <button class="permBtn" data-key="geo"></button>
+        <button class="permBtn" data-key="motion"></button>
+        <button class="permBtn" data-key="notif"></button>
       </div>
-      <button id="launchBtn">▶</button>
+      <button id="launchBtn"></button>
     </div>
   </div>
 
@@ -272,11 +317,12 @@ function loadSave(){
   }catch(e){}
   return {
     firstVisit: now(), lastVisit: now(), totalSessions: 0,
-    quietEndings: 0, badEndings: 0, reduceEffects: REDUCE_MOTION
+    quietEndings: 0, badEndings: 0, reduceEffects: REDUCE_MOTION, playerName: null
   };
 }
 function writeSave(s){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){} }
 let save = loadSave();
+let playerName = save.playerName || null;
 
 function fmtDuration(ms){
   const s = Math.floor(ms/1000);
@@ -396,6 +442,32 @@ function glitchBurstSound(){
   o.connect(g2); g2.connect(masterGain);
   o.start(t); o.stop(t+0.11);
 }
+function heavenSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.075, t+0.9);
+  g.gain.linearRampToValueAtTime(0.0001, t+2.7);
+  g.connect(masterGain);
+  // deux paires légèrement désaccordées : un choeur qui sonne presque juste, mais pas tout à fait
+  [523.25, 527.4, 659.25, 664.6, 784.0, 789.9].forEach((f)=>{
+    const o = actx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+    o.connect(g); o.start(t); o.stop(t+2.8);
+  });
+}
+function hellCutSound(){
+  if(!actx) return;
+  glitchBurstSound();
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = "sawtooth";
+  o.frequency.setValueAtTime(140, t);
+  o.frequency.exponentialRampToValueAtTime(40, t+0.5);
+  const g = actx.createGain(); g.gain.setValueAtTime(0.16, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.55);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t+0.56);
+}
 function vibrate(pattern){ if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern); }
 
 /* ============================================================
@@ -444,15 +516,35 @@ function triggerGlimpse(){
   glimpseY = randRange(0.12,0.32);
   glimpseUntil = now() + randRange(120,220);
 }
-let redPulseUntil = 0;
-function triggerDisturb(){
+let redPulseUntil = 0, redPulseDuration = 900, redPulsePeak = 0.32;
+function triggerDisturb(severity){
+  severity = severity || 1;
   const app = document.getElementById("app");
-  app.classList.remove("shake");
+  const cls = severity>=2 ? "shakeHard" : "shake";
+  app.classList.remove("shake","shakeHard");
   void app.offsetWidth; // force le redémarrage de l'animation CSS
-  app.classList.add("shake");
-  redPulseUntil = now() + 900;
+  app.classList.add(cls);
+  redPulseDuration = severity>=2 ? 1700 : 900;
+  redPulsePeak = severity>=2 ? 0.5 : 0.32;
+  redPulseUntil = now() + redPulseDuration;
   glitchBurstSound();
-  vibrate(save.reduceEffects ? [20] : [0,35,15,35]);
+  if(severity>=2){ setTimeout(()=>{ if(state===STATE.PLAYING) glitchBurstSound(); }, 160); }
+  vibrate(save.reduceEffects ? [20] : (severity>=2 ? [0,50,20,50,20,70] : [0,35,15,35]));
+}
+function triggerHeavenThenHell(){
+  const overlay = document.getElementById("heavenOverlay");
+  heavenSound();
+  overlay.classList.remove("hell");
+  overlay.classList.add("show");
+  setTimeout(()=>{
+    if(state!==STATE.PLAYING) return;
+    overlay.classList.add("hell");
+    hellCutSound();
+    triggerDisturb(2);
+  }, 2200);
+  setTimeout(()=>{
+    overlay.classList.remove("show","hell");
+  }, 3100);
 }
 
 /* ============================================================
@@ -513,7 +605,7 @@ function drawRoom(){
 
   // pulse rouge — réaction à une réponse "inattendue", pas un jumpscare
   if(now() < redPulseUntil){
-    const alpha = Math.max(0,(redPulseUntil-now())/900) * 0.32;
+    const alpha = Math.max(0,(redPulseUntil-now())/redPulseDuration) * redPulsePeak;
     ctx.fillStyle = `rgba(170,10,10,${alpha})`;
     ctx.fillRect(0,0,W,H);
   }
@@ -571,8 +663,17 @@ function stopCamera(){
 }
 function sendRealNotification(){
   try{
-    if("Notification" in window && Notification.permission === "granted"){
-      new Notification("…", { body:"il sait que tu lis ceci.", silent:false, tag:"letest" });
+    if(!("Notification" in window) || Notification.permission !== "granted") return;
+    const opts = { body: playerName ? `${playerName}, il sait que tu lis ceci.` : "il sait que tu lis ceci.", silent:false, tag:"letest", renotify:true };
+    // sur mobile (Android/Chrome), le constructeur direct échoue silencieusement :
+    // il faut passer par le service worker pour une vraie notification système.
+    if(navigator.serviceWorker && navigator.serviceWorker.ready){
+      navigator.serviceWorker.ready.then((reg)=>{
+        if(reg && reg.showNotification){ reg.showNotification("…", opts); }
+        else { try{ new Notification("…", opts); }catch(e){} }
+      }).catch(()=>{ try{ new Notification("…", opts); }catch(e){} });
+    } else {
+      new Notification("…", opts);
     }
   }catch(e){}
 }
@@ -664,12 +765,38 @@ async function requestNotifPerm(){
       permStatus.notif = (perm === "granted");
     }catch(e){ permStatus.notif = false; }
   } else {
-    permStatus.notif = true;
+    // pas d'API notification sur cette plateforme (ex : Safari iOS hors écran d'accueil) :
+    // impossible de montrer une vraie demande, donc jamais de faux "vert".
+    permStatus.notif = false;
   }
   setPermBtnState("notif", permStatus.notif);
   updateLaunchBtn();
 }
+let knownContactName = null;
+async function requestContactPerm(){
+  try{
+    const contacts = await navigator.contacts.select(["name"], { multiple:false });
+    if(contacts && contacts.length && contacts[0].name && contacts[0].name.length){
+      knownContactName = contacts[0].name[0];
+      permStatus.contact = true;
+    } else {
+      permStatus.contact = false;
+    }
+  }catch(e){ permStatus.contact = false; }
+  setPermBtnState("contact", permStatus.contact);
+  updateLaunchBtn();
+}
 const PERM_HANDLERS = { camera:requestCameraPerm, mic:requestMicPerm, geo:requestGeoPerm, motion:requestMotionPerm, notif:requestNotifPerm };
+// bonus rare : disponible seulement sur certains navigateurs Android — un rond de plus
+// apparaît alors dans la grille, requis lui aussi pour lancer le jeu sur cet appareil.
+if(navigator.contacts && navigator.contacts.select){
+  PERMS.push({ key:"contact" });
+  PERM_HANDLERS.contact = requestContactPerm;
+  const contactBtn = document.createElement("button");
+  contactBtn.className = "permBtn";
+  contactBtn.dataset.key = "contact";
+  document.getElementById("permGrid").appendChild(contactBtn);
+}
 
 function showPermGate(){
   document.getElementById("permGate").classList.add("show");
@@ -749,40 +876,61 @@ const REACTIONS = ["ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as d
 const QUESTIONS = [
   /* 0 */ { id:"alive", text:"Es-tu vivant ?", expected:"yes" },
   /* 1 */ { text:"Comprends-tu ce qu'on te demande ?", expected:"yes" },
-  /* 2 */ { text:"Vois-tu cet écran clairement ?" },
-  /* 3 */ { id:"alone", text:"Es-tu seul, là où tu es ?" },
-  /* 4 */ { text: ()=> answers.alone===true
+  /* 2 */ { text:"Comment dois-je t'appeler ? Ton prénom, et ton nom.", nameInput:true, skipIf: ()=> !!playerName },
+  /* 3 */ { text: ()=> playerName ? `${playerName}. Vois-tu cet écran clairement ?` : "Vois-tu cet écran clairement ?" },
+  /* 4 */ { id:"alone", text:"Es-tu seul, là où tu es ?" },
+  /* 5 */ { text: ()=> answers.alone===true
               ? "Tu es seul. En es-tu vraiment sûr ?"
               : "Qui d'autre est avec toi, là, maintenant ?" },
-  /* 5 */ { text:"As-tu déjà répondu à ce genre de question, avant aujourd'hui ?" },
-  /* 6 */ { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
-  /* 7 */ { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
+  /* 6 */ { text:"As-tu déjà répondu à ce genre de question, avant aujourd'hui ?" },
+  /* 7 */ { text: ()=>`Il est ${timeString()}. Est-ce l'heure que tu attendais ?` },
+  /* 8 */ { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Cela te semble-t-il correct ?` : "Ton appareil te semble-t-il fiable ?" },
   /* géoloc */ { text: ()=> userCoords ? `Tu es à ${userCoords.lat.toFixed(4)}, ${userCoords.lon.toFixed(4)}. Je le sais.` : "Je sais où tu es. Ça ne te dérange pas ?" },
-  /* 8 */ { text:"Sais-tu depuis combien de temps tu es assis là ?" },
-  /* 9 */ { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
-  /* 10 */ {
+  /* 9 */ { text:"Sais-tu depuis combien de temps tu es assis là ?" },
+  /* 10 */ { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
+  /* 11 */ { id:"trust", text:"Fais-tu confiance à ce que dit cet écran ?" },
+  /* 12 */ {
     text: ()=> answers.alive===true
       ? "Tu as dit que tu étais vivant. En es-tu toujours certain ?"
       : "Tu as dit que tu ne l'étais pas. Qu'est-ce que ça fait ?",
     expected: ()=> answers.alive===true ? "yes" : null
   },
-  /* 11 */ { text:"Pourrais-tu prouver que c'est bien toi qui réponds, et pas quelqu'un d'autre ?" },
-  /* 12 */ { text:"Si tu mentais, maintenant, le saurais-tu ?" },
-  /* 13 */ { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes" },
-  /* 14 */ { text:"Entends-tu ce bruit ?", effect: ()=>whisperSound(0.6) },
+  /* 13 */ { text:"Pourrais-tu prouver que c'est bien toi qui réponds, et pas quelqu'un d'autre ?" },
+  /* 14 */ { text:"Si tu mentais, maintenant, le saurais-tu ?" },
+  /* 15 */ { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes" },
+  /* contact */ { text: ()=> `Un contact enregistré sur cet appareil s'appelle ${knownContactName}. Est-ce que ça te dit quelque chose ?`, skipIf: ()=> !knownContactName },
+  /* 16 */ {
+    id:"sawName",
+    text: ()=> playerName ? `As-tu déjà vu "${playerName}" écrit quelque part dans cette pièce ?` : "As-tu déjà vu ton nom écrit quelque part dans cette pièce ?",
+    expected:"no", onUnexpected:()=>triggerGlimpse()
+  },
+  /* 17 */ { text:"Entends-tu ce bruit ?", effect: ()=>whisperSound(0.6) },
   /* silence */ { text:"reste silencieux.", silenceCheck:3200 },
-  /* 15 */ { text:"As-tu vérifié que c'est bien toi qui tiens cet appareil ?" },
-  /* 16 */ { text: ()=> sessionCount<=1
+  /* 18 */ {
+    text: ()=> answers.trust===true
+      ? "Tu fais confiance à cet écran. C'est une erreur."
+      : "Tu ne fais pas confiance à cet écran. C'est la première chose sensée que tu aies faite.",
+    effect: ()=>triggerLightFlicker()
+  },
+  /* 19 */ { text:"As-tu vérifié que c'est bien toi qui tiens cet appareil ?" },
+  /* 20 */ { text:"Ferme les yeux. Est-ce que tu vois quelque chose de blanc ?", effect: ()=>triggerHeavenThenHell() },
+  /* 21 */ { text:"……ça va mieux. tu peux rouvrir les yeux." },
+  /* 22 */ { text: ()=> sessionCount<=1
               ? "C'est la première fois que tu viens ici. Le savais-tu ?"
               : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
-  /* 17 */ { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
-  /* 18 */ { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
-  /* 19 */ { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", expected:"yes" },
-  /* 20 */ { text:"t̸u̴—n'̷e̸s̶—p̵a̴s̸—s̷e̸u̶l̴", corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); sendRealNotification(); } },
-  /* 21 */ { text: ()=> answers.wantToKnow===true
+  /* 23 */ { text:"La porte, derrière toi. L'as-tu vérifiée avant de commencer ?" },
+  /* 24 */ { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
+  /* 25 */ { text:"Si on éteignait l'écran maintenant, resterais-tu quand même ?", expected:"yes" },
+  /* 26 */ {
+    text: ()=> playerName ? `i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̸,—${playerName.split(" ")[0]}` : "i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̶",
+    corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); sendRealNotification(); }
+  },
+  /* 27 */ { text: ()=> answers.wantToKnow===true
               ? "...ça va. tu as quand même voulu savoir. prêt pour la suite ?"
               : "...ça va. ce n'était rien. prêt pour la suite ?" },
-  /* 22 */ { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", expected:"no", isLast:true },
+  /* 28 */ { text:"Si je te disais que quelqu'un d'autre a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no" },
+  /* 29 */ { text:"Dernière chance de partir. Veux-tu vraiment continuer ?", expected:"yes" },
+  /* 30 */ { text:"Dernière question. Es-tu sûr de vouloir une réponse ?", expected:"no", isLast:true },
 ];
 
 let qIndex = -1;
@@ -828,6 +976,16 @@ function nextQuestion(){
       runSilenceCheck(q.silenceCheck);
       return;
     }
+    if(q.nameInput){
+      waitingAnswer = false;
+      setButtonsEnabled(false);
+      document.getElementById("buttonRow").classList.add("hide");
+      const field = document.getElementById("nameField");
+      field.value = "";
+      document.getElementById("nameRow").classList.add("show");
+      setTimeout(()=>field.focus(), 60);
+      return;
+    }
     waitingAnswer = !q.corrupt;
     setButtonsEnabled(!q.corrupt);
     if(q.corrupt){
@@ -835,6 +993,25 @@ function nextQuestion(){
     }
   }, delay);
 }
+
+function nameSubmit(){
+  if(state!==STATE.PLAYING) return;
+  const field = document.getElementById("nameField");
+  const val = field.value.trim();
+  playerName = val.length ? val.slice(0,40) : null;
+  save.playerName = playerName;
+  writeSave(save);
+  document.getElementById("nameRow").classList.remove("show");
+  field.blur();
+  document.getElementById("buttonRow").classList.remove("hide");
+  setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, randRange(400,650));
+}
+document.getElementById("nameConfirm").addEventListener("click", (e)=>{ e.stopPropagation(); nameSubmit(); });
+document.getElementById("nameConfirm").addEventListener("pointerdown", (e)=>e.stopPropagation());
+document.getElementById("nameField").addEventListener("pointerdown", (e)=>e.stopPropagation());
+document.getElementById("nameField").addEventListener("keydown", (e)=>{
+  if(e.key==="Enter"){ e.preventDefault(); nameSubmit(); }
+});
 
 function runSilenceCheck(duration){
   if(!micAnalyser){
@@ -856,7 +1033,7 @@ function runSilenceCheck(duration){
       flagged = true;
       disturbCount++;
       setTvText(pick(REACTIONS), true);
-      triggerDisturb();
+      triggerDisturb(unease > 0.55 ? 2 : 1);
     }
   }, 120);
   setTimeout(()=>{
@@ -884,7 +1061,7 @@ function answer(isYes){
   if(unexpected){
     disturbCount++;
     setTvText(pick(REACTIONS), true);
-    triggerDisturb();
+    triggerDisturb(unease > 0.55 ? 2 : 1);
     if(q.onUnexpected) q.onUnexpected();
   }
 
@@ -949,7 +1126,7 @@ function endDisturbing(){
   const lines = ["……","ça—suffit.","non.","arrête—de—répondre.","tu—n'aurais—pas—dû"];
   const iv = setInterval(()=>{
     step++;
-    triggerDisturb();
+    triggerDisturb(step>=3 ? 2 : 1); // ça empire à mesure que ça avance
     setTvText(lines[Math.min(step-1, lines.length-1)], true);
     if(step>=4){ clearInterval(iv); cutToBlack(); }
   }, 550);
@@ -988,13 +1165,13 @@ function buildTitleFlavor(){
   if(save.totalSessions === 0){
     msg = "assieds-toi. réponds sincèrement. ça ne prendra pas longtemps.";
   } else if(delta < 60000){
-    msg = "tu es revenu tout de suite. il ne t'a pas vu partir.";
+    msg = playerName ? `${playerName}. tu es revenu tout de suite. il ne t'a pas vu partir.` : "tu es revenu tout de suite. il ne t'a pas vu partir.";
   } else if(delta < 3600000){
-    msg = "tu es parti " + fmtDuration(delta) + ". la salle t'a attendu, telle quelle.";
+    msg = (playerName ? `${playerName}, tu` : "tu") + " es parti " + fmtDuration(delta) + ". la salle t'a attendu, telle quelle.";
   } else if(delta < 86400000){
     msg = "ça fait " + fmtDuration(delta) + ". les questions ont eu le temps de changer.";
   } else {
-    msg = "ça fait " + fmtDuration(delta) + ". tu ne devrais peut-être pas revenir.";
+    msg = "ça fait " + fmtDuration(delta) + (playerName ? `, ${playerName}` : "") + ". tu ne devrais peut-être pas revenir.";
   }
   document.getElementById("flavorText").textContent = msg;
   const stat = document.getElementById("statText");
@@ -1039,7 +1216,10 @@ function startTest(){
   entitySeed = Math.random()*1000;
   redPulseUntil = 0; glimpseUntil = 0;
   lightFlickerUntil = 0;
-  document.getElementById("app").classList.remove("shake");
+  document.getElementById("app").classList.remove("shake","shakeHard");
+  document.getElementById("nameRow").classList.remove("show");
+  document.getElementById("buttonRow").classList.remove("hide");
+  document.getElementById("heavenOverlay").classList.remove("show","hell");
 
   resize();
   requestAnimationFrame(()=>layoutWires());

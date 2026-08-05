@@ -19,17 +19,28 @@ Ce qui rend LE TEST inhabituel :
 - **Deux fins, déterminées par tes choix**, pas par un mini-jeu de réflexes : une fin silencieuse et froide si tu restes conciliant, une fin qui s'effondre lentement dans le glitch et le noir si ta curiosité l'emporte.
 - **La mémoire entre les sessions.** Le jeu se souvient du nombre de fois où tu es venu et depuis combien de temps, et l'écran-titre le formule froidement.
 
-## Permissions — tout ou rien
+## Permissions — tout ou rien, sans mise en scène
 
-Avant de commencer, le jeu demande **toutes** ses permissions d'un coup : caméra, microphone, géolocalisation, capteurs de mouvement (iOS) et notifications. Il refuse de démarrer tant qu'il ne les a pas toutes — un écran dédié liste ce qui manque et permet de réessayer. C'est un choix de conception : la moitié de l'inconfort du jeu vient du fait qu'il utilise vraiment ce qu'il demande, pas de l'accumulation de permissions décoratives.
+Avant de commencer, le jeu demande caméra, microphone, géolocalisation, capteurs de mouvement (iOS) et notifications, un rond par permission. Chaque rond ne devient vert que si une vraie demande native a réellement été montrée et acceptée — jamais de faux "accordé" silencieux. Sur un appareil où une permission ne peut tout simplement pas être proposée (ex : notifications sur Safari iOS hors écran d'accueil), le rond reste rouge et le jeu ne démarre pas tant que ce n'est pas résolu — c'est volontaire. Le gros bouton central ne s'active qu'une fois tous les ronds verts.
+
+Sur certains navigateurs Android compatibles avec le *Contact Picker*, un rond supplémentaire apparaît : il ouvre le sélecteur de contacts natif du téléphone, et si tu choisis un contact, le jeu peut ensuite le mentionner.
 
 Utilisation réelle en jeu :
 
 - **Caméra** : flux vidéo affiché en permanence dans un coin de l'écran (aperçu en niveaux de gris), coupé automatiquement si l'onglet passe en arrière-plan et entre deux sessions.
 - **Microphone** : analysé en direct pour une question qui demande le silence — un bruit détecté au-dessus d'un seuil calibré sur le bruit ambiant déclenche une réaction du jeu.
 - **Géolocalisation** : coordonnées GPS réelles affichées brutes dans une question — jamais géocodées, pour ne jamais avoir besoin d'un appel réseau externe.
-- **Notifications** : une vraie notification système du navigateur est envoyée au moment le plus fort du test.
-- **Mouvement (iOS)** : demandé pour cohérence avec le reste du dispositif ; disponible pour de futures itérations.
+- **Notifications** : une vraie notification système est envoyée au moment le plus fort du test (via le service worker, pour que ça fonctionne aussi sur mobile).
+- **Mouvement (iOS)** : demandé pour cohérence avec le reste du dispositif.
+- **Contacts (bonus, si disponible)** : sélectionne un nom réel dans les contacts de l'appareil pour une question ciblée.
+
+## Le nom
+
+Tôt dans le test, l'écran demande le prénom et le nom du joueur — une vraie saisie, pas une case à cocher. Ce nom est mémorisé (localement) et réutilisé dans plusieurs questions plus tard, y compris dans une ligne corrompue vers la fin. Les sessions suivantes ne le redemandent pas : l'écran-titre s'adresse directement au joueur par son nom.
+
+## Escalade
+
+Une réponse "inattendue" fait trembler l'écran et le teinte de rouge — l'intensité de cette réaction grandit avec la progression du test (secousse plus forte, rouge plus profond, son plus dur en fin de partie). Une séquence dédiée transforme brièvement toute la pièce en blanc immaculé, avec une musique étrange et légèrement désaccordée, avant de basculer brutalement dans le rouge. Aucun jumpscare classique nulle part : tout reste ambiance et rupture de rythme, jamais un visage qui surgit.
 
 ## Structure du repo
 
