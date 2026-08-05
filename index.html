@@ -45,7 +45,13 @@
   #tvScreen{
     position:relative; width:100%; aspect-ratio:4/3; background:radial-gradient(ellipse at 50% 30%, #2a5fa0 0%, #0d1f38 75%);
     border-radius:2px; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:8%;
+    transition: background 0.6s ease;
   }
+  /* passage au vert : une partie du test vient d'être réussie */
+  #tvScreen.success{
+    background:radial-gradient(ellipse at 50% 30%, #3fb86a 0%, #0d3a1f 75%);
+  }
+  #tvScreen.success #tvText{ text-shadow:0 0 8px rgba(140,255,180,0.5); }
   #tvText{
     color:#dce8fb; font-size:clamp(0.78rem, 3.4vw, 1rem); text-align:center; line-height:1.55em;
     letter-spacing:0.02em; font-weight:500; text-shadow:0 0 6px rgba(150,190,255,0.4);
@@ -130,8 +136,10 @@
   #veil{
     position:absolute; inset:0; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center;
-    padding:8vh 6vw; gap:1.1em; color:#cfcfcf; letter-spacing:0.04em;
-    background:radial-gradient(ellipse at center, rgba(5,5,8,0.2) 0%, rgba(5,5,8,0.94) 75%);
+    padding:8vh 6vw; gap:1.1em; color:#dce8fb; letter-spacing:0.04em;
+    background:
+      repeating-linear-gradient(to bottom, rgba(0,0,0,0.14) 0px, rgba(0,0,0,0.14) 1px, transparent 2px, transparent 3px),
+      radial-gradient(ellipse at 50% 28%, #3a72b8 0%, #1c3f6e 45%, #0d1f38 80%, #060f1c 100%);
     transition:opacity 1.2s ease; z-index:70;
   }
   #veil.hidden{ opacity:0; pointer-events:none; }
@@ -387,14 +395,24 @@ window.addEventListener("resize", resize);
 /* ============================================================
    Audio (100% procédural)
    ============================================================ */
-let actx=null, droneGain=null, noiseGain=null, masterGain=null, noiseSrc=null, lfo=null, lfoGain=null, filter=null;
+let actx=null, droneGain=null, noiseGain=null, masterGain=null, noiseSrc=null, lfo=null, lfoGain=null, filter=null, compressor=null;
 function ensureAudio(){
   if(actx) return;
   const AC = window.AudioContext || window.webkitAudioContext;
   if(!AC) return;
   actx = new AC();
-  masterGain = actx.createGain(); masterGain.gain.value = 0.85;
-  masterGain.connect(actx.destination);
+  // un compresseur en sortie pour pouvoir pousser le volume sans que ça sature
+  // quand plusieurs sons se superposent (frappe du texte + ambiance + réaction).
+  compressor = actx.createDynamicsCompressor();
+  compressor.threshold.value = -18;
+  compressor.knee.value = 24;
+  compressor.ratio.value = 8;
+  compressor.attack.value = 0.003;
+  compressor.release.value = 0.25;
+  compressor.connect(actx.destination);
+
+  masterGain = actx.createGain(); masterGain.gain.value = 1.15;
+  masterGain.connect(compressor);
 
   const osc = actx.createOscillator();
   osc.type = "sine"; osc.frequency.value = 52;
@@ -413,7 +431,7 @@ function ensureAudio(){
   for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1)*0.6;
   noiseSrc = actx.createBufferSource(); noiseSrc.buffer = buf; noiseSrc.loop = true;
   filter = actx.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = 260;
-  noiseGain = actx.createGain(); noiseGain.gain.value = 0.018;
+  noiseGain = actx.createGain(); noiseGain.gain.value = 0.022;
   noiseSrc.connect(filter); filter.connect(noiseGain); noiseGain.connect(masterGain);
   noiseSrc.start();
 }
@@ -438,7 +456,7 @@ function whisperSound(intensity){
   f.frequency.exponentialRampToValueAtTime(280, t+0.35);
   const g = actx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(0.17*intensity, t+0.03);
+  g.gain.linearRampToValueAtTime(0.22*intensity, t+0.03);
   g.gain.exponentialRampToValueAtTime(0.0001, t+0.4);
   src.connect(f); f.connect(g); g.connect(masterGain);
   src.start(t);
@@ -448,7 +466,7 @@ function clickSound(low){
   const t = actx.currentTime;
   const o = actx.createOscillator(); o.type="sine";
   o.frequency.setValueAtTime(low?220:520, t);
-  const g = actx.createGain(); g.gain.setValueAtTime(0.24,t);
+  const g = actx.createGain(); g.gain.setValueAtTime(0.3,t);
   g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
   o.connect(g); g.connect(masterGain);
   o.start(t); o.stop(t+0.14);
@@ -463,14 +481,14 @@ function glitchBurstSound(){
   const src = actx.createBufferSource(); src.buffer = buf;
   const f = actx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 700;
   const g = actx.createGain();
-  g.gain.setValueAtTime(0.36, t);
+  g.gain.setValueAtTime(0.44, t);
   g.gain.exponentialRampToValueAtTime(0.001, t+0.16);
   src.connect(f); f.connect(g); g.connect(masterGain);
   src.start(t);
 
   const o = actx.createOscillator(); o.type="square";
   o.frequency.setValueAtTime(90, t);
-  const g2 = actx.createGain(); g2.gain.setValueAtTime(0.16, t);
+  const g2 = actx.createGain(); g2.gain.setValueAtTime(0.2, t);
   g2.gain.exponentialRampToValueAtTime(0.0001, t+0.1);
   o.connect(g2); g2.connect(masterGain);
   o.start(t); o.stop(t+0.11);
@@ -483,8 +501,8 @@ function heavenSound(duration){
   const release = Math.max(0.8, dur*0.18);
   const g = actx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(0.11, t+attack);
-  g.gain.setValueAtTime(0.11, t+Math.max(attack, dur-release));
+  g.gain.linearRampToValueAtTime(0.14, t+attack);
+  g.gain.setValueAtTime(0.14, t+Math.max(attack, dur-release));
   g.gain.linearRampToValueAtTime(0.0001, t+dur);
   g.connect(masterGain);
   // deux paires légèrement désaccordées : un choeur qui sonne presque juste, mais pas tout à fait
@@ -495,6 +513,51 @@ function heavenSound(duration){
     o.frequency.linearRampToValueAtTime(f + (Math.random()<0.5?-0.6:0.6), t+dur);
     o.connect(g); o.start(t); o.stop(t+dur+0.05);
   });
+}
+// tout petit tic, joué pendant que le texte s'écrit lettre par lettre
+function typeTickSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = "square";
+  o.frequency.setValueAtTime(1050 + Math.random()*220, t);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.045, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.035);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t+0.04);
+}
+// petit carillon chaud, quand une partie du test est réussie — à l'opposé du malaise ambiant
+function successChimeSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  [440, 554.37, 659.25, 880].forEach((f, i)=>{
+    const t0 = t + i*0.09;
+    const o = actx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.16, t0+0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+0.55);
+    o.connect(g); g.connect(masterGain);
+    o.start(t0); o.stop(t0+0.6);
+  });
+}
+// bourdonnement montant, à l'écran de chargement — la machine qui s'allume
+function powerHumSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = "sawtooth";
+  o.frequency.setValueAtTime(30, t);
+  o.frequency.exponentialRampToValueAtTime(58, t+1.7);
+  const f = actx.createBiquadFilter(); f.type = "lowpass";
+  f.frequency.setValueAtTime(180, t);
+  f.frequency.linearRampToValueAtTime(420, t+1.7);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.12, t+0.5);
+  g.gain.setValueAtTime(0.12, t+1.3);
+  g.gain.linearRampToValueAtTime(0.0001, t+1.9);
+  o.connect(f); f.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t+2.0);
 }
 function vibrate(pattern){ if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern); }
 
@@ -576,10 +639,9 @@ function triggerHeavenThenHell(){
 }
 
 /* ============================================================
-   Grésillements ambiants — quelques secondes de statique sur
-   l'écran, la scène qui tremble, une teinte rouge. Se déclenchent
-   seuls, au hasard, de plus en plus souvent à mesure que le malaise
-   grandit — pas seulement en réaction à une réponse.
+   Grésillements — statique sur l'écran, la scène qui tremble.
+   Ne se déclenchent jamais au hasard : uniquement à des moments
+   précis du scénario, via l'effet d'une question donnée.
    ============================================================ */
 let tvStaticBuilt = false;
 let staticEffectBusy = false; // évite que deux effets de statique se marchent dessus
@@ -618,11 +680,6 @@ function triggerAmbientGlitch(){
     staticEffectBusy = false;
   }, dur);
 }
-setInterval(()=>{
-  if(state!==STATE.PLAYING || staticEffectBusy) return;
-  const chance = 0.05 + unease*0.14;
-  if(Math.random() < chance) triggerAmbientGlitch();
-}, 4000);
 
 /* ============================================================
    Glitch de balayage — statique + texte qui roule, une bonne
@@ -650,16 +707,25 @@ function triggerTvRollGlitch(){
     staticEffectBusy = false;
   }, 1000);
 }
-setInterval(()=>{
-  if(state!==STATE.PLAYING || staticEffectBusy) return;
-  const chance = 0.06 + unease*0.12;
-  if(Math.random() < chance) triggerTvRollGlitch();
-}, 5200);
+
+/* ============================================================
+   Passage au vert — l'écran signale, brièvement, qu'une partie
+   du test vient d'être validée. Le seul moment où la télé n'est
+   pas hostile. Réservé à quelques paliers précis du scénario.
+   ============================================================ */
+function triggerSuccessPulse(){
+  if(state!==STATE.PLAYING) return;
+  const screen = document.getElementById("tvScreen");
+  screen.classList.add("success");
+  successChimeSound();
+  vibrate(save.reduceEffects ? [] : [0,15,10,15,10,25]);
+  setTimeout(()=>{ screen.classList.remove("success"); }, 1800);
+}
 
 /* ============================================================
    Corruption du signal — flash RVB désaligné plein écran, très
-   bref et très brutal, réservé aux moments où le malaise est déjà
-   haut. Différent du grésillement TV : ici tout l'écran part.
+   bref et très brutal. Réservé à un ou deux moments précis, jamais
+   au hasard : différent du grésillement TV, ici tout l'écran part.
    ============================================================ */
 function triggerSignalCorruption(){
   if(state!==STATE.PLAYING || overlayActive) return;
@@ -678,11 +744,6 @@ function triggerSignalCorruption(){
   setTimeout(()=>{ if(state===STATE.PLAYING) glitchBurstSound(); }, Math.floor(t*0.5));
   vibrate(save.reduceEffects ? [] : [0,30,40,30,40,60]);
 }
-setInterval(()=>{
-  if(state!==STATE.PLAYING) return;
-  if(unease < 0.45) return;
-  if(Math.random() < 0.04 + unease*0.06) triggerSignalCorruption();
-}, 6000);
 
 /* ============================================================
    Noir total + bruits d'opération — un moment où on ne voit plus
@@ -697,8 +758,8 @@ function sawSound(t0, dur){
   trem.connect(tremGain); tremGain.connect(o.frequency);
   const g = actx.createGain();
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.linearRampToValueAtTime(0.15, t0+0.35);
-  g.gain.setValueAtTime(0.15, t0+Math.max(0.4,dur-0.5));
+  g.gain.linearRampToValueAtTime(0.19, t0+0.35);
+  g.gain.setValueAtTime(0.19, t0+Math.max(0.4,dur-0.5));
   g.gain.linearRampToValueAtTime(0.0001, t0+dur);
   o.connect(g); g.connect(masterGain);
   o.start(t0); trem.start(t0); o.stop(t0+dur); trem.stop(t0+dur);
@@ -708,7 +769,7 @@ function metalClinkSound(t0){
   const o = actx.createOscillator(); o.type = "square";
   o.frequency.setValueAtTime(1500+Math.random()*1100, t0);
   const g = actx.createGain();
-  g.gain.setValueAtTime(0.07, t0);
+  g.gain.setValueAtTime(0.1, t0);
   g.gain.exponentialRampToValueAtTime(0.0001, t0+0.12);
   o.connect(g); g.connect(masterGain);
   o.start(t0); o.stop(t0+0.13);
@@ -1028,7 +1089,7 @@ const QUESTIONS = [
   { text:"Entends-tu ce bruit, là, maintenant ?", effect: ()=>whisperSound(0.6) },
   { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
   { text:"Ne dis rien. Ne bouge pas. Compte jusqu'à dix, dans ta tête.", auto:true, holdFor:3400 },
-  { text:"Un sujet précédent n'a pas réussi à rester immobile. Il n'a pas terminé ce test.", auto:true, holdFor:2800 },
+  { text:"Un sujet précédent n'a pas réussi à rester immobile. Il n'a pas terminé ce test.", auto:true, holdFor:2800, effect: ()=>triggerAmbientGlitch() },
   { text:"Ton dossier s'épaissit à chaque réponse que tu donnes.", auto:true, holdFor:2400 },
   { text: ()=> answers.trust===true
       ? "Tu fais confiance à cet écran. Est-ce une erreur, selon toi ?"
@@ -1037,10 +1098,10 @@ const QUESTIONS = [
   { text:"Si un animal entrait dans cette pièce, là, maintenant, resterais-tu calme ?" },
 
   /* 26 palier — le test relâche la pression, brièvement */
-  { text:"Félicitations. Tu viens de terminer une partie du test.", auto:true, holdFor:2200, effect: ()=>{ unease = Math.max(0, unease-0.08); setUnease(unease); } },
+  { text:"Félicitations. Tu viens de terminer une partie du test.", auto:true, holdFor:2200, effect: ()=>{ unease = Math.max(0, unease-0.08); setUnease(unease); triggerSuccessPulse(); } },
   { text:"Veuillez patienter. Le test va reprendre sous peu.", auto:true, holdFor:3400 },
-  { text:"Le test reprend. Merci pour toute ta participation jusqu'ici.", auto:true, holdFor:1600 },
-  { text:"Le sujet a été jugé ██████ pour la suite du protocole.", auto:true, holdFor:2400 },
+  { text:"Le test reprend. Merci pour toute ta participation jusqu'ici.", auto:true, holdFor:1600, effect: ()=>triggerSuccessPulse() },
+  { text:"Le sujet a été jugé ██████ pour la suite du protocole.", auto:true, holdFor:2400, effect: ()=>triggerSignalCorruption() },
 
   /* 30 une question bizarre, existentielle — puis le blanc */
   { text:"Cesses-tu d'exister quand tu fermes les yeux ?", effect: ()=>triggerHeavenThenHell() },
@@ -1065,7 +1126,7 @@ const QUESTIONS = [
       ? "...ça va. Tu as quand même voulu savoir. Es-tu prêt pour la suite ?"
       : "...ça va. Ce n'était rien. Es-tu prêt pour la suite ?",
     expected:"yes" },
-  { text:"Si je te disais qu'un autre sujet a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no" },
+  { text:"Si je te disais qu'un autre sujet a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no", effect: ()=>triggerTvRollGlitch() },
   { text:"Tu n'es pas le premier sujet aujourd'hui. Tu ne seras pas le dernier.", auto:true, holdFor:2600 },
   { text:"Le protocole est presque terminé. Les résultats seront transmis, quelle que soit ta réponse.", auto:true, holdFor:2800 },
   { text:"Ce que tu réponds compte réellement. C'est bien pour ça qu'on te le demande.", auto:true, holdFor:2600 },
@@ -1092,6 +1153,45 @@ function setButtonsEnabled(on){
   document.getElementById("btnNo").classList.toggle("disabled", !on);
 }
 
+/* écrit le texte lettre par lettre, comme sur un vieux téléscripteur —
+   annulable si une nouvelle question démarre avant la fin */
+let typingActive = false;
+let typingTimeoutIds = [];
+function clearTypingTimeouts(){
+  typingTimeoutIds.forEach(id=>clearTimeout(id));
+  typingTimeoutIds = [];
+}
+function typeTvText(text, corrupt, onDone){
+  const el = document.getElementById("tvText");
+  el.classList.toggle("corrupt", !!corrupt);
+  clearTypingTimeouts();
+  typingActive = true;
+  const chars = Array.from(text);
+  el.textContent = "";
+  if(save.reduceEffects || chars.length === 0){
+    el.textContent = text;
+    typingActive = false;
+    if(onDone) onDone();
+    return;
+  }
+  const perChar = corrupt ? 40 : 26;
+  let i = 0;
+  const step = ()=>{
+    if(!typingActive) return;
+    i++;
+    el.textContent = chars.slice(0,i).join("");
+    if(i % 2 === 0) typeTickSound();
+    if(i < chars.length){
+      const jitter = corrupt ? randRange(-10,45) : randRange(-6,16);
+      typingTimeoutIds.push(setTimeout(step, perChar+jitter));
+    } else {
+      typingActive = false;
+      if(onDone) onDone();
+    }
+  };
+  typingTimeoutIds.push(setTimeout(step, perChar));
+}
+
 function nextQuestion(){
   qIndex++;
   while(qIndex < QUESTIONS.length && QUESTIONS[qIndex].skipIf && QUESTIONS[qIndex].skipIf()){
@@ -1110,13 +1210,15 @@ function nextQuestion(){
   const delay = q.freeze || randRange(500,900);
   setTimeout(()=>{
     if(state!==STATE.PLAYING) return;
-    setTvText(txt, !!q.corrupt);
     if(q.effect) q.effect();
-    waitingAnswer = !q.corrupt && !q.auto;
-    setButtonsEnabled(!q.corrupt && !q.auto);
-    if(q.corrupt || q.auto){
-      setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, q.holdFor || q.freeze || 1500);
-    }
+    typeTvText(txt, !!q.corrupt, ()=>{
+      if(state!==STATE.PLAYING) return;
+      waitingAnswer = !q.corrupt && !q.auto;
+      setButtonsEnabled(!q.corrupt && !q.auto);
+      if(q.corrupt || q.auto){
+        setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, q.holdFor || q.freeze || 1500);
+      }
+    });
   }, delay);
 }
 
@@ -1136,7 +1238,7 @@ function answer(isYes){
 
   if(unexpected){
     disturbCount++;
-    setTvText(pick(REACTIONS), true);
+    typeTvText(pick(REACTIONS), true);
     triggerDisturb(unease > 0.55 ? 2 : 1);
     if(q.onUnexpected) q.onUnexpected();
   }
@@ -1278,6 +1380,7 @@ function startBoot(){
   document.getElementById("veil").classList.add("hidden");
   const boot = document.getElementById("boot");
   boot.classList.remove("hidden");
+  powerHumSound();
   setTimeout(()=>{
     boot.classList.add("hidden");
     startTest();
@@ -1300,6 +1403,8 @@ function startTest(){
   lightFlickerUntil = 0;
   staticEffectBusy = false;
   overlayActive = false;
+  clearTypingTimeouts();
+  typingActive = false;
   document.getElementById("app").classList.remove("shake","shakeHard");
   document.getElementById("buttonRow").classList.remove("hide");
   document.getElementById("heavenOverlay").classList.remove("show");
@@ -1308,6 +1413,7 @@ function startTest(){
   document.getElementById("wakeText").classList.remove("show");
   document.getElementById("app").classList.remove("corruptFlash");
   document.getElementById("tvText").classList.remove("rollGlitch");
+  document.getElementById("tvScreen").classList.remove("success");
 
   resize();
   requestAnimationFrame(()=>layoutWires());

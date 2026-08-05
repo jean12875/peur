@@ -33,9 +33,17 @@ Le prénom et le nom, saisis avant le lancement, sont mémorisés (localement) e
 
 Une salle capitonnée blanche, vue de face, fixe : le téléviseur, les boutons et les fils sont toujours à la même place. Une inscription grattée dans le mur est visible en permanence dans un coin. (Un mécanisme pour regarder autour de soi en glissant le doigt a été tenté puis abandonné — la composition 3D du CSS s'est révélée trop fragile à ajuster sans aperçu visuel direct dans l'environnement de développement, et le rendu obtenu était cassé plutôt que convaincant. Mieux vaut une pièce simple et stable qu'un effet impressionnant mais buggé.)
 
+## Le texte s'écrit, il n'apparaît pas
+
+Chaque réplique du téléviseur s'affiche lettre par lettre, avec un petit tic sonore à chaque frappe — jamais d'un coup. Les boutons OUI/NON ne s'activent qu'une fois la phrase entièrement écrite : impossible de répondre avant d'avoir lu.
+
 ## Escalade
 
-Une réponse "inattendue" fait trembler l'écran et le teinte de rouge — l'intensité de cette réaction grandit avec la progression du test (secousse plus forte, rouge plus profond, son plus dur en fin de partie). Des grésillements surviennent aussi sans prévenir : l'écran se couvre de statique, la pièce tremble, tout devient rouge quelques secondes, de plus en plus souvent à mesure que le malaise grandit — indépendamment de tes réponses. De temps en temps, un flash bref désaligne complètement les couleurs de l'écran, comme un signal qui lâche. Un autre glitch, plus bref (une seconde pile), fait rouler et trembler le texte à l'écran dans un aller-retour statique/couleurs désalignées, avant que tout ne redevienne net d'un coup.
+Une réponse "inattendue" fait trembler l'écran et le teinte de rouge — l'intensité de cette réaction grandit avec la progression du test (secousse plus forte, rouge plus profond, son plus dur en fin de partie).
+
+Les grésillements, eux, ne sont jamais laissés au hasard : chacun est accroché à un moment précis du scénario, jamais déclenché en dehors de ces instants-là. L'écran se couvre de statique et la pièce tremble une fois, juste après qu'on évoque un sujet précédent qui n'a pas terminé le test. Un flash bref désaligne complètement les couleurs de l'écran, comme un signal qui lâche, au moment où le protocole annonce un jugement caviardé. Un autre glitch, plus bref (une seconde pile), fait rouler et trembler le texte à l'écran dans un aller-retour statique/couleurs désalignées, quand le test insinue qu'un autre sujet a répondu à ta place.
+
+À l'inverse, l'écran passe brièvement au vert et un petit carillon se fait entendre à deux reprises, quand une partie du test vient d'être validée — le seul moment où le téléviseur n'est pas hostile.
 
 Une séquence dédiée transforme la pièce en blanc immaculé pendant dix bonnes secondes, avec une musique étrange et légèrement désaccordée — puis tout redevient normal, en silence, comme si de rien n'était. Aucune coupure rouge, aucune explication : c'est cette absence de suite qui dérange. Un autre moment plonge l'écran dans un noir total, avec des bruits d'opération (scie, cliquetis métalliques, un moniteur cardiaque qui finit par s'aplatir) — jamais expliqué non plus.
 
