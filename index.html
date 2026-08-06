@@ -579,11 +579,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.41";
+const APP_VERSION = "1.42";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.42", "Deuxième relecture, plus systématique cette fois : quelques dernières questions bancales corrigées."],
   ["1.41", "Relecture complète après la grosse mise à jour : quelques questions reformulées pour rester cohérentes, quelques phrases resserrées."],
   ["1.40", "Grosse mise à jour. Le test se comporte différemment selon la façon dont tu réponds, bien plus qu'avant — et ça va plus loin que ce que cette ligne devrait t'en dire. Beaucoup plus de contenu, beaucoup plus de fins possibles. Et une mémoire qui va plus loin que ce que le bouton \"tout oublier\" laisse croire."],
   ["1.36", "Ajout d'un bouton \"partager\" (copie un lien et des instructions d'installation, iPhone ou Android). Autre chose a été ajouté ce jour-là aussi. Tu la trouveras peut-être."],
@@ -1949,7 +1950,7 @@ const QUESTIONS = [
     effect: ()=>heartSkipSound(), weight: (y)=>({ soumission: y?0.6:0 }) },
   { text:"Le prochain sujet entendra peut-être une partie de toi, sans le savoir. Est-ce que ça te dérange ?", skipIf: ()=> branch2!=="soumission",
     weight: (y)=>({ soumission: y?0:0.4, mefiance: y?0.4:0 }) },
-  { text:"Tu n'as plus vraiment besoin de comprendre pourquoi, n'est-ce pas ? Juste de continuer.", skipIf: ()=> branch2!=="soumission",
+  { text:"Tu n'as plus vraiment besoin de comprendre pourquoi, n'est-ce pas — juste de continuer ?", skipIf: ()=> branch2!=="soumission",
     weight: (y)=>({ soumission: y?0.5:-0.2 }) },
   { text:"Si ton nom disparaissait de ce dossier et qu'un numéro le remplaçait, protesterais-tu ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
     weight: (y)=>({ soumission: y?-0.4:0.4 }) },
@@ -2003,7 +2004,7 @@ const QUESTIONS = [
   { text:"Tu trembles, ou c'est l'écran. On ne sait plus très bien, à ce stade.", auto:true, holdFor:2600, skipIf: ()=> branch2!=="mefiance",
     effect: ()=>{ triggerAmbientGlitch(); vibrate(save.reduceEffects?[]:[0,20,120,20]); } },
   { text:"Dernière chance de te taire pour de bon. Le feras-tu ?", skipIf: ()=> branch2!=="mefiance", weight: (y)=>({ mefiance: y?0.4:0 }) },
-  { text:"Le protocole n'a jamais aimé perdre un sujet en cours de route. Toi non plus, en fait, si tu es honnête.", skipIf: ()=> branch2!=="mefiance" },
+  { text:"Le protocole n'a jamais aimé perdre un sujet en cours de route. Toi non plus, en fait, si tu es honnête — n'est-ce pas ?", skipIf: ()=> branch2!=="mefiance" },
   { text:"Vas-tu vraiment aller jusqu'au bout de ce refus ?", skipIf: ()=> branch2!=="mefiance", weight: (y)=>({ mefiance: y?0.4:-0.2 }) },
   { text:"On note, une dernière fois, ton refus de coopérer pleinement. C'est bien ce que tu voulais ?", expected:"yes", skipIf: ()=> branch2!=="mefiance",
     weight: (y)=>({ mefiance: y?0.4:0 }) },
@@ -2049,7 +2050,8 @@ const QUESTIONS = [
     weight: (y)=>({ lucidite: y?0.2:0 }) },
   { text:"Le protocole ne ment jamais complètement. Il omet, simplement, ce qu'il préfère que tu découvres seul.", auto:true, holdFor:2800,
     skipIf: ()=> branch2!=="lucidite" },
-  { text:"Une dernière chose à comprendre, avant la suite : comprendre ne t'a jamais sorti d'ici, une seule fois.", skipIf: ()=> branch2!=="lucidite" },
+  { text:"Une dernière chose à comprendre, avant la suite : comprendre t'a-t-il déjà sorti d'ici, ne serait-ce qu'une seule fois ?", expected:"no",
+    skipIf: ()=> branch2!=="lucidite", weight: (y)=>({ lucidite: y?-0.2:0.3 }) },
 
   /* --- branche "dissociation" (round 2) : l'effacement, jusqu'à la disparition --- */
   { text:"Sens-tu encore vraiment la chaise sous toi, là, maintenant ?", skipIf: ()=> branch2!=="dissociation",
