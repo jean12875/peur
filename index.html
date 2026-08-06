@@ -22,6 +22,8 @@
   setVH();
   window.addEventListener("resize", setVH);
   window.addEventListener("orientationchange", function(){ setTimeout(setVH, 120); });
+  window.addEventListener("pageshow", setVH);
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden) setVH(); });
 })();
 </script>
 <style>
@@ -37,12 +39,14 @@
     touch-action:none;
     overscroll-behavior:none;
   }
-  /* hauteur : fallback JS (--vh) pour les vieux moteurs, puis dvh en priorité
-     quand le navigateur le supporte correctement (meilleur comportement en PWA standalone) */
+  /* hauteur : uniquement le fallback JS (--vh, recalculé sur resize/orientation).
+     100dvh a été essayé mais certaines WKWebView standalone iOS le déclarent
+     supporté tout en le calculant faux (bande résiduelle en bas) — comme il
+     est syntaxiquement valide, il gagnait quand même la cascade CSS s'il était
+     déclaré après. On ne garde donc que la valeur mesurée en JS, seule fiable ici. */
   #app{ position:fixed; inset:0; width:100vw;
     height:100%;
     height:calc(var(--vh, 1vh) * 100);
-    height:100dvh;
     background:#d9d4c6; overflow:hidden; }
   canvas{ position:absolute; inset:0; display:block; }
 
@@ -1030,16 +1034,59 @@ function heartbeepSound(t0, flatline){
 // voix étouffées dans la panique — Web Speech API, jamais expliquées, jamais revues.
 // iOS/Safari exige que le moteur de synthèse soit "débloqué" par un geste direct
 // de l'utilisateur (comme l'audio) : voir warmUpSpeech(), appelé au clic sur "commencer".
+// choisit la meilleure voix fr disponible — sur iOS/Android il existe souvent des
+// voix "Enhanced"/"Premium" bien moins robotiques que la voix "Compact" par défaut
+let frenchVoice = null;
+function pickFrenchVoice(){
+  try{
+    if(!("speechSynthesis" in window)) return null;
+    const voices = speechSynthesis.getVoices() || [];
+    const fr = voices.filter(v=>/^fr/i.test(v.lang));
+    if(!fr.length) return null;
+    const better = fr.find(v=>/enhanced|premium|neural|siri/i.test(v.name));
+    return better || fr[0];
+  }catch(e){ return null; }
+}
+if("speechSynthesis" in window){
+  try{
+    speechSynthesis.onvoiceschanged = ()=>{ frenchVoice = pickFrenchVoice(); };
+    frenchVoice = pickFrenchVoice();
+  }catch(e){}
+}
+// une phrase lue d'une traite par une synthèse vocale sonne toujours posée, jamais
+// paniquée — ici le texte est fragmenté en petites bouffées de 2-3 mots, débitées
+// vite, avec un pitch qui varie d'une bouffée à l'autre : ça casse le débit fluide
+// et robotique, pour se rapprocher d'une vraie voix essoufflée/affolée
 function speakOminous(text, opts){
   try{
     if(!("speechSynthesis" in window)) return;
     if(speechSynthesis.paused) speechSynthesis.resume();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "fr-FR";
-    u.pitch = (opts && opts.pitch!=null) ? opts.pitch : 0.55;
-    u.rate = (opts && opts.rate!=null) ? opts.rate : 0.85;
-    u.volume = (opts && opts.volume!=null) ? opts.volume : 1;
-    speechSynthesis.speak(u);
+    const basePitch = (opts && opts.pitch!=null) ? opts.pitch : 0.85;
+    const baseRate = (opts && opts.rate!=null) ? opts.rate : 1.15;
+    const vol = (opts && opts.volume!=null) ? opts.volume : 1;
+    const words = text.split(" ").filter(Boolean);
+    const chunks = [];
+    let i = 0;
+    while(i < words.length){
+      const n = 2 + Math.floor(Math.random()*2); // bouffées de 2-3 mots
+      chunks.push(words.slice(i, i+n).join(" "));
+      i += n;
+    }
+    let idx = 0;
+    const speakNext = ()=>{
+      if(idx >= chunks.length || state!==STATE.PLAYING) return;
+      const u = new SpeechSynthesisUtterance(chunks[idx]);
+      u.lang = "fr-FR";
+      if(frenchVoice) u.voice = frenchVoice;
+      u.pitch = Math.max(0, Math.min(2, basePitch + randRange(-0.18,0.22)));
+      u.rate = Math.max(0.1, baseRate + randRange(-0.08,0.3));
+      u.volume = vol;
+      idx++;
+      u.onend = ()=>{ setTimeout(speakNext, randRange(35,130)); };
+      u.onerror = ()=>{ setTimeout(speakNext, 60); };
+      try{ speechSynthesis.speak(u); }catch(e){}
+    };
+    speakNext();
   }catch(e){}
 }
 function warmUpSpeech(){
@@ -1071,10 +1118,12 @@ function operationSound(duration){
   }
   heartbeepSound(flatAt, true);
 
-  // des voix, paniquées, étouffées par le noir — jamais expliquées
-  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("On est en train de le perdre. Vite.", {pitch:0.55, rate:0.95}); }, 1300);
-  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("Reste avec nous.", {pitch:0.6, rate:0.85}); }, Math.max(2200, duration*1000*0.48));
-  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("On l'a perdu.", {pitch:0.42, rate:0.7}); }, Math.max(2600, duration*1000*0.8));
+  // des voix, paniquées, étouffées par le noir — jamais expliquées.
+  // arc dramatique : panique/urgence (rapide, aigu) → supplication (encore tendue)
+  // → résignation (lente, grave) une fois la ligne plate atteinte
+  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("On est en train de le perdre. Vite.", {pitch:0.9, rate:1.25}); }, 1300);
+  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("Reste avec nous.", {pitch:0.95, rate:1.1}); }, Math.max(2200, duration*1000*0.48));
+  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("On l'a perdu.", {pitch:0.5, rate:0.7}); }, Math.max(2600, duration*1000*0.8));
 }
 function triggerBlackout(duration){
   const bo = document.getElementById("blackout");
