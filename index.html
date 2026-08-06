@@ -159,15 +159,16 @@
   #btnNo{ background:radial-gradient(circle at 35% 30%, #ff6a5e, #c62a1f); }
   #buttonRow.hide{ display:none; }
 
-  /* ---------- formulaire prénom/nom, dans la porte d'entrée ---------- */
-  #pgNameRow{ display:flex; gap:0.6em; }
-  #pgNameRow input{
-    width:118px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.25);
-    color:#e6e6e6; font-family:inherit; font-size:0.85rem; padding:0.7em 0.8em; border-radius:4px;
-    text-align:center; letter-spacing:0.02em; user-select:text; -webkit-user-select:text;
+  /* ---------- formulaire de profil / compte, dans la porte d'entrée ---------- */
+  #pgSignupOnly{ display:flex; flex-direction:column; gap:0.7em; width:100%; }
+  .pgField{
+    width:100%; box-sizing:border-box; background:rgba(220,232,251,0.07);
+    border:1px solid rgba(220,232,251,0.28); color:#dce8fb; font-family:inherit;
+    font-size:0.9rem; padding:0.95em 1.1em; border-radius:8px;
+    text-align:center; letter-spacing:0.03em; user-select:text; -webkit-user-select:text;
   }
-  #pgNameRow input:focus{ outline:none; border-color:rgba(255,255,255,0.5); }
-  #pgNameRow input::placeholder{ color:#666; }
+  .pgField:focus{ outline:none; border-color:rgba(220,232,251,0.6); background:rgba(220,232,251,0.11); }
+  .pgField::placeholder{ color:#5f7495; }
 
   /* ---------- faux paradis (blanc, silencieux, sans suite) ---------- */
   #heavenOverlay{
@@ -355,35 +356,87 @@
   #devSkip:active{ opacity:0.9; border-color:#6a9fdc; color:#6a9fdc; }
   #devSkip.hide{ display:none; }
 
-  /* ---------- porte d'entrée : formulaire + notifications ---------- */
+  /* ---------- porte d'entrée : profil / compte ---------- */
   #permGate{
     position:absolute; inset:0; z-index:85; display:none; align-items:center; justify-content:center;
-    background:rgba(0,0,0,0.97);
+    padding:6vh 6vw; overflow-y:auto;
+    background:
+      repeating-linear-gradient(to bottom, rgba(0,0,0,0.14) 0px, rgba(0,0,0,0.14) 1px, transparent 2px, transparent 3px),
+      radial-gradient(ellipse at 50% 28%, #3a72b8 0%, #1c3f6e 45%, #0d1f38 80%, #060f1c 100%);
   }
   #permGate.show{ display:flex; }
-  #permGate .box{ display:flex; flex-direction:column; gap:1.8em; align-items:center; }
-  #permGroup{ display:flex; flex-direction:column; align-items:center; gap:0.6em; }
-  #permHint{ font-size:0.62rem; color:#4a4a4a; letter-spacing:0.18em; text-transform:uppercase; }
-  #permGrid{ display:flex; flex-wrap:wrap; justify-content:center; gap:1em; max-width:14em; }
-  .permBtn{
-    width:52px; height:52px; border-radius:50%; border:1px solid rgba(255,255,255,0.22);
-    background:transparent; color:#555; font-size:1.15rem; cursor:pointer; font-family:inherit;
-    display:flex; align-items:center; justify-content:center;
-    transition:border-color .35s ease, color .35s ease, background-color .35s ease;
+  #permGate .box{
+    display:flex; flex-direction:column; gap:0.9em; align-items:stretch;
+    width:min(360px, 100%); margin:auto;
   }
-  .permBtn.pending{ opacity:0.45; }
-  .permBtn.granted{ border-color:#4bdc72; color:#4bdc72; background:rgba(75,220,114,0.08); }
-  .permBtn.denied{ border-color:#8a3a33; color:#8a3a33; }
+  .pgTitle{
+    text-align:center; font-size:0.72rem; letter-spacing:0.35em; text-transform:uppercase;
+    color:#6a9fdc; margin-bottom:0.4em;
+  }
+  #pgSignupOnly2{ display:flex; flex-direction:column; gap:0.5em; }
+  #permGate.loginMode #pgSignupOnly, #permGate.loginMode #pgSignupOnly2{ display:none; }
+  #pgNotifRow{ display:flex; align-items:center; justify-content:space-between; gap:1em; text-align:left; }
+  #pgNotifLabel{ color:#dce8fb; font-size:0.85rem; letter-spacing:0.05em; }
+  #pgNotifToggle{ display:flex; border:1px solid rgba(220,232,251,0.28); border-radius:6px; overflow:hidden; flex:none; }
+  .pgNotifOpt{
+    background:transparent; border:none; color:#7c93b8; font-family:inherit; font-size:0.75rem;
+    letter-spacing:0.12em; text-transform:uppercase; padding:0.5em 0.9em; cursor:pointer;
+    transition:background-color .25s ease, color .25s ease;
+  }
+  .pgNotifOpt + .pgNotifOpt{ border-left:1px solid rgba(220,232,251,0.28); }
+  .pgNotifOpt.active{ background:rgba(220,232,251,0.16); color:#dce8fb; }
+  #pgImmersionHint{
+    font-size:0.68rem; color:#7c93b8; letter-spacing:0.02em; line-height:1.5em; text-align:center;
+  }
+  #pgError{
+    min-height:1.2em; font-size:0.72rem; color:#ff8f7a; text-align:center; letter-spacing:0.02em;
+  }
   #launchBtn{
-    width:78px; height:78px; border-radius:50%; border:1px solid rgba(255,255,255,0.16);
-    background:transparent; color:#3a3a3a; font-size:1.4rem; cursor:default; font-family:inherit;
-    transition:border-color .4s ease, color .4s ease, background-color .4s ease;
+    width:100%; box-sizing:border-box; margin-top:0.3em; padding:1.05em 1.4em;
+    border-radius:8px; border:1px solid rgba(220,232,251,0.35);
+    background:rgba(220,232,251,0.08); color:#dce8fb; font-family:inherit;
+    font-size:0.95rem; font-weight:600; letter-spacing:0.2em; text-transform:uppercase;
+    cursor:pointer; transition:border-color .3s ease, background-color .3s ease, opacity .3s ease;
   }
-  #launchBtn.ready{ border-color:#4bdc72; color:#4bdc72; background:rgba(75,220,114,0.1); cursor:pointer; }
+  #launchBtn:active{ background:rgba(220,232,251,0.16); }
+  #launchBtn.disabled{ opacity:0.4; cursor:default; }
+  #pgModeToggle{
+    background:none; border:none; color:#6a86ac; font-family:inherit; font-size:0.72rem;
+    letter-spacing:0.08em; text-decoration:underline; cursor:pointer; padding:0.6em; text-align:center;
+  }
   #permGateBack{
-    position:absolute; top:1.4em; left:1.4em; width:30px; height:30px; border-radius:50%;
-    border:none; background:none; color:#3a3a3a; font-size:0.95rem; cursor:pointer;
+    position:absolute; top:calc(1.4em + env(safe-area-inset-top, 0px)); left:1.4em; width:30px; height:30px;
+    border-radius:50%; border:none; background:none; color:#6a86ac; font-size:0.95rem; cursor:pointer; z-index:1;
   }
+
+  /* ---------- page des badges ---------- */
+  #badgesModal{
+    position:fixed; inset:0; z-index:80; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.72);
+  }
+  #badgesModal.show{ display:flex; }
+  #badgesBox{
+    width:min(420px, 90vw); max-height:80vh; overflow-y:auto;
+    background:#0d1420; border:1px solid rgba(255,255,255,0.12); color:#dce8fb; letter-spacing:0.04em;
+    border-radius:8px; padding:1.6em 1.4em; display:flex; flex-direction:column; align-items:center; gap:1em;
+  }
+  #badgesGrid{ display:grid; grid-template-columns:1fr 1fr; gap:0.8em; width:100%; }
+  .badgeCard{
+    display:flex; flex-direction:column; align-items:center; text-align:center; gap:0.4em;
+    padding:0.9em 0.6em; border-radius:8px; border:1px solid rgba(255,255,255,0.1);
+    background:rgba(255,255,255,0.03);
+  }
+  .badgeIcon{
+    width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    border:1px solid rgba(255,255,255,0.18); font-size:1rem;
+  }
+  .badgeCard.locked .badgeIcon{ color:#3a3a3a; border-color:rgba(255,255,255,0.1); }
+  .badgeCard.unlocked .badgeIcon{ color:#6a9fdc; border-color:#6a9fdc; background:rgba(106,159,220,0.1); }
+  .badgeName{ font-size:0.7rem; letter-spacing:0.04em; }
+  .badgeCard.locked .badgeName{ color:#3a3a3a; }
+  .badgeCard.unlocked .badgeName{ color:#dce8fb; }
+  .badgeDesc{ font-size:0.62rem; color:#5c7093; line-height:1.4em; }
+  .badgeCard.locked .badgeDesc{ color:#2e2e2e; }
 
   @keyframes shake{
     0%{ transform:translate(0,0); }
@@ -510,7 +563,7 @@
     <div class="flavor" id="flavorText">assieds-toi. ce protocole existe depuis longtemps. réponds sincèrement, ça ne prendra pas longtemps.</div>
     <div class="stat" id="statText"></div>
     <button class="startbtn" id="startBtn">commencer</button>
-    <div class="miniline"><button id="resetBtn">tout oublier</button> <span class="minisep">·</span> <button id="refreshBtn">actualiser</button> <span class="minisep">·</span> <button id="versionBtn">version</button> <span class="minisep">·</span> <button id="shareBtn">partager</button></div>
+    <div class="miniline"><button id="resetBtn">tout oublier</button> <span class="minisep">·</span> <button id="refreshBtn">actualiser</button> <span class="minisep">·</span> <button id="versionBtn">version</button> <span class="minisep">·</span> <button id="shareBtn">partager</button> <span class="minisep">·</span> <button id="badgesBtn">badges</button></div>
   </div>
 
   <div id="shareModal">
@@ -551,17 +604,34 @@
   <div id="permGate">
     <button id="permGateBack">←</button>
     <div class="box">
-      <div id="pgNameRow">
-        <input id="pgFirstName" type="text" placeholder="prénom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
-        <input id="pgLastName" type="text" placeholder="nom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
+      <div class="pgTitle" id="pgTitle">ton profil</div>
+      <div id="pgSignupOnly">
+        <input id="pgFirstName" class="pgField" type="text" placeholder="prénom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
+        <input id="pgLastName" class="pgField" type="text" placeholder="nom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
       </div>
-      <div id="permGroup">
-        <div id="permGrid">
-          <button class="permBtn" data-key="notif"></button>
+      <input id="pgPhone" class="pgField" type="tel" placeholder="numéro de téléphone" maxlength="20" autocomplete="off" spellcheck="false">
+      <input id="pgPassword" class="pgField" type="password" placeholder="mot de passe" maxlength="64" autocomplete="off" spellcheck="false">
+      <div id="pgSignupOnly2">
+        <div id="pgNotifRow" class="pgField">
+          <span id="pgNotifLabel">notifications</span>
+          <div id="pgNotifToggle">
+            <button type="button" class="pgNotifOpt" data-val="yes">oui</button>
+            <button type="button" class="pgNotifOpt" data-val="no">non</button>
+          </div>
         </div>
-        <div id="permHint">notifications</div>
+        <div id="pgImmersionHint">pour une expérience plus immersive, il est conseillé d'activer les notifications.</div>
       </div>
+      <div id="pgError"></div>
       <button id="launchBtn"></button>
+      <button id="pgModeToggle" type="button">déjà un compte ? se connecter</button>
+    </div>
+  </div>
+
+  <div id="badgesModal">
+    <div id="badgesBox">
+      <div class="vTitle">BADGES</div>
+      <div id="badgesGrid"></div>
+      <button id="badgesCloseBtn">fermer</button>
     </div>
   </div>
 
@@ -579,11 +649,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.50";
+const APP_VERSION = "1.60";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.60", "Nouveau formulaire d'entrée. Possibilité de créer un profil (avec mot de passe) pour retrouver sa progression sur un autre appareil. Une page de badges à débloquer, accessible depuis l'écran-titre."],
   ["1.50", "Nouvelle grosse mise à jour. Le test est plus long, plus dense qu'avant. Il se souvient de certaines choses qu'un simple protocole ne devrait pas pouvoir se souvenir — et pas seulement de ce qui figure dans ton dossier. Reviens plusieurs fois. Certaines choses ne se voient qu'à la longue."],
   ["1.42", "Deuxième relecture, plus systématique cette fois : quelques dernières questions bancales corrigées."],
   ["1.41", "Relecture complète après la grosse mise à jour : quelques questions reformulées pour rester cohérentes, quelques phrases resserrées."],
@@ -1469,48 +1540,65 @@ function notifyPingSound(){
   o2.connect(g2); g2.connect(masterGain);
   o2.start(t+0.1); o2.stop(t+0.23);
 }
-const PERMS = [
-  { key:"notif" },
-];
-let permStatus = {};
+/* ============================================================
+   Compte (Upstash via Cloudflare Pages Functions) — optionnel :
+   le jeu reste jouable en local si le backend n'est pas configuré
+   ou injoignable, voir le repli dans handleLaunchClick().
+   ============================================================ */
+const ACCOUNT_TOKEN_KEY = "letest_account_token";
+function loadAccountToken(){ try{ return localStorage.getItem(ACCOUNT_TOKEN_KEY); }catch(e){ return null; } }
+function writeAccountToken(t){ try{ localStorage.setItem(ACCOUNT_TOKEN_KEY, t); }catch(e){} }
+function clearAccountToken(){ try{ localStorage.removeItem(ACCOUNT_TOKEN_KEY); }catch(e){} }
 
-function setPermBtnState(key, state){
-  const btn = document.querySelector('.permBtn[data-key="'+key+'"]');
-  if(!btn) return;
-  btn.classList.remove("granted","denied","pending");
-  if(state===true) btn.classList.add("granted");
-  else if(state===false) btn.classList.add("denied");
-}
-function nameFieldsFilled(){
-  const f = document.getElementById("pgFirstName").value.trim();
-  const l = document.getElementById("pgLastName").value.trim();
-  return f.length>0 && l.length>0;
-}
-function updateLaunchBtn(){
-  const allOk = PERMS.every(p=>permStatus[p.key]===true) && nameFieldsFilled();
-  document.getElementById("launchBtn").classList.toggle("ready", allOk);
-  return allOk;
-}
+let accountToken = null;
+let accountInfo = null;
+let pgMode = "signup"; // "signup" | "login"
+let pgNotifWanted = true;
 
 async function requestNotifPerm(){
   if("Notification" in window){
-    try{
-      const perm = await Notification.requestPermission();
-      permStatus.notif = (perm === "granted");
-    }catch(e){ permStatus.notif = false; }
-  } else {
-    // pas d'API notification sur cette plateforme (ex : Safari iOS hors écran d'accueil) :
-    // impossible de montrer une vraie demande, donc jamais de faux "vert".
-    permStatus.notif = false;
+    try{ await Notification.requestPermission(); }catch(e){}
   }
-  setPermBtnState("notif", permStatus.notif);
+}
+
+function nameFieldsFilled(){
+  const phone = document.getElementById("pgPhone").value.trim();
+  const pass = document.getElementById("pgPassword").value;
+  if(pgMode === "login"){
+    return phone.length>0 && pass.length>0;
+  }
+  const f = document.getElementById("pgFirstName").value.trim();
+  const l = document.getElementById("pgLastName").value.trim();
+  return f.length>0 && l.length>0 && phone.length>=6 && pass.length>=4;
+}
+function updateLaunchBtn(){
+  const ok = nameFieldsFilled();
+  document.getElementById("launchBtn").classList.toggle("disabled", !ok);
+  return ok;
+}
+function setPgError(msg){ document.getElementById("pgError").textContent = msg || ""; }
+
+function setPgMode(mode){
+  pgMode = mode;
+  document.getElementById("permGate").classList.toggle("loginMode", mode==="login");
+  document.getElementById("pgTitle").textContent = mode==="login" ? "se connecter" : "ton profil";
+  document.getElementById("launchBtn").textContent = mode==="login" ? "se connecter" : "commencer";
+  document.getElementById("pgModeToggle").textContent = mode==="login"
+    ? "créer un profil"
+    : "déjà un compte ? se connecter";
+  setPgError("");
   updateLaunchBtn();
 }
-const PERM_HANDLERS = { notif:requestNotifPerm };
+
+function setPgNotifToggle(wantYes){
+  pgNotifWanted = wantYes;
+  document.querySelectorAll(".pgNotifOpt").forEach(btn=>{
+    btn.classList.toggle("active", (btn.dataset.val==="yes") === wantYes);
+  });
+}
 
 function showPermGate(){
   document.getElementById("permGate").classList.add("show");
-  PERMS.forEach(p=>setPermBtnState(p.key, permStatus[p.key]));
   const firstField = document.getElementById("pgFirstName");
   const lastField = document.getElementById("pgLastName");
   if(playerName){
@@ -1518,38 +1606,146 @@ function showPermGate(){
     firstField.value = parts[0] || "";
     lastField.value = parts.slice(1).join(" ") || "";
   }
-  updateLaunchBtn();
+  document.getElementById("pgPhone").value = "";
+  document.getElementById("pgPassword").value = "";
+  setPgNotifToggle(true);
+  setPgMode("signup");
 }
 function hidePermGate(){ document.getElementById("permGate").classList.remove("show"); }
 
-document.querySelectorAll(".permBtn").forEach(btn=>{
+async function apiCall(path, opts){
+  const res = await fetch(path, opts);
+  let data = {};
+  try{ data = await res.json(); }catch(e){}
+  return { ok: res.ok, status: res.status, data };
+}
+
+function applyAccount(token, account){
+  accountToken = token;
+  accountInfo = account;
+  writeAccountToken(token);
+  playerName = `${account.prenom} ${account.nom}`.trim();
+  save.playerName = playerName;
+  if(account.save){ save = Object.assign({}, save, account.save, { playerName }); }
+  writeSave(save);
+  if(account.trace){ trace = withTraceDefaults(account.trace); writeTrace(trace); }
+}
+
+async function syncAccountData(){
+  if(!accountToken) return;
+  try{
+    await apiCall("/api/sync", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:"Bearer "+accountToken },
+      body: JSON.stringify({ save, trace, notif: pgNotifWanted }),
+    });
+  }catch(e){ /* pas grave — on retentera à la prochaine occasion */ }
+}
+
+async function tryResumeSession(){
+  const token = loadAccountToken();
+  if(!token) return;
+  try{
+    const { ok, data } = await apiCall("/api/session", { headers:{ Authorization:"Bearer "+token } });
+    if(!ok || !data.account){ clearAccountToken(); return; }
+    applyAccount(token, data.account);
+    everGrantedAll = true;
+    buildTitleFlavor();
+  }catch(e){ /* backend injoignable — on reste en mode local, pas grave */ }
+}
+
+async function handleLaunchClick(){
+  setPgError("");
+  if(!updateLaunchBtn()) return;
+  const btn = document.getElementById("launchBtn");
+  btn.classList.add("disabled");
+  const phone = document.getElementById("pgPhone").value.trim();
+  const password = document.getElementById("pgPassword").value;
+
+  if(pgMode === "login"){
+    try{
+      const { ok, data } = await apiCall("/api/login", {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ phone, password }),
+      });
+      if(!ok){
+        setPgError(data.error || "identifiants invalides.");
+        updateLaunchBtn();
+        return;
+      }
+      applyAccount(data.token, data.account);
+      everGrantedAll = true;
+      hidePermGate();
+      startBoot();
+    }catch(e){
+      setPgError("impossible de se connecter pour le moment (hors-ligne). réessaie plus tard.");
+      updateLaunchBtn();
+    }
+    return;
+  }
+
+  // pgMode === "signup"
+  const first = document.getElementById("pgFirstName").value.trim().slice(0,24);
+  const last = document.getElementById("pgLastName").value.trim().slice(0,24);
+  try{
+    const { ok, status, data } = await apiCall("/api/register", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ prenom:first, nom:last, phone, password, notif:pgNotifWanted }),
+    });
+    if(ok){
+      applyAccount(data.token, data.account);
+      if(pgNotifWanted) requestNotifPerm();
+      everGrantedAll = true;
+      hidePermGate();
+      startBoot();
+      return;
+    }
+    if(status === 503){
+      // backend pas encore configuré sur ce déploiement — on ne bloque pas la partie,
+      // on continue en local, sans compte synchronisé
+      playerName = `${first} ${last}`.trim();
+      save.playerName = playerName;
+      writeSave(save);
+      if(pgNotifWanted) requestNotifPerm();
+      everGrantedAll = true;
+      hidePermGate();
+      startBoot();
+      return;
+    }
+    setPgError(data.error || "impossible de créer le profil.");
+    updateLaunchBtn();
+  }catch(e){
+    // erreur réseau franche (pas de connexion) — même repli que le 503 :
+    // le jeu reste jouable en local, la synchronisation se fera plus tard si possible
+    playerName = `${first} ${last}`.trim();
+    save.playerName = playerName;
+    writeSave(save);
+    if(pgNotifWanted) requestNotifPerm();
+    everGrantedAll = true;
+    hidePermGate();
+    startBoot();
+  }
+}
+
+document.querySelectorAll(".pgNotifOpt").forEach(btn=>{
   btn.addEventListener("click", (e)=>{
     e.stopPropagation();
-    ensureAudio();
-    if(actx && actx.state==="suspended") actx.resume();
-    const key = btn.dataset.key;
-    if(permStatus[key]===true) return;
-    btn.classList.add("pending");
-    PERM_HANDLERS[key]().finally(()=>btn.classList.remove("pending"));
+    setPgNotifToggle(btn.dataset.val==="yes");
   });
   btn.addEventListener("pointerdown",(e)=>e.stopPropagation());
 });
-["pgFirstName","pgLastName"].forEach(id=>{
+["pgFirstName","pgLastName","pgPhone","pgPassword"].forEach(id=>{
   const field = document.getElementById(id);
   field.addEventListener("input", updateLaunchBtn);
   field.addEventListener("pointerdown",(e)=>e.stopPropagation());
 });
 document.getElementById("launchBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
-  if(!updateLaunchBtn()) return;
-  const first = document.getElementById("pgFirstName").value.trim().slice(0,24);
-  const last = document.getElementById("pgLastName").value.trim().slice(0,24);
-  playerName = `${first} ${last}`.trim();
-  save.playerName = playerName;
-  writeSave(save);
-  everGrantedAll = true;
-  hidePermGate();
-  startBoot();
+  handleLaunchClick();
+});
+document.getElementById("pgModeToggle").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  setPgMode(pgMode==="login" ? "signup" : "login");
 });
 document.getElementById("permGateBack").addEventListener("click", (e)=>{ e.stopPropagation(); hidePermGate(); });
 document.getElementById("permGate").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
@@ -2518,6 +2714,9 @@ function finishEnding(key){
   trace.gamesRecorded = (trace.gamesRecorded||0) + 1;
   trace.everVisited = true;
   writeTrace(trace);
+  // si un compte est connecté, on sauvegarde aussi côté serveur — pour ne pas
+  // perdre la progression si l'appareil change ou si le navigateur est vidé
+  syncAccountData();
 }
 
 /* ============================================================
@@ -2900,13 +3099,20 @@ document.getElementById("startBtn").addEventListener("click", (e)=>{
 document.getElementById("resetBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
-  // "tout oublier" n'efface QUE ça — la trace, séparée, garde le compte des resets
+  // "tout oublier" n'efface QUE ça (+ déconnecte le compte de cet appareil) —
+  // la trace, séparée, garde le compte des resets ; le compte lui-même,
+  // s'il existe, reste intact côté serveur et reste accessible via "se connecter"
+  if(accountToken){
+    apiCall("/api/logout", { method:"POST", headers:{ Authorization:"Bearer "+accountToken } }).catch(()=>{});
+  }
+  clearAccountToken();
+  accountToken = null;
+  accountInfo = null;
   trace.resets = (trace.resets||0)+1;
   writeTrace(trace);
   save = loadSave();
   playerName = null;
   everGrantedAll = false;
-  permStatus = {};
   if(followUpTimer){ clearTimeout(followUpTimer); followUpTimer = null; }
   if(tabAwayTimer){ clearTimeout(tabAwayTimer); tabAwayTimer = null; }
   document.getElementById("pgFirstName").value = "";
@@ -3088,6 +3294,61 @@ function renderDossier(){
   }
   el.innerHTML = html;
 }
+
+/* ============================================================
+   Badges — calculés à la volée à partir de save/trace/état du
+   compte, jamais stockés séparément. Visible depuis le menu de
+   l'écran-titre (bouton "badges"), contrairement au dossier caché.
+   ============================================================ */
+const BADGES = [
+  { id:"firstVisit", name:"premier contact", desc:"as franchi la porte pour la première fois.",
+    check: ()=> !!trace.everVisited },
+  { id:"end_calme", name:"conforme", desc:"as obtenu la fin \"calme\".",
+    check: ()=> (trace.everSeenEndings||[]).indexOf("calme")!==-1 },
+  { id:"end_complice", name:"complicité", desc:"as obtenu la fin \"complice\".",
+    check: ()=> (trace.everSeenEndings||[]).indexOf("complice")!==-1 },
+  { id:"end_lucide", name:"lucidité", desc:"as obtenu la fin \"lucide\".",
+    check: ()=> (trace.everSeenEndings||[]).indexOf("lucide")!==-1 },
+  { id:"end_boucle", name:"la boucle", desc:"as obtenu la fin \"boucle\".",
+    check: ()=> (trace.everSeenEndings||[]).indexOf("boucle")!==-1 },
+  { id:"end_miroir", name:"miroir", desc:"as obtenu la fin \"miroir\".",
+    check: ()=> (trace.everSeenEndings||[]).indexOf("miroir")!==-1 },
+  { id:"end_oubli", name:"oubli", desc:"as obtenu la fin \"oubli\".",
+    check: ()=> (trace.everSeenEndings||[]).indexOf("oubli")!==-1 },
+  { id:"end_vide", name:"disparition", desc:"as obtenu la fin \"vide\".",
+    check: ()=> (trace.everSeenEndings||[]).indexOf("vide")!==-1 },
+  { id:"end_defiance", name:"défiance", desc:"as obtenu la fin \"défiance\".",
+    check: ()=> (trace.everSeenEndings||[]).indexOf("defiance")!==-1 },
+  { id:"all_endings", name:"toutes les issues", desc:"as vu les huit fins de base.",
+    check: ()=> (trace.everSeenEndings||[]).length >= 8 },
+  { id:"end_vrai", name:"le vrai test", desc:"as atteint la neuvième fin.",
+    check: ()=> !!trace.trueEndingClaimed },
+  { id:"resetOnce", name:"table rase", desc:"as appuyé sur \"tout oublier\" au moins une fois.",
+    check: ()=> (trace.resets||0) >= 1 },
+  { id:"lateNight", name:"heure creuse", desc:"es revenu·e tard dans la nuit, plus d'une fois.",
+    check: ()=> (trace.lateNightVisits||0) >= 3 },
+  { id:"tenGames", name:"habitué·e", desc:"as passé le test au moins dix fois.",
+    check: ()=> (trace.gamesRecorded||0) >= 10 },
+  { id:"twentyFiveGames", name:"fidèle", desc:"as passé le test au moins vingt-cinq fois.",
+    check: ()=> (trace.gamesRecorded||0) >= 25 },
+  { id:"account", name:"dossier sécurisé", desc:"as créé un profil pour ne pas perdre ta progression.",
+    check: ()=> !!accountToken },
+];
+function renderBadges(){
+  const grid = document.getElementById("badgesGrid");
+  grid.innerHTML = BADGES.map(b=>{
+    let unlocked = false;
+    try{ unlocked = !!b.check(); }catch(e){ unlocked = false; }
+    const name = unlocked ? escHtml(b.name) : "???";
+    const desc = unlocked ? escHtml(b.desc) : "verrouillé";
+    return `<div class="badgeCard ${unlocked?"unlocked":"locked"}">
+      <div class="badgeIcon">${unlocked ? "✓" : "?"}</div>
+      <div class="badgeName">${name}</div>
+      <div class="badgeDesc">${desc}</div>
+    </div>`;
+  }).join("");
+}
+
 function openDossier(){
   renderDossier();
   document.getElementById("dossierModal").classList.add("show");
@@ -3112,6 +3373,18 @@ document.getElementById("dossierCloseBtn").addEventListener("click", (e)=>{
 });
 document.getElementById("dossierModal").addEventListener("click", (e)=>{
   if(e.target.id === "dossierModal") document.getElementById("dossierModal").classList.remove("show");
+});
+document.getElementById("badgesBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  renderBadges();
+  document.getElementById("badgesModal").classList.add("show");
+});
+document.getElementById("badgesCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("badgesModal").classList.remove("show");
+});
+document.getElementById("badgesModal").addEventListener("click", (e)=>{
+  if(e.target.id === "badgesModal") document.getElementById("badgesModal").classList.remove("show");
 });
 
 function updateGearState(){
@@ -3147,6 +3420,7 @@ requestAnimationFrame(()=>layoutWires());
 buildTitleFlavor();
 updateGearState();
 requestAnimationFrame(loop);
+tryResumeSession();
 
 })();
 </script>

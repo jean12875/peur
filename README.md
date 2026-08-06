@@ -19,6 +19,8 @@ Ce qui rend LE TEST inhabituel :
 - **Un profil psychologique caché, à plusieurs axes.** Soumission, méfiance, lucidité, dissociation — quatre scores qui montent et descendent en secret selon chaque réponse, jamais affichés au joueur, jamais réduits à un seul "type" de joueur. Voir la section dédiée plus bas.
 - **Deux vraies bifurcations, neuf fins.** Pas un simple mini-jeu de réflexes : à deux moments du test, jamais annoncés, le jeu choisit parmi quatre directions de questions selon le profil du joueur — et la combinaison finale des quatre axes (plus le nombre de réponses "inattendues") détermine laquelle des huit fins de base arrive. Une neuvième fin, secrète, existe au-delà de ces huit-là.
 - **La mémoire entre les sessions — et même après un reset.** Le jeu se souvient du nombre de fois où tu es venu, depuis combien de temps, et des fins déjà vécues ; certaines questions ne sont même visibles qu'après avoir déjà obtenu une fin précise lors d'une partie antérieure — chacune des huit fins de base a désormais au moins une ligne de rappel qui lui est propre. Le bouton "tout oublier" efface la sauvegarde visible, mais une trace séparée, jamais vidée par ce bouton, garde le souvenir des resets eux-mêmes, un résumé cumulé du profil psychologique sur toutes les parties jamais jouées, et un peu de mémoire sur les habitudes réelles de visite (heure, jour de la semaine) — et tout ça peut ressortir, sous une forme ou une autre.
+- **Un profil optionnel, pour ne pas perdre sa progression.** Prénom, nom, téléphone et mot de passe créent un compte qui sauvegarde la partie côté serveur — utile pour reprendre sur un autre appareil. Le jeu reste entièrement jouable sans en créer un.
+- **Des badges à débloquer.** Une grille accessible depuis l'écran-titre, calculée à partir de ce que le joueur a réellement fait (fins obtenues, resets, fidélité) — les badges non obtenus restent des points d'interrogation.
 
 ## Avant de commencer : formulaire + notifications
 
@@ -98,9 +100,38 @@ sw.js           → service worker, jeu jouable hors-ligne une fois chargé
 icons/          → icônes générées (192, 512, apple-touch-icon)
 sfx/            → deux sons fournis (pas synthétisés) : rouge et vert
 img/            → l'image du monstre, utilisée une seule fois par partie
+functions/      → backend optionnel (compte), Cloudflare Pages Functions
+  _lib/auth.js    → hashage de mot de passe, sessions, appels Upstash
+  api/register.js → création de compte
+  api/login.js    → connexion
+  api/session.js  → vérifie un token existant (reconnexion silencieuse)
+  api/sync.js     → sauvegarde la progression sur le compte
+  api/logout.js   → invalide un token
 ```
 
-Aucune build step, aucun framework. L'audio est presque entièrement synthétisé (Web Audio API) — trois exceptions, toutes des fichiers fournis, chargés et mixés via Web Audio API comme le reste : `sfx/cryo-outage.mp3` à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, `sfx/heartbeat-flatline.mp3` pendant la séquence noire. Plus aucune synthèse vocale (Web Speech API) dans le jeu — le texte de la séquence noire passe par des sous-titres blancs à l'écran. Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
+Aucune build step, aucun framework côté jeu. L'audio est presque entièrement synthétisé (Web Audio API) — trois exceptions, toutes des fichiers fournis, chargés et mixés via Web Audio API comme le reste : `sfx/cryo-outage.mp3` à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, `sfx/heartbeat-flatline.mp3` pendant la séquence noire. Plus aucune synthèse vocale (Web Speech API) dans le jeu — le texte de la séquence noire passe par des sous-titres blancs à l'écran. Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
+
+## Compte (optionnel) et badges
+
+Depuis la v1.6x, le formulaire d'entrée permet de créer un profil (prénom, nom, numéro de téléphone, mot de passe) plutôt qu'un simple prénom/nom local. Le numéro de téléphone sert uniquement d'identifiant de connexion — il n'est **pas vérifié par SMS**, ce n'est pas une authentification à deux facteurs, juste un nom d'utilisateur au format familier. Un petit lien "déjà un compte ? se connecter" bascule le même formulaire en mode connexion (téléphone + mot de passe seulement). Si une session valide existe déjà sur l'appareil (`letest_account_token` dans `localStorage`), le formulaire est sauté automatiquement au chargement de la page — `tryResumeSession()` vérifie le token auprès du backend avant de faire sauter l'étape.
+
+**Le jeu reste jouable sans configurer quoi que ce soit.** Si le backend n'est pas configuré (ou injoignable), la création de compte échoue silencieusement côté serveur (503) et le client bascule sur l'ancien comportement local (juste prénom/nom, comme avant) — voir `handleLaunchClick()` dans le script. Aucune donnée n'est perdue ni bloquée par l'absence de backend.
+
+**Architecture retenue : Cloudflare Pages Functions + Upstash Redis.** Cloudflare Pages ne fait tourner que du code compatible avec le runtime Workers (pas de connexion TCP persistante), donc pas de Postgres/MySQL classique sans passerelle. Upstash Redis expose une API REST HTTP, ce qui le rend directement utilisable depuis les Functions. Chaque compte est stocké sous une clé `letest:account:<téléphone>` (JSON : prénom, nom, hash + sel du mot de passe, préférence notifications, sauvegarde de partie, trace). Les sessions sont des clés `letest:session:<token>` (expirent après 90 jours) qui pointent vers le numéro de téléphone du compte.
+
+Le mot de passe n'est jamais stocké en clair : dérivation PBKDF2-SHA256 (150 000 itérations, sel aléatoire par compte), comparaison en temps constant à la connexion. Reste honnête à dire : ce n'est pas un système de sécurité de niveau bancaire (pas de limitation de débit sur les tentatives de connexion, pas de vérification du téléphone) — largement suffisant pour un jeu personnel, pas approprié pour protéger des données sensibles.
+
+**Pour activer le compte en ligne, une seule fois :**
+
+1. Crée un compte gratuit sur [upstash.com](https://upstash.com) (email + mot de passe, pas de carte requise).
+2. Dans la console Upstash, crée une base **Redis** (choisis une région proche de tes visiteurs).
+3. Sur la page de la base, copie les valeurs **UPSTASH_REDIS_REST_URL** et **UPSTASH_REDIS_REST_TOKEN**.
+4. Dans le projet Cloudflare Pages (`peur`), va dans **Settings → Environment variables**, ajoute ces deux variables avec les valeurs copiées (pour Production et Preview).
+5. Redéploie (ou relance le dernier déploiement) pour que les Functions récupèrent les nouvelles variables. Cloudflare détecte automatiquement le dossier `functions/` — aucune configuration de build supplémentaire n'est nécessaire.
+
+Une fois ces variables posées, les inscriptions/connexions fonctionnent sans rien changer côté code.
+
+**Badges.** Un bouton "badges" sur l'écran-titre ouvre une grille de badges à débloquer (`BADGES` + `renderBadges()` dans le script), calculés à la volée à partir de `save`/`trace`/l'état de connexion — jamais stockés séparément. Les badges non débloqués s'affichent en `???`, sans description, pour garder un peu de mystère sur ce qu'il reste à découvrir.
 
 ## Lancer en local
 
@@ -115,7 +146,7 @@ Sur l'écran-titre, un petit bouton "actualiser" force le rechargement de la der
 
 Pendant la partie, un petit bouton "⏭" discret en haut à droite (à côté des réglages) permet de passer immédiatement à la question suivante — utile pour spammer et arriver vite au moment qu'on veut tester, sans attendre le texte ou les délais.
 
-Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.50`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes. Règle stricte pour toute nouvelle entrée : jamais de mécanisme secret explicité (ex. le déclencheur du dossier caché), jamais d'explication complète d'un système caché — vague et atmosphérique plutôt que technique.
+Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.60`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes. Règle stricte pour toute nouvelle entrée : jamais de mécanisme secret explicité (ex. le déclencheur du dossier caché), jamais d'explication complète d'un système caché — vague et atmosphérique plutôt que technique.
 
 Sur l'écran-titre, un bouton "partager" ouvre une fenêtre avec deux boutons (iPhone / Android) : chacun copie dans le presse-papiers un message prêt à envoyer, avec le lien du jeu (`https://peur.pages.dev`) et les instructions d'installation adaptées à la plateforme (ajout à l'écran d'accueil via Safari ou Chrome). Constantes `SHARE_URL`, `SHARE_MSG_IOS`, `SHARE_MSG_ANDROID` dans le script.
 
@@ -130,7 +161,9 @@ Il existe aussi un "dossier" caché, jamais indiqué à l'écran : un appui long
 
 ## Vie privée
 
-Rien n'est envoyé à un serveur : pas de backend, pas d'analytics, pas de tracking. Le prénom et le nom saisis restent locaux à l'appareil (`localStorage`), jamais transmis. Les seules autres données stockées sont locales également : nombre de tests passés, dernière visite, détail des fins déjà obtenues, préférences d'affichage. Le profil psychologique (les quatre axes) n'est, lui, jamais sauvegardé tel quel pendant une partie — il est recalculé de zéro à chaque partie. Une trace séparée (`letest_trace_v1`) persiste durablement, y compris après "tout oublier" : les fins déjà vues, le nombre de resets, le cumul des quatre axes psychologiques sur toutes les parties jamais jouées, et un compte des visites par heure/jour de la semaine réels — toujours local à l'appareil, jamais transmis nulle part.
+Pas d'analytics, pas de tracking, aucune donnée envoyée à un tiers. Par défaut (formulaire rempli sans créer de compte, ou backend non configuré), rien ne quitte l'appareil : le prénom et le nom saisis restent locaux (`localStorage`), tout comme le nombre de tests passés, la dernière visite, le détail des fins obtenues, les préférences d'affichage, et la trace persistante (`letest_trace_v1` — fins déjà vues, resets, profil cumulé, habitudes de visite).
+
+Si un compte est créé (prénom, nom, téléphone, mot de passe), ces informations ainsi que la sauvegarde de partie sont envoyées au backend du jeu (Cloudflare Pages Functions + Upstash Redis, hébergé par toi) pour permettre de retrouver sa progression sur un autre appareil ou après un nettoyage du navigateur — voir la section "Compte" plus haut pour le détail technique. Le mot de passe n'est jamais stocké en clair (PBKDF2-SHA256 salé). Aucune de ces données n'est partagée avec un tiers ni utilisée à d'autres fins que la sauvegarde du jeu lui-même. Le profil psychologique (les quatre axes) n'est, lui, jamais sauvegardé tel quel pendant une partie — il est recalculé de zéro à chaque partie ; seul son cumul rétrospectif (`traitTotals`) est conservé, local ou synchronisé selon le même principe que le reste.
 
 ## Historique
 
