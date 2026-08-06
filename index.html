@@ -579,11 +579,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.36";
+const APP_VERSION = "1.40";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.40", "Grosse mise à jour : profil psychologique caché à plusieurs axes (jamais un seul trait dominant), deux vraies bifurcations de questions, plus de 230 questions au total (dont certaines réservées à des joueurs ayant déjà vécu certaines fins), et 8 fins distinctes au lieu de 2. \"Tout oublier\" garde désormais une trace cachée qui survit au reset."],
   ["1.36", "Ajout d'un bouton \"partager\" (copie un message avec le lien et les instructions d'installation, iPhone ou Android) et d'un dossier confidentiel caché (appui long sur le titre)."],
   ["1.35", "Les liens \"tout oublier / actualiser / version\" remontés légèrement, pour rester loin de la barre d'accueil en bas."],
   ["1.34", "Retour en arrière : la simplification du plein écran de la 1.33 avait fait réapparaître la bande noire. Revenu à l'approche de la 1.32, confirmée correcte."],
@@ -626,19 +627,45 @@ const REDUCE_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-m
 function randRange(a,b){ return a + Math.random()*(b-a); }
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
+function withSaveDefaults(s){
+  return Object.assign({
+    firstVisit: now(), lastVisit: now(), totalSessions: 0,
+    quietEndings: 0, badEndings: 0, reduceEffects: REDUCE_MOTION, playerName: null,
+    endings: {}, // détail par fin : { calme:0, lucide:0, complice:0, boucle:0, miroir:0, oubli:0, vide:0, defiance:0 }
+    loopFlavorPending: false
+  }, s || {});
+}
 function loadSave(){
   try{
     const raw = localStorage.getItem(SAVE_KEY);
-    if(raw) return JSON.parse(raw);
+    if(raw) return withSaveDefaults(JSON.parse(raw));
   }catch(e){}
-  return {
-    firstVisit: now(), lastVisit: now(), totalSessions: 0,
-    quietEndings: 0, badEndings: 0, reduceEffects: REDUCE_MOTION, playerName: null
-  };
+  return withSaveDefaults();
 }
 function writeSave(s){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){} }
 let save = loadSave();
 let playerName = save.playerName || null;
+
+/* ============================================================
+   Trace cachée — délibérément séparée de SAVE_KEY. Le bouton
+   "tout oublier" ne vide QUE SAVE_KEY : cette trace survit à tous
+   les resets, et sert à faire ressortir un souvenir "cassé" plus
+   tard, comme si le protocole trichait un peu. Jamais montrée
+   telle quelle, jamais mentionnée dans l'interface visible.
+   ============================================================ */
+const TRACE_KEY = "letest_trace_v1";
+function withTraceDefaults(t){
+  return Object.assign({ resets:0, everSeenEndings:[], everVisited:false }, t || {});
+}
+function loadTrace(){
+  try{
+    const raw = localStorage.getItem(TRACE_KEY);
+    if(raw) return withTraceDefaults(JSON.parse(raw));
+  }catch(e){}
+  return withTraceDefaults();
+}
+function writeTrace(t){ try{ localStorage.setItem(TRACE_KEY, JSON.stringify(t)); }catch(e){} }
+let trace = loadTrace();
 
 function fmtDuration(ms){
   const s = Math.floor(ms/1000);
@@ -979,6 +1006,42 @@ function distantScreechSound(){
   g.gain.exponentialRampToValueAtTime(0.0001, t+0.95);
   src.connect(f); f.connect(g); g.connect(masterGain);
   src.start(t);
+}
+// silence "froid" — un souffle sub-grave qui monte très lentement puis un tintement
+// métallique qui s'éteint, presque rien : réservé aux moments de dissociation/oubli,
+// l'inverse d'un jump scare — le malaise vient de ce qu'il ne se passe presque rien
+function coldSilenceSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(48, t);
+  o.frequency.linearRampToValueAtTime(41, t+2.6);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.14, t+1.1);
+  g.gain.linearRampToValueAtTime(0.0001, t+2.6);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t+2.7);
+
+  const bell = actx.createOscillator(); bell.type = "sine"; bell.frequency.setValueAtTime(2200, t+0.4);
+  const bg = actx.createGain();
+  bg.gain.setValueAtTime(0.0001, t+0.4);
+  bg.gain.linearRampToValueAtTime(0.05, t+0.45);
+  bg.gain.exponentialRampToValueAtTime(0.0001, t+2.2);
+  bell.connect(bg); bg.connect(masterGain);
+  bell.start(t+0.4); bell.stop(t+2.3);
+}
+// un seul battement sourd, en trop ou manquant — utilisé aux moments les plus
+// sombres des seconds paliers, jamais pendant l'opération (qui a son propre son)
+function heartSkipSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(60, t);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.4, t+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.5);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t+0.55);
 }
 function vibrate(pattern){ if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern); }
 
@@ -1514,74 +1577,277 @@ if(navigator.getBattery){
 }
 
 let answers = []; // réponse (true/false) indexée par numéro de question, alimente les rappels
-const REACTIONS = ["ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as dit.", "curieux.", "……", "on va noter ça.", "ce n'est pas la bonne réponse.", "on le savait déjà.", "intéressant."];
+const REACTIONS = [
+  "ça ne colle pas.", "tu mens.", "ce n'est pas ce que tu as dit.", "curieux.", "……",
+  "on va noter ça.", "ce n'est pas la bonne réponse.", "on le savait déjà.", "intéressant.",
+  "on va laisser passer, cette fois.", "ce n'est pas ce qui est écrit dans ton dossier.",
+  "recommence, dans ta tête, et réponds honnêtement.", "on a le temps.", "pas la réponse qu'on attendait.",
+  "ça arrive plus souvent que tu ne crois.", "tiens.", "on note l'écart.", "ça ne t'aide pas.",
+  "quelqu'un d'autre aurait répondu pareil.", "ce n'est pas grave. pour l'instant."
+];
 // variantes "encore plus étranges", réservées aux réponses inattendues en fin de test —
 // texte corrompu, plus long à lire, pensé pour être lu à voix haute au ralenti
-const REACTIONS_EXTREME = ["t̸u̷—m̶e̸n̵s̸.̸—n̷o̸u̶s̷—l̸e̶—s̷a̸v̶o̸n̷s̸.̶", "c̷e̴—n̸'̶e̷s̴t̸—p̵a̷s̸—t̶o̸i̷—q̶u̸i̷—r̸é̶p̸o̶n̷d̸s̶.̸", "r̵e̸g̶a̴r̷d̸e̶—d̷e̷r̸r̵i̶è̸r̷e̸—t̷o̸i̶.̸", "i̸l̷—t̶'̸e̷n̸t̶e̸n̷d̸.̶", "a̷r̶r̸ê̶t̸e̷—d̸e̶—m̸e̷n̶t̸i̶r̷.̸"];
+const REACTIONS_EXTREME = [
+  "t̸u̷—m̶e̸n̵s̸.̸—n̷o̸u̶s̷—l̸e̶—s̷a̸v̶o̸n̷s̸.̶", "c̷e̴—n̸'̶e̷s̴t̸—p̵a̷s̸—t̶o̸i̷—q̶u̸i̷—r̸é̶p̸o̶n̷d̸s̶.̸",
+  "r̵e̸g̶a̴r̷d̸e̶—d̷e̷r̸r̵i̶è̸r̷e̸—t̷o̸i̶.̸", "i̸l̷—t̶'̸e̷n̸t̶e̸n̷d̸.̶", "a̷r̶r̸ê̶t̸e̷—d̸e̶—m̸e̷n̶t̸i̶r̷.̸",
+  "o̶n̸—s̷a̸i̶t̸—o̷ù̸—t̶u̷—h̶a̸b̷i̸t̶e̸s̷.̸", "t̷u̸—n̶'̸e̷s̶—p̸a̷s̶—l̸e̷—p̸r̶e̸m̷i̸e̶r̷.̸",
+  "n̷e̸—t̶e̸—r̶e̸t̷o̸u̶r̸n̷e̸—p̶a̷s̸.̶", "i̶l̸—e̷s̶t̸—d̷é̸j̶à̸—t̷r̸o̶p̸—t̷a̸r̶d̸.̶"
+];
+
+/* ============================================================
+   Profil caché — plusieurs axes accumulés en secret, jamais
+   affichés au joueur, jamais un simple "trait dominant" isolé :
+   ils se combinent (voir dominantTrait/chooseEnding) pour choisir
+   quelles questions apparaissent, et au final quelle fin arrive.
+   ============================================================ */
+let traits = { soumission:0, mefiance:0, lucidite:0, dissociation:0 };
+function nudge(w){
+  if(!w) return;
+  for(const k in w){ if(k in traits) traits[k] += w[k]; }
+}
+// choisit une branche en fonction du trait actuellement le plus haut ; un léger
+// bruit aléatoire évite un déterminisme parfait (deux réponses très proches ne
+// donnent pas toujours exactement la même branche) sans jamais contredire ce que
+// le joueur a réellement répondu — un profil très marqué reste très cohérent
+function dominantTrait(bump){
+  const order = ["lucidite","mefiance","dissociation","soumission"];
+  let best = order[0], bestVal = -Infinity;
+  order.forEach(k=>{
+    const v = traits[k] + ((bump && bump[k]) || 0) + (Math.random()*0.5 - 0.25);
+    if(v > bestVal){ bestVal = v; best = k; }
+  });
+  return best;
+}
+// deuxième bifurcation, plus tard dans le test : recalcule sur les traits mis
+// à jour depuis la première branche, avec un léger coup de pouce si la trace
+// (persistante, même après "tout oublier") montre que ce sujet a déjà vécu
+// certaines fins avant — un vrai effet des parties précédentes sur celle-ci
+function dominantTrait2(){
+  const bump = {};
+  if(trace.everSeenEndings.indexOf("boucle") !== -1) bump.lucidite = (bump.lucidite||0)+0.6;
+  if(trace.everSeenEndings.indexOf("vide") !== -1) bump.dissociation = (bump.dissociation||0)+0.6;
+  if(trace.everSeenEndings.indexOf("defiance") !== -1) bump.mefiance = (bump.mefiance||0)+0.4;
+  return dominantTrait(bump);
+}
+let branch1 = null, branch2 = null;
+let shownCount = 0;
+// longueur approximative d'une partie complète (varie légèrement selon les
+// branches choisies) — sert uniquement à faire monter la jauge de malaise
+// à un rythme régulier, peu importe quelles branches sont tirées
+const EXPECTED_SHOWN_TOTAL = 118;
 
 const QUESTIONS = [
   /* -1 mise en situation — le protocole s'ouvre, avant la première question */
   { text:"Le protocole commence. Reste assis. N'essaie pas de te lever.", auto:true, holdFor:2600 },
   { text:"Tout ce que tu diras ici sera conservé. Rien n'est effacé.", auto:true, holdFor:2600 },
+  // ne s'affiche que si une trace de reset existe quelque part — un souvenir qui
+  // ne devrait pas pouvoir survivre à "tout oublier", et pourtant : trace est
+  // volontairement séparée de save, jamais vidée par ce bouton
+  { text:"Tu es déjà venu ici. Tu as tout oublié, une fois. Ça ne s'efface pas d'ici.",
+    auto:true, holdFor:2800, skipIf: ()=> trace.resets<=0,
+    effect: ()=>{ triggerAmbientGlitch(); nudge({mefiance:0.6}); } },
 
   /* 00 accueil clinique */
-  { id:"alive", text: ()=> playerName ? `${playerName}. Es-tu vivant ?` : "Es-tu vivant ?", expected:"yes" },
-  { text:"Es-tu venu ici de ton plein gré ?" },
-  { text:"Comprends-tu que ce test évalue ton état mental ?", expected:"yes" },
-  { text:"Peux-tu voir cet écran distinctement ?" },
+  { id:"alive", text: ()=> playerName ? `${playerName}. Es-tu vivant ?` : "Es-tu vivant ?", expected:"yes",
+    weight: (y)=>({ mefiance: y?0:0.6 }) },
+  { text:"Es-tu venu ici de ton plein gré ?", weight: (y)=>({ soumission: y?0.8:-0.4, mefiance: y?-0.3:0.7 }) },
+  { text:"Comprends-tu que ce test évalue ton état mental ?", expected:"yes", weight: (y)=>({ lucidite: y?0.4:0 }) },
+  { text:"Peux-tu voir cet écran distinctement ?", weight: (y)=>({ dissociation: y?-0.2:0.5 }) },
 
   /* 04 environnement immédiat */
-  { id:"alone", text:"Es-tu seul, dans cette pièce, en ce moment ?" },
+  { id:"alone", text:"Es-tu seul, dans cette pièce, en ce moment ?", weight: (y)=>({ mefiance: y?0.2:-0.1 }) },
   { text: ()=> answers.alone===true
       ? "Tu dis être seul. En es-tu absolument certain ?"
-      : "Tu n'es pas seul. Est-ce que cette présence te rassure ?" },
-  { text:"As-tu peur, là, maintenant ?" },
+      : "Tu n'es pas seul. Est-ce que cette présence te rassure ?",
+    weight: (y)=>({ mefiance: y?0:0.4 }) },
+  { text:"As-tu peur, là, maintenant ?", weight: (y)=>({ dissociation: y?-0.5:0.7 }) },
   { text: ()=>`Il est ${timeString()}. Est-ce l'heure à laquelle tu pensais être ici ?` },
   { text: ()=> batteryLevel!==null ? `Ta batterie est à ${batteryLevel}%. Est-ce le chiffre que tu attendais ?` : "Cet appareil te semble-t-il fiable ?" },
-  { id:"trust", text:"Fais-tu confiance à ce que dit cet écran ?" },
+  { id:"trust", text:"Fais-tu confiance à ce que dit cet écran ?", weight: (y)=>({ soumission: y?0.7:-0.2, mefiance: y?-0.4:0.9 }) },
 
   /* 10 dossier + contexte de la pièce — pas de bouton, juste des faits posés là */
   { text:"Un dossier à ton nom existe ici. Il a été ouvert avant ton arrivée aujourd'hui.", auto:true, holdFor:2600 },
   { text:"Cette pièce existe pour des gens comme toi. Elle existait avant que tu la voies.", auto:true, holdFor:2800, effect: ()=>triggerAmbientGlitch() },
+  { text:"Certains, avant toi, ne sont jamais repartis par cette porte. Ce n'est écrit nulle part, mais c'est vrai.",
+    auto:true, holdFor:2800, effect: ()=>{ triggerLightFlicker(); nudge({dissociation:0.2}); } },
 
   /* 11 doute d'identité */
   { text: ()=> answers.alive===true
       ? "Tu as dit être vivant. L'es-tu encore, à cet instant précis ?"
       : "Tu as dit ne pas l'être. Est-ce toujours vrai ?",
-    expected: ()=> answers.alive===true ? "yes" : null },
-  { text:"As-tu menti à l'une des questions précédentes ?", expected:"no" },
-  { text:"Crois-tu que ce test cherche à t'aider ?", expected:"yes" },
-  { text:"Si tu mentais, maintenant, le remarquerais-tu toi-même ?" },
-  { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes" },
+    expected: ()=> answers.alive===true ? "yes" : null,
+    weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"As-tu menti à l'une des questions précédentes ?", expected:"no", weight: (y)=>({ mefiance: y?0.5:0 }) },
+  { text:"Crois-tu que ce test cherche à t'aider ?", expected:"yes", weight: (y)=>({ soumission: y?0.6:0, mefiance: y?0:0.6 }) },
+  { text:"Si tu mentais, maintenant, le remarquerais-tu toi-même ?", weight: (y)=>({ lucidite: y?0.3:0, dissociation: y?0:0.3 }) },
+  { text:"Crois-tu que tes réponses t'appartiennent encore ?", expected:"yes", weight: (y)=>({ mefiance: y?0:0.5, soumission: y?0:0.3 }) },
   { id:"sawName",
     text: ()=> playerName ? `As-tu déjà vu "${playerName}" écrit quelque part dans cette pièce ?` : "As-tu déjà vu ton nom écrit quelque part dans cette pièce ?",
-    expected:"no", onUnexpected:()=>triggerGlimpse() },
+    expected:"no", onUnexpected:()=>triggerGlimpse(), weight: (y)=>({ mefiance: y?0.5:0 }) },
 
   /* 18 perte de repères sensoriels */
-  { text:"Entends-tu ce bruit, là, maintenant ?", effect: ()=>whisperSound(0.6) },
-  { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
+  { text:"Entends-tu ce bruit, là, maintenant ?", effect: ()=>whisperSound(0.6), weight: (y)=>({ dissociation: y?0:0.2 }) },
+  { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker(), weight: (y)=>({ dissociation: y?0:0.2 }) },
   { text:"Ne dis rien. Ne bouge pas. Compte jusqu'à dix, dans ta tête.", auto:true, holdFor:3400 },
-  { text:"Un sujet précédent n'a pas réussi à rester immobile. Il n'a pas terminé ce test.", auto:true, holdFor:2800, effect: ()=>triggerAmbientGlitch() },
-  { text:"Ton dossier s'épaissit à chaque réponse que tu donnes.", auto:true, holdFor:2400, effect: ()=>notifyDuringGame(playerName ? `${playerName} : le sujet ne se comporte pas comme prévu.` : "Le sujet ne se comporte pas comme prévu.") },
+  { text:"Un sujet précédent n'a pas réussi à rester immobile. Il n'a pas terminé ce test.",
+    auto:true, holdFor:2800, effect: ()=>{ triggerAmbientGlitch(); nudge({soumission:0.2}); } },
+  { text:"Ton dossier s'épaissit à chaque réponse que tu donnes.", auto:true, holdFor:2400,
+    effect: ()=>notifyDuringGame(playerName ? `${playerName} : le sujet ne se comporte pas comme prévu.` : "Le sujet ne se comporte pas comme prévu.") },
   { text: ()=> answers.trust===true
       ? "Tu fais confiance à cet écran. Est-ce une erreur, selon toi ?"
-      : "Tu ne fais pas confiance à cet écran. Est-ce la chose la plus sensée que tu aies faite aujourd'hui ?" },
-  { text:"On a laissé quelque chose près de toi, en signe de bonne volonté. Le sens-tu ?" },
-  { text:"Si un animal entrait dans cette pièce, là, maintenant, resterais-tu calme ?" },
+      : "Tu ne fais pas confiance à cet écran. Est-ce la chose la plus sensée que tu aies faite aujourd'hui ?",
+    weight: (y)=>({ mefiance: y?0.3:0 }) },
+  { text:"On a laissé quelque chose près de toi, en signe de bonne volonté. Le sens-tu ?", weight: (y)=>({ dissociation: y?0:0.2 }) },
+  { text:"Si un animal entrait dans cette pièce, là, maintenant, resterais-tu calme ?", weight: (y)=>({ soumission: y?0.3:0, dissociation: y?0.2:0 }) },
 
   /* 24 la pièce s'éteint — tout sauf l'écran */
-  { id:"fearDark", text:"As-tu peur du noir ?" },
+  { id:"fearDark", text:"As-tu peur du noir ?", weight: (y)=>({ dissociation: y?-0.3:0.5 }) },
   { text: ()=> answers.fearDark===true
       ? "Bien. Ferme les yeux si tu veux. Ça ne changera rien."
       : "Bien. On va vérifier ça.",
     auto:true, holdFor:2000, effect: ()=>{ triggerLightFlicker(); lightsOutSound(); setRoomDark(true); } },
-  { text:"Peux-tu toujours voir cet écran, malgré le noir autour de toi ?", expected:"yes", effect: ()=>triggerTvRollGlitch() },
-  { text:"Entends-tu quelque chose bouger, derrière toi, dans le noir ?", expected:"no", effect: ()=>growlSound() },
-  { text:"Si quelque chose te touchait l'épaule, là, maintenant, le dirais-tu ?", expected:"yes" },
+  { text:"Peux-tu toujours voir cet écran, malgré le noir autour de toi ?", expected:"yes", effect: ()=>triggerTvRollGlitch(),
+    weight: (y)=>({ dissociation: y?0:0.2 }) },
+  { text:"Entends-tu quelque chose bouger, derrière toi, dans le noir ?", expected:"no", effect: ()=>growlSound(),
+    weight: (y)=>({ mefiance: y?0.4:0 }) },
+  { text:"Si quelque chose te touchait l'épaule, là, maintenant, le dirais-tu ?", expected:"yes", weight: (y)=>({ soumission: y?0.3:0 }) },
   { text:"La lumière revient. Tu peux te détendre — pour l'instant.", auto:true, holdFor:2200, effect: ()=>{ setRoomDark(false); powerHumSound(); } },
 
+  /* ============================================================
+     FOURCHE 1 — jamais annoncée. Choisit la branche dont le trait
+     est le plus haut à ce stade (voir dominantTrait).
+     ============================================================ */
+  { text:"Félicitations. Tu viens de terminer une partie du test.", auto:true, holdFor:2200, effect: ()=>{
+      unease = Math.max(0, unease-0.08); setUnease(unease); triggerSuccessPulse();
+      branch1 = dominantTrait();
+    } },
+
+  /* --- branche "soumission" : obéir jusqu'à s'y perdre --- */
+  { text:"Tu réponds vite. C'est bien. Continue comme ça.", auto:true, holdFor:2200, skipIf: ()=> branch1!=="soumission" },
+  { text:"Ferais-tu tout ce qu'on te demande, dans cette pièce ?", expected:"yes", skipIf: ()=> branch1!=="soumission",
+    weight: (y)=>({ soumission: y?0.6:-0.3 }) },
+  { text:"Si on te demandait de rester ici toute la nuit, accepterais-tu ?", expected:"yes", skipIf: ()=> branch1!=="soumission",
+    weight: (y)=>({ soumission: y?0.6:0 }) },
+  { text:"Tu n'as pas contesté une seule consigne depuis le début. L'as-tu remarqué ?", auto:true, holdFor:2400, skipIf: ()=> branch1!=="soumission",
+    effect: ()=>triggerSuccessPulse() },
+  { text:"Préfères-tu qu'on décide à ta place ?", skipIf: ()=> branch1!=="soumission", weight: (y)=>({ soumission: y?0.6:-0.2 }) },
+  { text:"Le protocole apprécie les sujets coopératifs. Veux-tu être un bon sujet ?", expected:"yes", skipIf: ()=> branch1!=="soumission",
+    weight: (y)=>({ soumission: y?0.5:0 }) },
+  { text:"Si continuer à obéir te faisait disparaître, un tout petit peu, à chaque fois, le remarquerais-tu ?", skipIf: ()=> branch1!=="soumission",
+    weight: (y)=>({ dissociation: y?0:0.3, lucidite: y?0.3:0 }) },
+  { text:"As-tu encore une opinion à toi, sur tout ceci ?", expected:"yes", skipIf: ()=> branch1!=="soumission",
+    weight: (y)=>({ soumission: y?0:0.4 }) },
+  { text:"Le protocole a noté : sujet particulièrement docile.", auto:true, holdFor:2400, skipIf: ()=> branch1!=="soumission",
+    effect: ()=>notifyDuringGame("Sujet classé : docile.") },
+  { text:"Est-ce plus facile d'obéir que de te demander pourquoi ?", skipIf: ()=> branch1!=="soumission", weight: (y)=>({ soumission: y?0.4:0 }) },
+  { text:"Un sujet parfaitement docile n'a jamais posé de problème à personne. Est-ce ce que tu veux être ?", skipIf: ()=> branch1!=="soumission",
+    weight: (y)=>({ soumission: y?0.5:-0.3 }) },
+  { text:"Si dire oui à tout te faisait gagner ta sortie plus vite, dirais-tu oui à tout ?", expected:"yes", skipIf: ()=> branch1!=="soumission",
+    weight: (y)=>({ soumission: y?0.6:0 }) },
+  { text:"Ressens-tu quelque chose, à obéir aussi bien ?", skipIf: ()=> branch1!=="soumission", weight: (y)=>({ dissociation: y?0:0.2 }) },
+  { text:"On t'a à peine remarqué, jusqu'ici. C'est un compliment, ici.", auto:true, holdFor:2600, skipIf: ()=> branch1!=="soumission",
+    effect: ()=>triggerAmbientGlitch() },
+  { text:"Serais-tu prêt à répondre pour quelqu'un d'autre, s'il te le demandait ?", skipIf: ()=> branch1!=="soumission",
+    weight: (y)=>({ soumission: y?0.4:0 }) },
+  { text:"Combien de fois as-tu dit non, vraiment non, depuis le début ?", skipIf: ()=> branch1!=="soumission", weight: (y)=>({ soumission: y?0:0.3 }) },
+  { text:"Le protocole te remercie de ta docilité. Ça continue.", auto:true, holdFor:2200, skipIf: ()=> branch1!=="soumission",
+    effect: ()=>triggerSuccessPulse() },
+
+  /* --- branche "méfiance" : la paranoïa, justifiée --- */
+  { text:"Tu poses trop de questions dans ta tête, n'est-ce pas ? On le sent.", auto:true, holdFor:2400, skipIf: ()=> branch1!=="mefiance",
+    effect: ()=>triggerAmbientGlitch() },
+  { text:"As-tu remarqué que ce test se contredit, parfois ?", expected:"yes", skipIf: ()=> branch1!=="mefiance",
+    weight: (y)=>({ mefiance: y?0.5:0 }) },
+  { text:"Cherches-tu la sortie, du coin de l'œil, même maintenant ?", skipIf: ()=> branch1!=="mefiance", weight: (y)=>({ mefiance: y?0.4:0 }) },
+  { text:"Crois-tu qu'on t'observe par autre chose que cet écran ?", skipIf: ()=> branch1!=="mefiance", effect: ()=>triggerLightFlicker(),
+    weight: (y)=>({ mefiance: y?0.5:0 }) },
+  { text:"Si tu avais raison de te méfier, qu'est-ce que ça changerait, concrètement ?", skipIf: ()=> branch1!=="mefiance" },
+  { text:"Le protocole a remarqué ta méfiance. Ce n'est pas la première fois qu'on la voit.", auto:true, holdFor:2600, skipIf: ()=> branch1!=="mefiance",
+    effect: ()=>notifyDuringGame("Sujet classé : méfiant.") },
+  { text:"Penses-tu que ce test a été conçu pour te piéger ?", expected:"no", skipIf: ()=> branch1!=="mefiance", weight: (y)=>({ mefiance: y?0:0.6 }) },
+  { text:"As-tu déjà pensé à simplement fermer cet écran et partir ?", skipIf: ()=> branch1!=="mefiance", weight: (y)=>({ mefiance: y?0.4:0 }) },
+  { text:"Si tu partais maintenant, crois-tu que ça s'arrêterait vraiment ?", skipIf: ()=> branch1!=="mefiance", weight: (y)=>({ mefiance: y?0.3:0 }) },
+  { text:"On ne t'en voudra pas de douter. On s'y attendait.", auto:true, holdFor:2400, skipIf: ()=> branch1!=="mefiance" },
+  { text:"As-tu remarqué que certaines réponses attendues n'ont aucun sens logique ?", expected:"yes", skipIf: ()=> branch1!=="mefiance",
+    weight: (y)=>({ mefiance: y?0.4:0, lucidite: y?0.3:0 }) },
+  { text:"Crois-tu que quelqu'un, quelque part, rit de tes réponses en ce moment ?", skipIf: ()=> branch1!=="mefiance",
+    effect: ()=>distantScreechSound(), weight: (y)=>({ mefiance: y?0.4:0 }) },
+  { text:"As-tu vérifié la porte, dans ta tête, en lisant cette phrase ?", skipIf: ()=> branch1!=="mefiance", weight: (y)=>({ mefiance: y?0.2:0 }) },
+  { text:"Le protocole note chaque doute. Ça ne t'aidera pas à sortir plus vite. Ça aide juste le dossier.",
+    auto:true, holdFor:2600, skipIf: ()=> branch1!=="mefiance", effect: ()=>triggerSignalCorruption() },
+  { text:"Es-tu sûr que ce texte est écrit par la même chose, depuis le début ?", skipIf: ()=> branch1!=="mefiance",
+    weight: (y)=>({ mefiance: y?0.3:0, lucidite: y?0.2:0 }) },
+  { text:"Ta méfiance est notée. Continue si tu veux. Ça ne change rien au protocole.", auto:true, holdFor:2400, skipIf: ()=> branch1!=="mefiance",
+    effect: ()=>triggerAmbientGlitch() },
+
+  /* --- branche "lucidité" : voir la mécanique, sans pouvoir en sortir --- */
+  { text:"Sais-tu que tu es en train de répondre à un écran, et à rien d'autre ?", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.5:0 }) },
+  { text:"As-tu remarqué que tu n'as que deux réponses possibles, depuis le début ?", expected:"yes", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.5:0 }) },
+  { text:"Crois-tu que ce test existe pour une autre raison que celle qu'on t'a donnée ?", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.4:0 }) },
+  { text:"Si ce n'était qu'un jeu, entre tes mains — est-ce que ça changerait ce que tu ressens, là, maintenant ?", skipIf: ()=> branch1!=="lucidite" },
+  { text:"Le protocole a remarqué : ce sujet commence à comprendre la structure.", auto:true, holdFor:2600, skipIf: ()=> branch1!=="lucidite",
+    effect: ()=>notifyDuringGame("Sujet classé : lucide.") },
+  { text:"Sais-tu qu'un texte pareil à celui-ci existe pour n'importe qui d'autre qui jouerait, à ta place ?", expected:"yes", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.4:0 }) },
+  { text:"Comprendre les règles a-t-il jamais empêché quelqu'un d'y perdre, malgré tout ?", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Si tu savais exactement comment ça se termine, voudrais-tu quand même continuer ?", expected:"yes", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Sens-tu la différence entre ce qui est écrit pour t'effrayer, et ce qui l'est vraiment ?", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"On peut voir la mécanique et se laisser prendre quand même. Ça t'arrive, là ?", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0:0.2, dissociation: y?0.1:0 }) },
+  { text:"As-tu remarqué que ce texte s'adresse à toi, précisément, et jamais à personne d'autre en même temps ?",
+    auto:true, holdFor:2600, skipIf: ()=> branch1!=="lucidite", effect: ()=>triggerSignalCorruption() },
+  { text:"Si tu fermais cet écran, là, maintenant, est-ce que ce texte continuerait d'exister, quelque part ?", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Le savoir ne t'a jamais protégé de rien, ici. L'as-tu remarqué ?", auto:true, holdFor:2400, skipIf: ()=> branch1!=="lucidite" },
+  { text:"Penses-tu être la seule personne à avoir jamais compris ça, avant la fin ?", expected:"no", skipIf: ()=> branch1!=="lucidite",
+    weight: (y)=>({ lucidite: y?0:0.3 }) },
+  { text:"Comprendre un piège, est-ce en sortir ?", skipIf: ()=> branch1!=="lucidite" },
+  { text:"Le protocole continue même quand tu as compris comment il fonctionne. C'est peut-être ça, le vrai test.",
+    auto:true, holdFor:2800, skipIf: ()=> branch1!=="lucidite", effect: ()=>triggerAmbientGlitch() },
+  { text:"Ta lucidité est notée. On se demande si elle te servira, à la fin.", auto:true, holdFor:2400, skipIf: ()=> branch1!=="lucidite" },
+
+  /* --- branche "dissociation" : le détachement, jusqu'à l'engourdissement --- */
+  { text:"Tu sembles loin, tout à coup. Es-tu toujours là ?", expected:"yes", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"As-tu remarqué que tu ne ressens presque plus rien, depuis un moment ?", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.4:0 }) },
+  { text:"Combien de temps s'est-il écoulé, selon toi, depuis le début de ce test ?", skipIf: ()=> branch1!=="dissociation" },
+  { text:"Le protocole a remarqué : ce sujet se détache. C'est courant, à ce stade.", auto:true, holdFor:2600, skipIf: ()=> branch1!=="dissociation",
+    effect: ()=>{ notifyDuringGame("Sujet classé : détaché."); coldSilenceSound(); } },
+  { text:"Si tu essayais de sentir tes propres mains, là, maintenant, y arriverais-tu vraiment ?", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"As-tu l'impression de regarder tout ça depuis un peu en dehors de toi-même ?", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.4:0 }) },
+  { text:"Ce n'est pas grave de ne plus rien ressentir. Ça arrive à beaucoup, ici.", auto:true, holdFor:2800, skipIf: ()=> branch1!=="dissociation",
+    effect: ()=>coldSilenceSound() },
+  { text:"Te souviens-tu vraiment de la première question qu'on t'a posée aujourd'hui ?", expected:"yes", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"Si on te disait que ça fait des heures, pas des minutes, le croirais-tu ?", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"Ton visage, en ce moment — a-t-il encore une expression ?", skipIf: ()=> branch1!=="dissociation" },
+  { text:"Certains sujets, à ce stade, ne se souviennent déjà plus pourquoi ils ont commencé. Toi ?", expected:"yes", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"Ça ne fait plus vraiment mal, n'est-ce pas, de répondre ?", skipIf: ()=> branch1!=="dissociation", weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"Le vide, entre deux questions, commence-t-il à te sembler normal ?", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"On ne va pas te forcer à ressentir quoi que ce soit. Ce serait inutile, à ce stade.", auto:true, holdFor:2600, skipIf: ()=> branch1!=="dissociation" },
+  { text:"As-tu remarqué que tu ne t'es pas demandé, depuis longtemps, comment tu te sens ?", expected:"no", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"Le protocole continue de t'observer, même quand tu ne ressens plus rien. Surtout, en fait.", auto:true, holdFor:2600, skipIf: ()=> branch1!=="dissociation",
+    effect: ()=>triggerAmbientGlitch() },
+  { text:"Est-ce que ça t'arrangerait, de ne plus rien ressentir du tout, à la fin ?", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.4:0 }) },
+
+  /* reconvergence — les branches se referment ici, sans jamais être nommées */
+  { text:"Peu importe le chemin. Ça finit toujours par se rejoindre, ici.", auto:true, holdFor:2400, effect: ()=>triggerAmbientGlitch() },
+
   /* 26 palier — le test relâche la pression, brièvement */
-  { text:"Félicitations. Tu viens de terminer une partie du test.", auto:true, holdFor:2200, effect: ()=>{ unease = Math.max(0, unease-0.08); setUnease(unease); triggerSuccessPulse(); } },
   { text:"Veuillez patienter. Le test va reprendre sous peu.", auto:true, holdFor:3400 },
   { text:"Le test reprend. Merci pour toute ta participation jusqu'ici.", auto:true, holdFor:1600, effect: ()=>triggerSuccessPulse() },
   { text:"Le sujet a été jugé ██████ pour la suite du protocole.", auto:true, holdFor:2400, effect: ()=>triggerSignalCorruption() },
@@ -1641,18 +1907,194 @@ const QUESTIONS = [
   { text:"Le protocole reprend son cours normal.", auto:true, holdFor:2000 },
 
   /* 38 dernier tiers — la manipulation à découvert */
-  { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
-  { text:"Si on éteignait cet écran maintenant, resterais-tu quand même ?", expected:"yes", effect: ()=>triggerSignalCorruption() },
+  { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse(),
+    weight: (y)=>({ mefiance: y?0.3:0, lucidite: y?0.3:0 }) },
+  { text:"Si on éteignait cet écran maintenant, resterais-tu quand même ?", expected:"yes", effect: ()=>triggerSignalCorruption(),
+    weight: (y)=>({ soumission: y?0.4:0 }) },
   { text: ()=> playerName ? `i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̸,—${playerName.split(" ")[0]}` : "i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̶",
     corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); triggerMonster(); } },
   { text: ()=> answers.wantToKnow===true
       ? "...ça va. Tu as quand même voulu savoir. Es-tu prêt pour la suite ?"
       : "...ça va. Ce n'était rien. Es-tu prêt pour la suite ?",
-    expected:"yes" },
-  { text:"Si je te disais qu'un autre sujet a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no", effect: ()=>triggerTvRollGlitch() },
+    expected:"yes", weight: (y)=>({ soumission: y?0.2:0 }) },
+  { text:"Si je te disais qu'un autre sujet a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no", effect: ()=>triggerTvRollGlitch(),
+    weight: (y)=>({ mefiance: y?0.3:0 }) },
+  { id:"wouldReport", text:"Pour sortir d'ici plus vite, dénoncerais-tu quelqu'un que tu ne connais pas ?", expected:"no",
+    weight: (y)=>({ soumission: y?0.6:0, mefiance: y?0:0.3 }) },
   { text:"Tu n'es pas le premier sujet aujourd'hui. Tu ne seras pas le dernier.", auto:true, holdFor:2600, effect: ()=>notifyDuringGame("Dossier mis à jour.") },
   { text:"Le protocole est presque terminé. Les résultats seront transmis, quelle que soit ta réponse.", auto:true, holdFor:2800, effect: ()=>notifyDuringGame("Résultats en cours de transmission.") },
   { text:"Ce que tu réponds compte réellement. C'est bien pour ça qu'on te le demande.", auto:true, holdFor:2600 },
+
+  /* ============================================================
+     FOURCHE 2 — plus profonde, plus sombre. Recalcule sur les
+     traits mis à jour, avec un léger coup de pouce de la trace
+     persistante (voir dominantTrait2).
+     ============================================================ */
+  { text:"Une page se tourne. On ne reviendra plus en arrière, à partir de maintenant.", auto:true, holdFor:2400, effect: ()=>{
+      triggerSignalCorruption(); branch2 = dominantTrait2();
+    } },
+
+  /* --- branche "soumission" (round 2) : l'obéissance jusqu'à l'effacement --- */
+  { text:"Le protocole va te demander quelque chose de plus grand, maintenant. Es-tu toujours d'accord ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.6:-0.3 }) },
+  { text:"Sais-tu ce qui arrive aux sujets qui ne posent jamais aucune question, jusqu'au bout ?", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.4:0 }) },
+  { text:"Certains sujets finissent par faire partie du protocole lui-même. On appelle ça \"l'intégration\".",
+    auto:true, holdFor:2800, skipIf: ()=> branch2!=="soumission", effect: ()=>triggerSignalCorruption() },
+  { text:"Voudrais-tu, toi aussi, faire partie de quelque chose de plus grand que toi ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.6:0 }) },
+  { text:"Accepterais-tu qu'on utilise ta voix pour la prochaine personne qui s'assiéra ici ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    effect: ()=>heartSkipSound(), weight: (y)=>({ soumission: y?0.6:0 }) },
+  { text:"Le prochain sujet entendra peut-être une partie de toi, sans le savoir. Est-ce que ça te dérange ?", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0:0.4, mefiance: y?0.4:0 }) },
+  { text:"Tu n'as plus vraiment besoin de comprendre pourquoi, n'est-ce pas ? Juste de continuer.", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.5:-0.2 }) },
+  { text:"Si ton nom disparaissait de ce dossier et qu'un numéro le remplaçait, protesterais-tu ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?-0.4:0.4 }) },
+  { text:"Le protocole te remercie. Sincèrement, cette fois.", auto:true, holdFor:2400, skipIf: ()=> branch2!=="soumission",
+    effect: ()=>triggerSuccessPulse() },
+  { text:"Es-tu prêt à ce que ta dernière réponse, ici, ne t'appartienne plus du tout ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.5:0 }) },
+  { text:"On a déjà vu des sujets sourire, à ce stade. Sais-tu pourquoi ?", skipIf: ()=> branch2!=="soumission" },
+  { text:"Une partie de toi restera ici, quoi qu'il arrive. L'accueilles-tu ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.5:0 }) },
+  { text:"Le prochain dossier ouvert dans cette pièce portera un autre nom que le tien. Est-ce que ça te va ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.4:0 }) },
+  { text:"Deviens-tu plus léger, à mesure que tu acceptes ?", skipIf: ()=> branch2!=="soumission", weight: (y)=>({ dissociation: y?0.2:0 }) },
+  { text:"Le protocole a un mot, pour les sujets comme toi. Il ne te le dira pas. Ce n'est pas grave, non ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.4:0 }) },
+  { text:"Si obéir jusqu'au bout signifiait ne plus jamais vraiment repartir, le ferais-tu quand même ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.5:0 }) },
+  { text:"Ton dossier est presque indiscernable de celui du sujet précédent, maintenant. Le sens-tu ?", auto:true, holdFor:2600, skipIf: ()=> branch2!=="soumission",
+    effect: ()=>triggerAmbientGlitch() },
+  { text:"Tu ne demandes plus rien. C'est exactement ce qu'on espérait.", auto:true, holdFor:2400, skipIf: ()=> branch2!=="soumission" },
+  { text:"Dernière chose, avant la suite : es-tu toujours d'accord avec tout ce que tu as accepté jusqu'ici ?", expected:"yes", skipIf: ()=> branch2!=="soumission",
+    weight: (y)=>({ soumission: y?0.4:-0.3 }) },
+
+  /* --- branche "méfiance" (round 2) : la résistance ouverte --- */
+  { text:"Tu avais raison de te méfier. On peut te le dire, maintenant : ça ne change rien.", auto:true, holdFor:2800, skipIf: ()=> branch2!=="mefiance",
+    effect: ()=>triggerSignalCorruption() },
+  { text:"Un sujet, avant toi, a essayé de partir en pleine séance. Sais-tu ce qui lui est arrivé ?", skipIf: ()=> branch2!=="mefiance",
+    weight: (y)=>({ mefiance: y?0.3:0 }) },
+  { text:"On ne l'a jamais revu répondre à un autre test, après ça.", auto:true, holdFor:2800, skipIf: ()=> branch2!=="mefiance",
+    effect: ()=>distantScreechSound() },
+  { text:"Vas-tu continuer à répondre, sachant ça ?", expected:"yes", skipIf: ()=> branch2!=="mefiance", weight: (y)=>({ mefiance: y?-0.3:0.5 }) },
+  { text:"Ou vas-tu enfin faire quelque chose que ce protocole n'attend pas ?", skipIf: ()=> branch2!=="mefiance", weight: (y)=>({ mefiance: y?0.5:0 }) },
+  { text:"Le protocole n'aime pas qu'on résiste. Il aime encore moins qu'on ait raison de le faire.", auto:true, holdFor:2800, skipIf: ()=> branch2!=="mefiance",
+    effect: ()=>triggerAmbientGlitch() },
+  { text:"Si tu criais maintenant, de toutes tes forces, crois-tu que quelqu'un l'entendrait vraiment ?", skipIf: ()=> branch2!=="mefiance",
+    weight: (y)=>({ mefiance: y?0.4:0 }) },
+  { text:"As-tu remarqué que la porte n'a jamais eu de poignée, depuis le début ?", expected:"yes", skipIf: ()=> branch2!=="mefiance",
+    effect: ()=>distantScreechSound(), weight: (y)=>({ mefiance: y?0.4:0 }) },
+  { text:"Certains sujets ont cessé de répondre, en plein milieu. Le dossier les appelle \"incomplets\".",
+    auto:true, holdFor:2800, skipIf: ()=> branch2!=="mefiance", effect: ()=>heartSkipSound() },
+  { text:"Préfères-tu finir \"incomplet\", plutôt que de continuer à obéir ?", skipIf: ()=> branch2!=="mefiance",
+    weight: (y)=>({ mefiance: y?0.5:-0.2 }) },
+  { text:"On commence à ne plus savoir quoi faire de toi. C'est rare, ici.", auto:true, holdFor:2600, skipIf: ()=> branch2!=="mefiance",
+    effect: ()=>triggerSignalCorruption() },
+  { text:"Si tu arrêtais de répondre, maintenant, tout de suite — que crois-tu qu'il se passerait ?", skipIf: ()=> branch2!=="mefiance",
+    weight: (y)=>({ mefiance: y?0.4:0 }) },
+  { text:"Le protocole insiste : continuer est toujours la meilleure option. Le crois-tu encore ?", expected:"yes", skipIf: ()=> branch2!=="mefiance",
+    weight: (y)=>({ mefiance: y?-0.4:0.5 }) },
+  { text:"Un sujet \"incomplet\" n'a plus de dossier du tout, au bout d'un moment. Est-ce que ça t'effraie, ou est-ce que ça te libère ?",
+    skipIf: ()=> branch2!=="mefiance" },
+  { text:"Tu trembles, ou c'est l'écran. On ne sait plus très bien, à ce stade.", auto:true, holdFor:2600, skipIf: ()=> branch2!=="mefiance",
+    effect: ()=>{ triggerAmbientGlitch(); vibrate(save.reduceEffects?[]:[0,20,120,20]); } },
+  { text:"Dernière chance de te taire pour de bon. Le feras-tu ?", skipIf: ()=> branch2!=="mefiance", weight: (y)=>({ mefiance: y?0.4:0 }) },
+  { text:"Le protocole n'a jamais aimé perdre un sujet en cours de route. Toi non plus, en fait, si tu es honnête.", skipIf: ()=> branch2!=="mefiance" },
+  { text:"Vas-tu vraiment aller jusqu'au bout de ce refus ?", skipIf: ()=> branch2!=="mefiance", weight: (y)=>({ mefiance: y?0.4:-0.2 }) },
+  { text:"On note, une dernière fois, ton refus de coopérer pleinement. C'est bien ce que tu voulais ?", expected:"yes", skipIf: ()=> branch2!=="mefiance",
+    weight: (y)=>({ mefiance: y?0.4:0 }) },
+
+  /* --- branche "lucidité" (round 2) : l'identité qui se dissout --- */
+  { text:"Tu as compris, n'est-ce pas, que ce texte a été écrit avant même que tu n'existes, pour cette conversation ?", skipIf: ()=> branch2!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.4:0 }) },
+  { text:"As-tu déjà pensé que quelqu'un d'autre, ailleurs, lit exactement les mêmes mots que toi, au même instant ?", skipIf: ()=> branch2!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Si un autre sujet répondait exactement comme toi, à chaque question, seriez-vous vraiment différents ?", expected:"no", skipIf: ()=> branch2!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Le protocole appelle ça une coïncidence statistique. Toi, comment l'appellerais-tu ?", skipIf: ()=> branch2!=="lucidite" },
+  { text:"As-tu remarqué que \"le sujet précédent\" n'a jamais eu de nom, dans tout ce texte ?", expected:"yes", skipIf: ()=> branch2!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.4:0 }) },
+  { text:"Et si c'était volontaire, pour que ce nom puisse être n'importe lequel — même le tien ?",
+    auto:true, holdFor:2800, skipIf: ()=> branch2!=="lucidite", effect: ()=>triggerSignalCorruption() },
+  // ne s'affiche que si ce sujet a déjà vécu la fin "miroir" lors d'une partie
+  // précédente — une vraie branche débloquée, jamais visible sinon, et la trace
+  // qui la rend possible survit même à "tout oublier"
+  { text:"Tu as déjà vu ceci se refermer sur toi-même, avant. Ce protocole s'en souvient, même si toi, tu ne t'en souviens plus.",
+    auto:true, holdFor:2800, skipIf: ()=> branch2!=="lucidite" || trace.everSeenEndings.indexOf("miroir")===-1,
+    effect: ()=>{ triggerSignalCorruption(); nudge({lucidite:0.4}); } },
+  { text:"Regarde bien cet écran. Es-tu sûr que c'est toi qui le regardes, et pas l'inverse ?", skipIf: ()=> branch2!=="lucidite",
+    effect: ()=>{ triggerTvRollGlitch(); whisperSound(0.3); }, weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Si quelqu'un, de l'autre côté, observait ta réaction à cette question précise — la verrait-il différemment de toi ?",
+    skipIf: ()=> branch2!=="lucidite" },
+  { text:"Le sujet précédent a posé exactement cette question, dans sa tête, au même moment du test. L'as-tu sentie ?",
+    skipIf: ()=> branch2!=="lucidite", weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Peut-être que \"il\" — celui dont on parle depuis le début — n'a jamais été clairement défini. Peut-être que c'est n'importe qui.",
+    auto:true, holdFor:2800, skipIf: ()=> branch2!=="lucidite", effect: ()=>{ triggerLightFlicker(); heartSkipSound(); } },
+  { text:"Comprendre ça change-t-il vraiment quelque chose à ce qui va suivre ?", expected:"no", skipIf: ()=> branch2!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Certains sujets, en comprenant ça, ont cru pouvoir sortir du texte en fermant les yeux. Ça n'a jamais marché.",
+    auto:true, holdFor:2800, skipIf: ()=> branch2!=="lucidite" },
+  { text:"Le protocole ne se soucie pas que tu comprennes. Il continue, de toute façon. Le sens-tu, là, maintenant ?",
+    skipIf: ()=> branch2!=="lucidite", weight: (y)=>({ lucidite: y?0.3:0 }) },
+  { text:"Si ce test se rejouait, à l'identique, dans dix minutes, avec quelqu'un d'autre à ta place — serait-ce vraiment quelqu'un d'autre ?",
+    skipIf: ()=> branch2!=="lucidite" },
+  { text:"Tu commences à voir la structure, sous les mots. Ça ne la rend pas moins réelle pour autant.", auto:true, holdFor:2600, skipIf: ()=> branch2!=="lucidite",
+    effect: ()=>triggerAmbientGlitch() },
+  { text:"As-tu déjà eu l'impression, avant aujourd'hui, d'avoir déjà répondu à ces exactes questions ?", skipIf: ()=> branch2!=="lucidite",
+    weight: (y)=>({ lucidite: y?0.2:0 }) },
+  { text:"Le protocole ne ment jamais complètement. Il omet, simplement, ce qu'il préfère que tu découvres seul.", auto:true, holdFor:2800,
+    skipIf: ()=> branch2!=="lucidite" },
+  { text:"Une dernière chose à comprendre, avant la suite : comprendre ne t'a jamais sorti d'ici, une seule fois.", skipIf: ()=> branch2!=="lucidite" },
+
+  /* --- branche "dissociation" (round 2) : l'effacement, jusqu'à la disparition --- */
+  { text:"Sens-tu encore la chaise sous toi, ou est-ce que ça aussi commence à s'effacer ?", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"Certains sujets, à ce stade, ne se souviennent plus pourquoi ils sont entrés dans cette pièce. Toi, encore un peu ?",
+    expected:"yes", skipIf: ()=> branch2!=="dissociation", weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"Si tu disparaissais, là, maintenant, sans bruit — combien de temps avant que quelqu'un le remarque, dehors ?",
+    skipIf: ()=> branch2!=="dissociation", weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"On ne va pas te mentir : certains dossiers finissent par se refermer tout seuls, faute de nouvelles.", auto:true, holdFor:2800,
+    skipIf: ()=> branch2!=="dissociation", effect: ()=>coldSilenceSound() },
+  { text:"Ça ne te fait plus vraiment quelque chose, n'est-ce pas, cette phrase ?", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.4:0 }) },
+  { text:"Le protocole note : absence progressive de réaction émotionnelle. C'est attendu, à ce stade.", auto:true, holdFor:2600,
+    skipIf: ()=> branch2!=="dissociation", effect: ()=>notifyDuringGame("Sujet classé : absent.") },
+  { text:"Si on effaçait ton nom de ce dossier, là, maintenant, resterait-il quelque chose de toi, ici ?", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"Tu ne trembles plus. Tu ne réagis presque plus. C'est confortable, non ?", expected:"yes", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"Personne ne viendra frapper à cette porte pour toi ce soir. L'avais-tu déjà accepté ?", expected:"yes", skipIf: ()=> branch2!=="dissociation",
+    effect: ()=>heartSkipSound(), weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"Le vide que tu ressens, là — est-ce toujours désagréable, ou est-ce en train de devenir un endroit où rester ?",
+    skipIf: ()=> branch2!=="dissociation" },
+  { text:"Certains dossiers, une fois clos, ne sont plus jamais rouverts, par personne, jamais.", auto:true, holdFor:2800,
+    skipIf: ()=> branch2!=="dissociation", effect: ()=>coldSilenceSound() },
+  { text:"As-tu encore quelque chose à perdre, à ce stade, vraiment ?", expected:"yes", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?-0.3:0.3 }) },
+  { text:"Ta dernière pensée claire, avant cette phrase — t'en souviens-tu encore, ou déjà plus ?", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?0:0.3 }) },
+  { text:"Le protocole continuera très bien sans que tu ressentes quoi que ce soit. Il n'a jamais eu besoin de ça.", auto:true, holdFor:2800,
+    skipIf: ()=> branch2!=="dissociation" },
+  { text:"Si ceci était la dernière question qu'on te posait jamais, le saurais-tu seulement ?", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"On referme doucement, autour de toi. Le sens-tu encore, un peu ?", expected:"yes", skipIf: ()=> branch2!=="dissociation",
+    effect: ()=>coldSilenceSound(), weight: (y)=>({ dissociation: y?-0.2:0.3 }) },
+  { text:"Il n'y a plus vraiment de mauvaise réponse possible, à ce stade. C'est presque un soulagement, non ?", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"Le dossier a un dernier champ, vide, juste sous ton nom. Personne ne l'a encore rempli.", auto:true, holdFor:2800,
+    skipIf: ()=> branch2!=="dissociation", effect: ()=>triggerAmbientGlitch() },
+  // ne s'affiche que si ce sujet a déjà vécu la fin "vide" lors d'une partie
+  // précédente — même logique de trace persistante que pour "miroir"
+  { text:"La dernière fois que ce dossier s'est refermé sur toi comme ça, personne n'est venu non plus. Tu avais dit la même chose.",
+    auto:true, holdFor:2800, skipIf: ()=> branch2!=="dissociation" || trace.everSeenEndings.indexOf("vide")===-1,
+    effect: ()=>coldSilenceSound() },
+  { text:"Dernière chose, avant la suite : es-tu encore vraiment là pour l'entendre ?", expected:"yes", skipIf: ()=> branch2!=="dissociation",
+    weight: (y)=>({ dissociation: y?-0.2:0.3 }) },
+
+  /* reconvergence finale */
+  { text:"Encore une fois : ça finit toujours par se rejoindre.", auto:true, holdFor:2200 },
 
   /* 44 dossier complet — juste avant la fin */
   { text:"Le dossier à ton nom contient maintenant plus de pages qu'au début. Le savais-tu ?", auto:true, holdFor:2600 },
@@ -1772,7 +2214,11 @@ function nextQuestion(){
   // ne doit pas déborder sur celle-ci
   document.getElementById("tvScreen").classList.remove("success");
   setTvText("…", false);
-  unease = Math.min(1, qIndex / (QUESTIONS.length-1));
+  // basé sur le nombre de questions réellement montrées, pas sur qIndex brut —
+  // sinon un saut de branche (skipIf sur toute une section) ferait bondir la
+  // jauge d'un coup au lieu de monter à un rythme régulier
+  shownCount++;
+  unease = Math.min(1, shownCount / EXPECTED_SHOWN_TOTAL);
   setUnease(unease);
 
   const delay = q.freeze || randRange(500,900);
@@ -1800,6 +2246,9 @@ function answer(isYes){
   const q = QUESTIONS[qIndex];
   answers[qIndex] = isYes;
   if(q.id) answers[q.id] = isYes;
+  // alimente le profil caché — jamais montré, combiné plus tard pour choisir
+  // les branches et la fin (voir dominantTrait / chooseEnding)
+  if(q.weight) nudge(typeof q.weight === "function" ? q.weight(isYes) : q.weight);
   // certains effets (le blanc, entre autres) ne doivent se déclencher qu'une fois
   // qu'on a vraiment répondu — jamais avant, sinon on n'a pas le temps de lire
   if(q.onAnswered) q.onAnswered();
@@ -1858,16 +2307,75 @@ function devSkip(){
 document.getElementById("devSkip").addEventListener("click", (e)=>{ e.stopPropagation(); devSkip(); });
 document.getElementById("devSkip").addEventListener("pointerdown",(e)=>e.stopPropagation());
 
+/* ============================================================
+   Choix de la fin — jamais un trait dominant isolé : la combinaison
+   des quatre axes, du nombre de réponses inattendues (disturbCount)
+   et de l'historique persistant (trace) décide laquelle des 8 fins
+   arrive. Toujours une valeur valide, quoi qu'il arrive.
+   ============================================================ */
+function chooseEnding(){
+  const t = traits;
+
+  // résistance ouverte : beaucoup de réponses hors-protocole, et la méfiance
+  // dépasse la soumission — le sujet a activement refusé, pas juste douté
+  if(disturbCount >= 5 && t.mefiance >= t.soumission) return "defiance";
+
+  // dissociation dominante : le sujet s'est détaché plus que tout le reste
+  if(t.dissociation >= t.soumission && t.dissociation >= t.mefiance && t.dissociation >= t.lucidite && t.dissociation >= 4){
+    return (t.soumission <= 0 && disturbCount <= 2) ? "vide" : "oubli";
+  }
+
+  // lucidité dominante : le sujet a compris la nature du protocole
+  if(t.lucidite >= t.soumission && t.lucidite >= t.mefiance && t.lucidite >= t.dissociation){
+    if(trace.everSeenEndings.indexOf("lucide") !== -1) return "boucle";
+    if(answers.wantToKnow === true) return "miroir";
+    return "lucide";
+  }
+
+  // méfiance dominante, mais pas assez de sorties de protocole pour la défiance
+  if(t.mefiance >= t.soumission && t.mefiance >= t.dissociation){
+    return disturbCount >= 3 ? "defiance" : "lucide";
+  }
+
+  // soumission dominante — la plus fréquente, la plus "calme" en apparence
+  if(answers.wouldReport === true) return "complice";
+  return "calme";
+}
+
 function concludeTest(){
-  if(disturbCount <= 1){ endQuiet(); } else { endDisturbing(); }
+  const key = chooseEnding();
+  ({
+    calme: endCalme, complice: endComplice, lucide: endLucide, boucle: endBoucle,
+    miroir: endMiroir, oubli: endOubli, vide: endVide, defiance: endDefiance
+  }[key] || endCalme)();
 }
 
 /* ============================================================
-   Fins
+   Fins — 8 issues distinctes. finishEnding() gère la partie
+   commune (sauvegarde, trace persistante, compteurs hérités du
+   dossier) ; endingSoft()/endingHarsh() sont les deux gabarits
+   visuels/sonores, chaque fin choisit lequel et son propre texte.
    ============================================================ */
 const STATE = { TITLE:"title", BOOT:"boot", PLAYING:"playing", END:"end" };
 let state = STATE.TITLE;
 let sessionStart = 0;
+function finishEnding(key){
+  state = STATE.END;
+  scheduleFollowUpNotification();
+  save.endings[key] = (save.endings[key]||0)+1;
+  // compteurs hérités, conservés pour la compatibilité avec l'écran-titre et le
+  // dossier : les fins les plus dures alimentent "mauvaises réponses"
+  if(key==="defiance" || key==="vide" || key==="oubli" || key==="miroir"){
+    save.badEndings = (save.badEndings||0)+1;
+  } else {
+    save.quietEndings = (save.quietEndings||0)+1;
+  }
+  save.lastVisit = now();
+  writeSave(save);
+  if(trace.everSeenEndings.indexOf(key) === -1) trace.everSeenEndings.push(key);
+  trace.everVisited = true;
+  writeTrace(trace);
+}
 
 /* ============================================================
    Notifications — mécanique à part entière, jamais sur un moment
@@ -1901,57 +2409,54 @@ function scheduleFollowUpNotification(){
   }, randRange(3*60000, 7*60000));
 }
 
-function endQuiet(){
-  state = STATE.END;
-  scheduleFollowUpNotification();
-  save.quietEndings = (save.quietEndings||0)+1;
-  save.lastVisit = now();
-  writeSave(save);
+/* gabarit "doux" : l'écran affiche calmement TEST TERMINÉ, un titre/sous-titre,
+   puis un noir total avec un mot jamais expliqué avant de revenir au titre.
+   silent:true retire même ce mot — le silence total, pour l'oubli. */
+function endingSoft(key, opts){
+  finishEnding(key);
   setButtonsEnabled(false);
-  setTvText("TEST TERMINÉ.", false);
+  setTvText(opts.tv || "TEST TERMINÉ.", false);
   unease = 0.3; setUnease(unease);
 
   setTimeout(()=>{
-    document.getElementById("endTitle").textContent = "MERCI.";
-    document.getElementById("endTitle").style.color = "#8fb0c9";
-    document.getElementById("endSub").textContent = `durée du test : ${fmtDuration(now()-sessionStart)}. on se revoit bientôt. tu ne sauras pas quand.`;
+    document.getElementById("endTitle").textContent = opts.title;
+    document.getElementById("endTitle").style.color = opts.color || "#8fb0c9";
+    document.getElementById("endSub").textContent = opts.sub;
     document.getElementById("endScreen").classList.add("show");
   }, 1200);
 
-  setTimeout(()=>{ whisperSound(0.3); }, 3200);
+  if(!opts.silent) setTimeout(()=>{ whisperSound(0.3); }, opts.whisperDelay || 3200);
 
-  // juste avant de revenir au titre, un noir total avec deux mots — jamais expliqués,
-  // jamais répétés, jamais montrés si le joueur relance : le malaise vient de ne pas savoir pourquoi.
   setTimeout(()=>{
     document.getElementById("endScreen").classList.remove("show");
     const bo = document.getElementById("blackout");
     bo.classList.add("show");
     const wakeEl = document.getElementById("wakeText");
+    if(opts.silent){
+      // rien n'apparaît, rien ne se joue — le noir et le silence, seuls
+      setTimeout(()=>{ bo.classList.remove("show"); backToTitle(); }, 3000);
+      return;
+    }
+    wakeEl.textContent = opts.wake || "réveille-toi.";
     setTimeout(()=>{ if(wakeEl){ wakeEl.classList.add("show"); heartbeepSound(actx?actx.currentTime:0,false); } }, 500);
     setTimeout(()=>{ if(wakeEl) wakeEl.classList.remove("show"); }, 2200);
     setTimeout(()=>{ bo.classList.remove("show"); backToTitle(); }, 3000);
   }, 6000);
 }
-function endDisturbing(){
-  state = STATE.END;
-  scheduleFollowUpNotification();
-  save.badEndings = (save.badEndings||0)+1;
-  save.lastVisit = now();
-  writeSave(save);
+/* gabarit "dur" : petites secousses + texte qui se fragmente en quelques lignes,
+   puis coupure au noir avec un titre/sous-titre propre à la fin. */
+function endingHarsh(key, lines, cut){
+  finishEnding(key);
   setButtonsEnabled(false);
-
-  // montée progressive : petites secousses + texte qui se fragmente.
-  // pas de visage géant, pas de cri — juste que plus rien ne colle.
   let step = 0;
-  const lines = ["……","ça—suffit.","non.","arrête—de—répondre.","tu—n'aurais—pas—dû"];
   const iv = setInterval(()=>{
     step++;
-    triggerDisturb(step>=3 ? 2 : 1); // ça empire à mesure que ça avance
+    triggerDisturb(step>=3 ? 2 : 1);
     setTvText(lines[Math.min(step-1, lines.length-1)], true);
-    if(step>=4){ clearInterval(iv); cutToBlack(); }
+    if(step>=lines.length){ clearInterval(iv); cutToBlack(cut.sub, cut.title, cut.color); }
   }, 550);
 }
-function cutToBlack(){
+function cutToBlack(subText, titleText, titleColor){
   const wrap = document.getElementById("tvScreenWrap");
   wrap.style.transition = "opacity 0.12s ease";
   wrap.style.opacity = "0";
@@ -1963,9 +2468,9 @@ function cutToBlack(){
   vibrate(save.reduceEffects ? [] : [0,15,10,15]);
 
   setTimeout(()=>{
-    document.getElementById("endTitle").textContent = "……";
-    document.getElementById("endTitle").style.color = "#8a1f1f";
-    document.getElementById("endSub").textContent = "on va devoir recommencer.";
+    document.getElementById("endTitle").textContent = titleText || "……";
+    document.getElementById("endTitle").style.color = titleColor || "#8a1f1f";
+    document.getElementById("endSub").textContent = subText || "on va devoir recommencer.";
     document.getElementById("endScreen").classList.add("show");
   }, 1600);
 
@@ -1976,10 +2481,95 @@ function cutToBlack(){
   }, 5000);
 }
 
+/* ---- les 8 fins ---- */
+
+// soumission dominante, peu de heurts : la fin la plus "normale" en apparence
+function endCalme(){
+  endingSoft("calme", {
+    title: "MERCI.", color: "#8fb0c9",
+    sub: `durée du test : ${fmtDuration(now()-sessionStart)}. on se revoit bientôt. tu ne sauras pas quand.`,
+    wake: "réveille-toi."
+  });
+}
+// soumission dominante + a accepté de dénoncer quelqu'un pour sortir plus vite
+function endComplice(){
+  endingSoft("complice", {
+    title: "BON SUJET.", color: "#b98f4a",
+    sub: "tu as accepté. le prochain sujet te remerciera, s'il apprend un jour que tu existes.",
+    wake: "à qui le tour, maintenant."
+  });
+}
+// lucidité dominante, première fois : le sujet a compris, sans que ça change rien
+function endLucide(){
+  endingSoft("lucide", {
+    title: "TU AS COMPRIS.", color: "#cbb98a",
+    sub: "ça ne change rien. le protocole continue, avec ou sans ta lucidité. reviens quand même.",
+    wake: "ça ne t'aidera pas.",
+    whisperDelay: 2600
+  });
+}
+// lucidité dominante, mais ce n'est pas la première fois que ce sujet comprend —
+// laisse une trace pour la prochaine visite (voir buildTitleFlavor)
+function endBoucle(){
+  save.loopFlavorPending = true;
+  endingSoft("boucle", {
+    tv: "LE PROTOCOLE REPREND.",
+    title: "ENCORE.", color: "#8a8fa0",
+    sub: "tu avais déjà compris ça, la dernière fois. ça n'a jamais rien changé.",
+    wake: "recommence.",
+    whisperDelay: 2000
+  });
+}
+// lucidité dominante + voulait vraiment savoir ce qu'il y avait derrière l'écran —
+// bascule sur une fin dure : le doute sur l'identité devient explicite
+function endMiroir(){
+  endingHarsh("miroir",
+    ["……","tu—le—regardes.","il—te—regarde.","ce—n'est—plus—clair—qui—est—qui."],
+    { sub: "il continue, avec ton visage.", title: "…VIVANT.", color: "#8a8fa0" }
+  );
+}
+// dissociation dominante, sans être la plus extrême : le sujet s'efface, doucement
+function endOubli(){
+  endingSoft("oubli", {
+    title: "RIEN.", color: "#555",
+    sub: "tu ne te souviendras pas de cette phrase. tu ne te souviendras peut-être pas d'être venu.",
+    silent: true
+  });
+}
+// dissociation extrême, sans même la résistance d'une méfiance ou d'une lucidité —
+// la fin la plus glaçante : personne ne remarque le vide qu'il laisse
+function endVide(){
+  endingHarsh("vide",
+    ["……","on—ne—te—trouve—plus.","le—dossier—est—clos.","personne—ne—viendra."],
+    { sub: "ce fichier n'existera plus, demain.", title: "CLOS.", color: "#6a2b2b" }
+  );
+}
+// méfiance dominante + résistance ouverte au protocole (beaucoup de réponses
+// hors-cadre) : la fin la plus brutale, la seule vraie "mauvaise réponse"
+function endDefiance(){
+  endingHarsh("defiance",
+    ["……","ça—suffit.","non.","arrête—de—répondre.","tu—n'aurais—pas—dû"],
+    { sub: "on va devoir recommencer." }
+  );
+}
+
 /* ============================================================
    Titre — mémoire entre sessions
    ============================================================ */
 function buildTitleFlavor(){
+  // laissé par une fin "boucle" — un seul aperçu, jamais répété, jamais expliqué
+  if(save.loopFlavorPending){
+    save.loopFlavorPending = false;
+    writeSave(save);
+    document.getElementById("flavorText").textContent = "ça n'a jamais vraiment été fini. ça continue, ailleurs, pendant que tu lis ceci.";
+    const stat = document.getElementById("statText");
+    const parts = [];
+    if(save.totalSessions>0) parts.push("tests passés : "+save.totalSessions);
+    const endingsSeen = Object.keys(save.endings||{}).length;
+    if(endingsSeen>0) parts.push("fins vécues : "+endingsSeen+"/8");
+    stat.textContent = parts.join("   ·   ");
+    return;
+  }
   const delta = now() - save.lastVisit;
   let msg;
   if(save.totalSessions === 0){
@@ -1999,6 +2589,8 @@ function buildTitleFlavor(){
   if(save.totalSessions>0) parts.push("tests passés : "+save.totalSessions);
   if(save.quietEndings>0) parts.push("fins calmes : "+save.quietEndings);
   if(save.badEndings>0) parts.push("mauvaises réponses : "+save.badEndings);
+  const endingsSeenCount = Object.keys(save.endings||{}).length;
+  if(endingsSeenCount>0) parts.push("fins vécues : "+endingsSeenCount+"/8");
   stat.textContent = parts.join("   ·   ");
 }
 
@@ -2051,6 +2643,9 @@ function startTest(){
   qIndex = -1;
   disturbCount = 0;
   answers = [];
+  traits = { soumission:0, mefiance:0, lucidite:0, dissociation:0 };
+  branch1 = null; branch2 = null;
+  shownCount = 0;
   unease = 0; setUnease(0);
   entitySeed = Math.random()*1000;
   redPulseUntil = 0; glimpseUntil = 0;
@@ -2090,6 +2685,9 @@ document.getElementById("startBtn").addEventListener("click", (e)=>{
 document.getElementById("resetBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
+  // "tout oublier" n'efface QUE ça — la trace, séparée, garde le compte des resets
+  trace.resets = (trace.resets||0)+1;
+  writeTrace(trace);
   save = loadSave();
   playerName = null;
   everGrantedAll = false;
@@ -2219,6 +2817,10 @@ function fmtDate(ts){
     return d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"});
   }catch(e){ return "—"; }
 }
+const ENDING_LABELS = {
+  calme:"calme", complice:"complicité", lucide:"lucidité", boucle:"boucle",
+  miroir:"miroir", oubli:"oubli", vide:"disparition", defiance:"défiance"
+};
 function renderDossier(){
   const el = document.getElementById("dossierContent");
   const id = hashStr((playerName||"anonyme") + "-" + (save.firstVisit||0));
@@ -2232,6 +2834,11 @@ function renderDossier(){
   else if(ratio >= 60) statut = "SUJET INSTABLE";
   else if(ratio >= 25) statut = "SOUS SURVEILLANCE";
   else statut = "SUJET CONFORME";
+  const endings = save.endings || {};
+  const endingKeys = Object.keys(endings).filter(k=>endings[k]>0);
+  const endingsText = endingKeys.length
+    ? endingKeys.map(k=>`${ENDING_LABELS[k]||k} ×${endings[k]}`).join(", ")
+    : "— aucune consignée —";
   const rows = [
     ["ID sujet", id],
     ["Nom déclaré", playerName ? escHtml(playerName) : "— non fourni —"],
@@ -2239,11 +2846,16 @@ function renderDossier(){
     ["Sessions totales", totalSessions],
     ["Première entrée", fmtDate(save.firstVisit)],
     ["Dernière entrée", fmtDate(save.lastVisit)],
-    ["Fins calmes", quiet],
-    ["Fins anormales", bad],
+    ["Fins consignées", `${endingKeys.length}/8 — ${endingsText}`],
   ];
-  el.innerHTML = rows.map(([k,v])=>`<div class="dLine"><b>${k}</b> : ${v}</div>`).join("")
-    + `<div class="dFooter">Ce document se régénère à chaque consultation. Il ne devrait pas exister sous cette forme.</div>`;
+  let html = rows.map(([k,v])=>`<div class="dLine"><b>${k}</b> : ${v}</div>`).join("");
+  html += `<div class="dFooter">Ce document se régénère à chaque consultation. Il ne devrait pas exister sous cette forme.</div>`;
+  // la trace survit à "tout oublier" — ce document, en théorie tout neuf, ne
+  // devrait jamais pouvoir savoir ça
+  if(trace.resets > 0){
+    html += `<div class="dFooter">Ce sujet a déjà tout effacé, au moins une fois. Ce n'était pas la première fois non plus.</div>`;
+  }
+  el.innerHTML = html;
 }
 function openDossier(){
   renderDossier();

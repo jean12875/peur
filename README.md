@@ -8,7 +8,7 @@ Tu es assis face à un téléviseur, dans une pièce qui ressemble à une salle 
 
 Les premières questions sont cliniques, presque rassurantes ("Es-tu vivant ?", "Comprends-tu ce qu'on te demande ?"). Puis elles commencent à savoir des choses qu'elles ne devraient pas savoir (l'heure réelle, la batterie réelle de ton appareil, ta position réelle). Puis elles commencent à mentir sur ce que tu as répondu avant. Puis elles deviennent des questions auxquelles il n'y a pas de bonne réponse — et une, à un moment donné, exige simplement que tu te taises.
 
-Comment tu réponds compte : le jeu retient discrètement si tu es plutôt conciliant ou plutôt curieux/récalcitrant, et la toute dernière question détermine laquelle des deux fins tu obtiens.
+Comment tu réponds compte, vraiment : le jeu suit en secret plusieurs axes psychologiques à la fois (jamais un simple "trait dominant" isolé), et ces axes combinés choisissent à deux reprises quelles questions tu vois ensuite — puis, tout à la fin, laquelle des huit fins tu obtiens. Peu importe le chemin, chaque partie doit rester cohérente avec ce que tu as réellement répondu.
 
 Ce qui rend LE TEST inhabituel :
 
@@ -16,8 +16,9 @@ Ce qui rend LE TEST inhabituel :
 - **Le test ment.** Certaines questions prétendent que tu as déjà répondu différemment, ou remettent en cause ta version précédente — alors que ce n'est pas vrai. Le doute est le but.
 - **Il sait vraiment des choses sur toi.** L'heure réelle, la batterie réelle de ton appareil, ton prénom et ton nom — affichés telles quels, sans détour. De vraies notifications système arrivent à des moments choisis pendant la partie — jamais pendant un moment écran rouge ou le monstre, pour ne pas couper le son en cours.
 - **Presque aucune bonne réponse n'est mise en scène pour toi.** Une réponse "étrange" fait trembler l'écran, corrompt le texte, fait basculer le téléviseur en rouge et grésillement — l'essentiel du jeu reste ambiance et rupture de rythme plutôt que jumpscare. Une seule exception, une seule fois par partie : un vrai face-à-face, bref et net, accompagné d'un son pensé pour faire peur.
-- **Deux fins, déterminées par tes choix**, pas par un mini-jeu de réflexes : une fin silencieuse et froide si tu restes conciliant, une fin qui s'effondre lentement dans le glitch et le noir si ta curiosité l'emporte.
-- **La mémoire entre les sessions.** Le jeu se souvient du nombre de fois où tu es venu et depuis combien de temps, et l'écran-titre le formule froidement.
+- **Un profil psychologique caché, à plusieurs axes.** Soumission, méfiance, lucidité, dissociation — quatre scores qui montent et descendent en secret selon chaque réponse, jamais affichés au joueur, jamais réduits à un seul "type" de joueur. Voir la section dédiée plus bas.
+- **Deux vraies bifurcations, huit fins.** Pas un simple mini-jeu de réflexes : à deux moments du test, jamais annoncés, le jeu choisit parmi quatre directions de questions selon le profil du joueur — et la combinaison finale des quatre axes (plus le nombre de réponses "inattendues") détermine laquelle des huit fins arrive.
+- **La mémoire entre les sessions — et même après un reset.** Le jeu se souvient du nombre de fois où tu es venu, depuis combien de temps, et des fins déjà vécues ; certaines questions ne sont même visibles qu'après avoir déjà obtenu une fin précise lors d'une partie antérieure. Le bouton "tout oublier" efface la sauvegarde visible, mais une trace séparée, jamais vidée par ce bouton, garde le souvenir des resets eux-mêmes — et ça peut ressortir.
 
 ## Avant de commencer : formulaire + notifications
 
@@ -61,6 +62,19 @@ Une question demande directement si tu as peur du noir. Peu importe la réponse 
 
 Le scénario distille aussi, sans jamais le dire explicitement, l'idée que ce test décide de quelque chose d'important pour le joueur : un dossier qui existait avant son arrivée, une case "VIVANT" sur une feuille, un sujet précédent qui n'a pas eu de suite, un texte partiellement caviardé. La très grande majorité du jeu reste ambiance et rupture de rythme plutôt que jumpscare — à une exception près : une seule fois par partie, sur la ligne la plus dérangeante du test (celle qui prononce ton prénom), une vraie image apparaît en plein écran — pas un dessin procédural — avec un son pensé pour être aussi terrifiant que possible. Ça n'arrive qu'une fois, jamais annoncé, jamais répété.
 
+## Le profil caché, les bifurcations et les 8 fins
+
+Le test suit quatre axes en secret pendant toute la partie, jamais montrés au joueur, jamais réduits à un seul trait "dominant" isolé : **soumission**, **méfiance**, **lucidité**, **dissociation**. Chaque réponse à une question qui porte un `weight` fait bouger un ou plusieurs de ces axes à la fois (`nudge()` dans le script) — une seule réponse ne définit jamais tout le profil, seule l'accumulation compte.
+
+Le test bifurque réellement à deux moments, jamais annoncés :
+
+1. **Première bifurcation**, après la première grande section (la pièce qui s'éteint). Le jeu regarde quel axe est le plus haut à cet instant (`dominantTrait()`, avec un léger bruit aléatoire pour éviter un déterminisme parfait) et affiche l'un des quatre chapitres suivants — obéissance, paranoïa, lucidité existentielle, ou détachement — chacun écrit avec un ton différent, personne ne voit les trois autres.
+2. **Deuxième bifurcation**, plus tard, après la séquence de l'opération et la scène du monstre. Le jeu recalcule sur les axes mis à jour, avec en plus un coup de pouce si la trace persistante montre que ce joueur a déjà vécu certaines fins lors de parties précédentes (`dominantTrait2()`). Cette deuxième vague de quatre chapitres est plus sombre, plus explicitement centrée sur la mort et la disparition.
+
+À la toute fin, `chooseEnding()` combine les quatre axes, le nombre de réponses "inattendues" et l'historique pour choisir parmi **8 fins** distinctes (`endCalme`, `endComplice`, `endLucide`, `endBoucle`, `endMiroir`, `endOubli`, `endVide`, `endDefiance`) — jamais un simple `if/else` binaire comme dans les versions précédentes.
+
+Certaines questions ne sont visibles qu'après avoir déjà obtenu une fin précise lors d'une partie antérieure — de vraies branches débloquées, pas juste une phrase qui change. Ça repose sur une **trace cachée**, séparée de la sauvegarde normale et jamais vidée par le bouton "tout oublier" (deux clés `localStorage` distinctes : `letest_save_v1` et `letest_trace_v1`). Concrètement : le bouton "tout oublier" remet l'écran-titre à zéro comme pour une première visite, mais la trace, elle, garde le compte des resets et la liste des fins déjà vues — et ça peut ressortir, sous forme d'une phrase que le test ne devrait logiquement pas pouvoir connaître.
+
 ## Plein écran
 
 Appuyer sur "commencer" tente de passer en plein écran réel (API Fullscreen), ce qui masque la barre système sur les navigateurs qui l'autorisent — Chrome et Firefox sur Android, notamment. Limite honnête côté iPhone : Safari n'autorise pas les pages web à masquer sa propre barre de statut (heure, wifi, batterie) tant que le jeu tourne dans un onglet normal — c'est une restriction volontaire d'Apple, pas un bug d'ici. La seule façon d'obtenir un vrai plein écran sur iPhone est d'installer LE TEST via "Ajouter à l'écran d'accueil" et de le lancer depuis son icône : il s'ouvre alors en mode app, sans barre d'adresse.
@@ -95,7 +109,7 @@ Sur l'écran-titre, un petit bouton "actualiser" force le rechargement de la der
 
 Pendant la partie, un petit bouton "⏭" discret en haut à droite (à côté des réglages) permet de passer immédiatement à la question suivante — utile pour spammer et arriver vite au moment qu'on veut tester, sans attendre le texte ou les délais.
 
-Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.36`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes.
+Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.40`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes.
 
 Sur l'écran-titre, un bouton "partager" ouvre une fenêtre avec deux boutons (iPhone / Android) : chacun copie dans le presse-papiers un message prêt à envoyer, avec le lien du jeu (`https://peur.pages.dev`) et les instructions d'installation adaptées à la plateforme (ajout à l'écran d'accueil via Safari ou Chrome). Constantes `SHARE_URL`, `SHARE_MSG_IOS`, `SHARE_MSG_ANDROID` dans le script.
 
@@ -110,7 +124,7 @@ Il existe aussi un "dossier" caché, jamais indiqué à l'écran : un appui long
 
 ## Vie privée
 
-Rien n'est envoyé à un serveur : pas de backend, pas d'analytics, pas de tracking. Le prénom et le nom saisis restent locaux à l'appareil (`localStorage`), jamais transmis. Les seules autres données stockées sont locales également : nombre de tests passés, dernière visite, nombre de mauvaises fins, préférences d'affichage.
+Rien n'est envoyé à un serveur : pas de backend, pas d'analytics, pas de tracking. Le prénom et le nom saisis restent locaux à l'appareil (`localStorage`), jamais transmis. Les seules autres données stockées sont locales également : nombre de tests passés, dernière visite, détail des fins déjà obtenues, préférences d'affichage. Le profil psychologique (les quatre axes) n'est, lui, jamais sauvegardé — il est recalculé de zéro à chaque partie. Seule la trace des fins déjà vues et du nombre de resets (`letest_trace_v1`) persiste durablement, y compris après "tout oublier".
 
 ## Historique
 
