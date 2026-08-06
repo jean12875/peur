@@ -650,11 +650,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.62";
+const APP_VERSION = "1.63";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.63", "Correctif de la création de profil : le nombre d'itérations utilisé pour protéger le mot de passe dépassait la limite autorisée par l'hébergeur, ce qui empêchait tous les comptes de se créer."],
   ["1.62", "Diagnostic temporaire sur les erreurs de création de profil, pour trouver pourquoi certaines connexions au compte échouent."],
   ["1.61", "Correctif d'affichage : texte des champs du formulaire de profil trop peu lisible sur fond bleu, éclairci."],
   ["1.60", "Nouveau formulaire d'entrée. Possibilité de créer un profil (avec mot de passe) pour retrouver sa progression sur un autre appareil. Une page de badges à débloquer, accessible depuis l'écran-titre."],

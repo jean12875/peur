@@ -74,7 +74,9 @@ function hexToBuf(hex) {
   return arr.buffer;
 }
 
-// Dérivation PBKDF2-SHA256, 150000 itérations — jamais de mot de passe en clair stocké.
+// Dérivation PBKDF2-SHA256, 100000 itérations (le maximum autorisé par le
+// runtime Workers de Cloudflare — au-delà, crypto.subtle.deriveBits refuse) —
+// jamais de mot de passe en clair stocké.
 async function hashPassword(password, saltHex) {
   const enc = new TextEncoder();
   const salt = saltHex ? hexToBuf(saltHex) : crypto.getRandomValues(new Uint8Array(16)).buffer;
@@ -87,7 +89,7 @@ async function hashPassword(password, saltHex) {
     ["deriveBits"]
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: 150000, hash: "SHA-256" },
+    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
     keyMaterial,
     256
   );
