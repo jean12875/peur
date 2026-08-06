@@ -44,6 +44,6 @@ export async function onRequestPost(context) {
     if (String(e.message).startsWith("UPSTASH_NOT_CONFIGURED")) {
       return jsonResponse({ error: "Le compte en ligne n'est pas encore configuré sur ce déploiement." }, 503);
     }
-    return jsonResponse({ error: "Erreur serveur." }, 500);
+    return jsonResponse({ error: "Erreur serveur.", detail: String(e.message) }, 500);
   }
 }

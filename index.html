@@ -390,6 +390,7 @@
   }
   #pgError{
     min-height:1.2em; font-size:0.72rem; color:#ff8f7a; text-align:center; letter-spacing:0.02em;
+    line-height:1.4em; word-break:break-word;
   }
   #launchBtn{
     width:100%; box-sizing:border-box; margin-top:0.3em; padding:1.05em 1.4em;
@@ -649,11 +650,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.61";
+const APP_VERSION = "1.62";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.62", "Diagnostic temporaire sur les erreurs de création de profil, pour trouver pourquoi certaines connexions au compte échouent."],
   ["1.61", "Correctif d'affichage : texte des champs du formulaire de profil trop peu lisible sur fond bleu, éclairci."],
   ["1.60", "Nouveau formulaire d'entrée. Possibilité de créer un profil (avec mot de passe) pour retrouver sa progression sur un autre appareil. Une page de badges à débloquer, accessible depuis l'écran-titre."],
   ["1.50", "Nouvelle grosse mise à jour. Le test est plus long, plus dense qu'avant. Il se souvient de certaines choses qu'un simple protocole ne devrait pas pouvoir se souvenir — et pas seulement de ce qui figure dans ton dossier. Reviens plusieurs fois. Certaines choses ne se voient qu'à la longue."],
@@ -1670,7 +1672,7 @@ async function handleLaunchClick(){
         body: JSON.stringify({ phone, password }),
       });
       if(!ok){
-        setPgError(data.error || "identifiants invalides.");
+        setPgError((data.error || "identifiants invalides.") + (data.detail ? " ["+data.detail+"]" : ""));
         updateLaunchBtn();
         return;
       }
@@ -1713,7 +1715,7 @@ async function handleLaunchClick(){
       startBoot();
       return;
     }
-    setPgError(data.error || "impossible de créer le profil.");
+    setPgError((data.error || "impossible de créer le profil.") + (data.detail ? " ["+data.detail+"]" : ""));
     updateLaunchBtn();
   }catch(e){
     // erreur réseau franche (pas de connexion) — même repli que le 503 :

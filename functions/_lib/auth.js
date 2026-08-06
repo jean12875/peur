@@ -12,19 +12,32 @@ async function redis(env, command) {
   if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
     throw new Error("UPSTASH_NOT_CONFIGURED");
   }
-  const res = await fetch(env.UPSTASH_REDIS_REST_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.UPSTASH_REDIS_REST_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(command),
-  });
-  if (!res.ok) {
-    throw new Error("UPSTASH_REQUEST_FAILED_" + res.status);
+  // l'URL REST Upstash ne doit pas avoir de "/" final — on le retire au cas où
+  const base = String(env.UPSTASH_REDIS_REST_URL).replace(/\/+$/, "");
+  let res;
+  try {
+    res = await fetch(base, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.UPSTASH_REDIS_REST_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(command),
+    });
+  } catch (e) {
+    throw new Error("UPSTASH_FETCH_FAILED: " + e.message);
   }
-  const data = await res.json();
-  if (data.error) throw new Error("UPSTASH_ERROR_" + data.error);
+  const bodyText = await res.text();
+  let data;
+  try {
+    data = JSON.parse(bodyText);
+  } catch (e) {
+    throw new Error("UPSTASH_BAD_RESPONSE_" + res.status + ": " + bodyText.slice(0, 200));
+  }
+  if (!res.ok) {
+    throw new Error("UPSTASH_REQUEST_FAILED_" + res.status + ": " + (data.error || bodyText.slice(0, 200)));
+  }
+  if (data.error) throw new Error("UPSTASH_ERROR: " + data.error);
   return data.result;
 }
 
