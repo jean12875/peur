@@ -1,6 +1,7 @@
 import {
   SESSION_TTL_SECONDS,
   redis,
+  errorCode,
   normalizePhone,
   accountKey,
   sessionKey,
@@ -65,8 +66,6 @@ export async function onRequestPost(context) {
     if (String(e.message).startsWith("UPSTASH_NOT_CONFIGURED")) {
       return jsonResponse({ error: "Le compte en ligne n'est pas encore configuré sur ce déploiement." }, 503);
     }
-    // TODO (débogage temporaire) : retirer "detail" une fois la connexion à
-    // Upstash confirmée fonctionnelle en production.
-    return jsonResponse({ error: "Erreur serveur.", detail: String(e.message) }, 500);
+    return jsonResponse({ error: "Erreur serveur.", code: errorCode(e) }, 500);
   }
 }

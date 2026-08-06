@@ -41,6 +41,21 @@ async function redis(env, command) {
   return data.result;
 }
 
+// Traduit une erreur interne en petit code stable, sans jamais exposer le
+// détail technique brut au joueur — utile pour signaler un bug précisément
+// sans publier de token, d'URL ou de message d'erreur interne.
+function errorCode(e) {
+  const msg = String((e && e.message) || e || "");
+  if (msg.startsWith("UPSTASH_NOT_CONFIGURED")) return "CONF";
+  if (msg.startsWith("UPSTASH_FETCH_FAILED")) return "NET";
+  const badRes = msg.match(/^UPSTASH_BAD_RESPONSE_(\d+)/);
+  if (badRes) return "RES-" + badRes[1];
+  const reqFail = msg.match(/^UPSTASH_REQUEST_FAILED_(\d+)/);
+  if (reqFail) return "REQ-" + reqFail[1];
+  if (msg.startsWith("UPSTASH_ERROR")) return "DB";
+  return "UNK";
+}
+
 function normalizePhone(phone) {
   return String(phone || "").replace(/[^\d+]/g, "");
 }
@@ -133,6 +148,7 @@ function publicAccount(account) {
 export {
   SESSION_TTL_SECONDS,
   redis,
+  errorCode,
   normalizePhone,
   accountKey,
   sessionKey,
