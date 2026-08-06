@@ -46,21 +46,23 @@
   html,body{
     margin:0; padding:0; width:100%;
     height:100%;
-    height:calc(var(--vh, 1vh) * 100);
+    height:calc(var(--vh, 1vh) * 100 + env(safe-area-inset-bottom, 0px));
     background:#050506; overflow:hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     user-select:none; -webkit-user-select:none;
     touch-action:none;
     overscroll-behavior:none;
   }
-  /* hauteur : uniquement le fallback JS (--vh, recalculé sur resize/orientation).
-     100dvh a été essayé mais certaines WKWebView standalone iOS le déclarent
-     supporté tout en le calculant faux (bande résiduelle en bas) — comme il
-     est syntaxiquement valide, il gagnait quand même la cascade CSS s'il était
-     déclaré après. On ne garde donc que la valeur mesurée en JS, seule fiable ici. */
+  /* hauteur : fallback JS (--vh, recalculé sur resize/orientation) — mais
+     window.innerHeight/visualViewport.height s'arrêtent avant la zone de la
+     barre d'accueil en bas (contrairement à 100vh/100dvh + viewport-fit=cover
+     en CSS pur), d'où la bande noire résiduelle malgré --vh : on compense en
+     rajoutant explicitement env(safe-area-inset-bottom) par-dessus.
+     100dvh seul avait aussi été essayé mais certaines WKWebView standalone iOS
+     le déclarent supporté tout en le calculant faux — retiré pour cette raison. */
   #app{ position:fixed; inset:0; width:100vw;
     height:100%;
-    height:calc(var(--vh, 1vh) * 100);
+    height:calc(var(--vh, 1vh) * 100 + env(safe-area-inset-bottom, 0px));
     background:#d9d4c6; overflow:hidden; }
   canvas{ position:absolute; inset:0; display:block; }
 
