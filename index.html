@@ -223,6 +223,19 @@
   }
   #gear.active{ border-color:#6a9fdc; color:#6a9fdc; background:rgba(106,159,220,0.12); }
 
+  /* bouton dev : passe à la question suivante sans attendre, pour tester vite.
+     discret (faible opacité) pour ne pas polluer l'ambiance à l'écran */
+  #devSkip{
+    position:absolute; top:calc(1em + env(safe-area-inset-top)); right:calc(1em + env(safe-area-inset-right)); z-index:60;
+    width:34px; height:34px; border-radius:50%;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#999;
+    display:flex; align-items:center; justify-content:center; font-size:0.85rem; cursor:pointer;
+    opacity:0.35; transition:opacity .2s ease, border-color .2s ease, color .2s ease;
+    user-select:none;
+  }
+  #devSkip:active{ opacity:0.9; border-color:#6a9fdc; color:#6a9fdc; }
+  #devSkip.hide{ display:none; }
+
   /* ---------- porte d'entrée : formulaire + notifications ---------- */
   #permGate{
     position:absolute; inset:0; z-index:85; display:none; align-items:center; justify-content:center;
@@ -403,6 +416,7 @@
   </div>
 
   <div id="gear" title="paramètres">☾</div>
+  <div id="devSkip" title="skip (dev)">⏭</div>
 </div>
 
 <script>
@@ -1500,6 +1514,10 @@ const QUESTIONS = [
 ];
 
 let qIndex = -1;
+// jeton de génération : incrémenté à chaque nextQuestion(), permet d'invalider les
+// setTimeout d'une chaîne d'avancement plus ancienne (utile quand le bouton skip
+// force le passage à la question suivante alors qu'une chaîne précédente tournait déjà)
+let advanceGen = 0;
 let disturbCount = 0;
 let waitingAnswer = false;
 
@@ -1589,6 +1607,7 @@ function nextQuestion(){
   if(qIndex >= QUESTIONS.length){ concludeTest(); return; }
   const q = QUESTIONS[qIndex];
   const txt = typeof q.text === "function" ? q.text() : q.text;
+  const gen = ++advanceGen;
 
   waitingAnswer = false;
   setButtonsEnabled(false);
@@ -1601,14 +1620,14 @@ function nextQuestion(){
 
   const delay = q.freeze || randRange(500,900);
   setTimeout(()=>{
-    if(state!==STATE.PLAYING) return;
+    if(state!==STATE.PLAYING || gen!==advanceGen) return;
     if(q.effect) q.effect();
     typeTvText(txt, !!q.corrupt, ()=>{
-      if(state!==STATE.PLAYING) return;
+      if(state!==STATE.PLAYING || gen!==advanceGen) return;
       waitingAnswer = !q.corrupt && !q.auto;
       setButtonsEnabled(!q.corrupt && !q.auto);
       if(q.corrupt || q.auto){
-        setTimeout(()=>{ if(state===STATE.PLAYING) nextQuestion(); }, q.holdFor || q.freeze || 1500);
+        setTimeout(()=>{ if(state===STATE.PLAYING && gen===advanceGen) nextQuestion(); }, q.holdFor || q.freeze || 1500);
       }
     });
   }, delay);
@@ -1657,6 +1676,29 @@ document.getElementById("btnYes").addEventListener("click", (e)=>{ e.stopPropaga
 document.getElementById("btnNo").addEventListener("click", (e)=>{ e.stopPropagation(); answer(false); });
 document.getElementById("btnYes").addEventListener("pointerdown",(e)=>e.stopPropagation());
 document.getElementById("btnNo").addEventListener("pointerdown",(e)=>e.stopPropagation());
+
+// bouton dev : avance immédiatement, qu'on soit en train d'attendre une réponse,
+// en train d'écrire le texte, en pause auto (holdFor), ou même dans une séquence
+// spéciale (blanc, noir) — pensé pour spammer et arriver vite au moment voulu
+function devSkip(){
+  if(state!==STATE.PLAYING) return;
+  vibrate([6]);
+  if(waitingAnswer){
+    answer(true);
+    return;
+  }
+  clearTypingTimeouts();
+  typingActive = false;
+  overlayActive = false;
+  document.getElementById("heavenOverlay").classList.remove("show");
+  document.getElementById("blackout").classList.remove("show");
+  document.getElementById("tvScreen").classList.remove("success");
+  applyAlertVisual(false, false);
+  setRoomDark(false);
+  nextQuestion();
+}
+document.getElementById("devSkip").addEventListener("click", (e)=>{ e.stopPropagation(); devSkip(); });
+document.getElementById("devSkip").addEventListener("pointerdown",(e)=>e.stopPropagation());
 
 function concludeTest(){
   if(disturbCount <= 1){ endQuiet(); } else { endDisturbing(); }

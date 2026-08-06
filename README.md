@@ -91,6 +91,8 @@ Un contexte sécurisé (`localhost` ou HTTPS) est recommandé : les notification
 
 Sur l'écran-titre, un petit bouton "actualiser" force le rechargement de la dernière version : il désinscrit le service worker, vide le cache, puis recharge la page. Pratique pour tester une nouvelle version sans attendre que le cache expire de lui-même.
 
+Pendant la partie, un petit bouton "⏭" discret en haut à droite (à côté des réglages) permet de passer immédiatement à la question suivante — utile pour spammer et arriver vite au moment qu'on veut tester, sans attendre le texte ou les délais.
+
 ## Publier sur GitHub Pages
 
 1. Pousse ces fichiers à la racine du repo `peur`, branche `main`.
