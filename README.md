@@ -95,7 +95,7 @@ Sur l'écran-titre, un petit bouton "actualiser" force le rechargement de la der
 
 Pendant la partie, un petit bouton "⏭" discret en haut à droite (à côté des réglages) permet de passer immédiatement à la question suivante — utile pour spammer et arriver vite au moment qu'on veut tester, sans attendre le texte ou les délais.
 
-Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.34`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes.
+Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.35`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes.
 
 ## Publier sur GitHub Pages
 

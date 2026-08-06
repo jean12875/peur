@@ -222,7 +222,7 @@
     color:#d8d8d8; font-size:0.85rem; letter-spacing:0.25em; text-transform:uppercase; cursor:pointer; font-family:inherit;
   }
   .startbtn:active{ background:rgba(255,255,255,0.08); }
-  .miniline{ position:absolute; bottom:2.2em; left:0; right:0; text-align:center; font-size:0.7rem; color:#4a4a4a; letter-spacing:0.15em; }
+  .miniline{ position:absolute; bottom:calc(2.6em + env(safe-area-inset-bottom, 0px)); left:0; right:0; text-align:center; font-size:0.7rem; color:#4a4a4a; letter-spacing:0.15em; }
   .miniline button{ background:none;border:none;color:#4a4a4a;font-size:0.7rem;letter-spacing:0.15em; text-decoration:underline; cursor:pointer; padding:0.6em; font-family:inherit; }
   .minisep{ opacity:0.35; }
 
@@ -498,11 +498,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.34";
+const APP_VERSION = "1.35";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.35", "Les liens \"tout oublier / actualiser / version\" remontés légèrement, pour rester loin de la barre d'accueil en bas."],
   ["1.34", "Retour en arrière : la simplification du plein écran de la 1.33 avait fait réapparaître la bande noire. Revenu à l'approche de la 1.32, confirmée correcte."],
   ["1.33", "Nouvelle approche du plein écran iOS tentée (plus simple en théorie) — annulée en 1.34, elle a réintroduit le bug. Ajout de cet historique des versions."],
   ["1.32", "Correctif du plein écran iOS (bande noire en bas), confirmé correct par capture d'écran."],
