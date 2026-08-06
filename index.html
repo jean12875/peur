@@ -579,13 +579,14 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.40";
+const APP_VERSION = "1.41";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
-  ["1.40", "Grosse mise à jour : profil psychologique caché à plusieurs axes (jamais un seul trait dominant), deux vraies bifurcations de questions, plus de 230 questions au total (dont certaines réservées à des joueurs ayant déjà vécu certaines fins), et 8 fins distinctes au lieu de 2. \"Tout oublier\" garde désormais une trace cachée qui survit au reset."],
-  ["1.36", "Ajout d'un bouton \"partager\" (copie un message avec le lien et les instructions d'installation, iPhone ou Android) et d'un dossier confidentiel caché (appui long sur le titre)."],
+  ["1.41", "Relecture complète après la grosse mise à jour : quelques questions reformulées pour rester cohérentes, quelques phrases resserrées."],
+  ["1.40", "Grosse mise à jour. Le test se comporte différemment selon la façon dont tu réponds, bien plus qu'avant — et ça va plus loin que ce que cette ligne devrait t'en dire. Beaucoup plus de contenu, beaucoup plus de fins possibles. Et une mémoire qui va plus loin que ce que le bouton \"tout oublier\" laisse croire."],
+  ["1.36", "Ajout d'un bouton \"partager\" (copie un lien et des instructions d'installation, iPhone ou Android). Autre chose a été ajouté ce jour-là aussi. Tu la trouveras peut-être."],
   ["1.35", "Les liens \"tout oublier / actualiser / version\" remontés légèrement, pour rester loin de la barre d'accueil en bas."],
   ["1.34", "Retour en arrière : la simplification du plein écran de la 1.33 avait fait réapparaître la bande noire. Revenu à l'approche de la 1.32, confirmée correcte."],
   ["1.33", "Nouvelle approche du plein écran iOS tentée (plus simple en théorie) — annulée en 1.34, elle a réintroduit le bug. Ajout de cet historique des versions."],
@@ -1749,7 +1750,7 @@ const QUESTIONS = [
     effect: ()=>triggerAmbientGlitch() },
   { text:"Serais-tu prêt à répondre pour quelqu'un d'autre, s'il te le demandait ?", skipIf: ()=> branch1!=="soumission",
     weight: (y)=>({ soumission: y?0.4:0 }) },
-  { text:"Combien de fois as-tu dit non, vraiment non, depuis le début ?", skipIf: ()=> branch1!=="soumission", weight: (y)=>({ soumission: y?0:0.3 }) },
+  { text:"As-tu dit non, ne serait-ce qu'une seule fois, depuis le début ?", skipIf: ()=> branch1!=="soumission", weight: (y)=>({ soumission: y?-0.2:0.4 }) },
   { text:"Le protocole te remercie de ta docilité. Ça continue.", auto:true, holdFor:2200, skipIf: ()=> branch1!=="soumission",
     effect: ()=>triggerSuccessPulse() },
 
@@ -1761,7 +1762,7 @@ const QUESTIONS = [
   { text:"Cherches-tu la sortie, du coin de l'œil, même maintenant ?", skipIf: ()=> branch1!=="mefiance", weight: (y)=>({ mefiance: y?0.4:0 }) },
   { text:"Crois-tu qu'on t'observe par autre chose que cet écran ?", skipIf: ()=> branch1!=="mefiance", effect: ()=>triggerLightFlicker(),
     weight: (y)=>({ mefiance: y?0.5:0 }) },
-  { text:"Si tu avais raison de te méfier, qu'est-ce que ça changerait, concrètement ?", skipIf: ()=> branch1!=="mefiance" },
+  { text:"Si tu avais raison de te méfier, est-ce que ça changerait quoi que ce soit, concrètement ?", skipIf: ()=> branch1!=="mefiance" },
   { text:"Le protocole a remarqué ta méfiance. Ce n'est pas la première fois qu'on la voit.", auto:true, holdFor:2600, skipIf: ()=> branch1!=="mefiance",
     effect: ()=>notifyDuringGame("Sujet classé : méfiant.") },
   { text:"Penses-tu que ce test a été conçu pour te piéger ?", expected:"no", skipIf: ()=> branch1!=="mefiance", weight: (y)=>({ mefiance: y?0:0.6 }) },
@@ -1817,7 +1818,8 @@ const QUESTIONS = [
     weight: (y)=>({ dissociation: y?0:0.3 }) },
   { text:"As-tu remarqué que tu ne ressens presque plus rien, depuis un moment ?", skipIf: ()=> branch1!=="dissociation",
     weight: (y)=>({ dissociation: y?0.4:0 }) },
-  { text:"Combien de temps s'est-il écoulé, selon toi, depuis le début de ce test ?", skipIf: ()=> branch1!=="dissociation" },
+  { text:"As-tu la moindre idée précise du temps qui s'est écoulé depuis le début de ce test ?", skipIf: ()=> branch1!=="dissociation",
+    weight: (y)=>({ dissociation: y?-0.2:0.3 }) },
   { text:"Le protocole a remarqué : ce sujet se détache. C'est courant, à ce stade.", auto:true, holdFor:2600, skipIf: ()=> branch1!=="dissociation",
     effect: ()=>{ notifyDuringGame("Sujet classé : détaché."); coldSilenceSound(); } },
   { text:"Si tu essayais de sentir tes propres mains, là, maintenant, y arriverais-tu vraiment ?", skipIf: ()=> branch1!=="dissociation",
@@ -1831,7 +1833,7 @@ const QUESTIONS = [
   { text:"Si on te disait que ça fait des heures, pas des minutes, le croirais-tu ?", skipIf: ()=> branch1!=="dissociation",
     weight: (y)=>({ dissociation: y?0.3:0 }) },
   { text:"Ton visage, en ce moment — a-t-il encore une expression ?", skipIf: ()=> branch1!=="dissociation" },
-  { text:"Certains sujets, à ce stade, ne se souviennent déjà plus pourquoi ils ont commencé. Toi ?", expected:"yes", skipIf: ()=> branch1!=="dissociation",
+  { text:"Certains sujets, à ce stade, ne se souviennent déjà plus pourquoi ils ont commencé. Toi, tu t'en souviens encore ?", expected:"yes", skipIf: ()=> branch1!=="dissociation",
     weight: (y)=>({ dissociation: y?0:0.3 }) },
   { text:"Ça ne fait plus vraiment mal, n'est-ce pas, de répondre ?", skipIf: ()=> branch1!=="dissociation", weight: (y)=>({ dissociation: y?0.3:0 }) },
   { text:"Le vide, entre deux questions, commence-t-il à te sembler normal ?", skipIf: ()=> branch1!=="dissociation",
@@ -1845,7 +1847,7 @@ const QUESTIONS = [
     weight: (y)=>({ dissociation: y?0.4:0 }) },
 
   /* reconvergence — les branches se referment ici, sans jamais être nommées */
-  { text:"Peu importe le chemin. Ça finit toujours par se rejoindre, ici.", auto:true, holdFor:2400, effect: ()=>triggerAmbientGlitch() },
+  { text:"On se retrouve toujours ici, à ce stade, quoi qu'il arrive.", auto:true, holdFor:2400, effect: ()=>triggerAmbientGlitch() },
 
   /* 26 palier — le test relâche la pression, brièvement */
   { text:"Veuillez patienter. Le test va reprendre sous peu.", auto:true, holdFor:3400 },
@@ -1992,12 +1994,12 @@ const QUESTIONS = [
     weight: (y)=>({ mefiance: y?0.5:-0.2 }) },
   { text:"On commence à ne plus savoir quoi faire de toi. C'est rare, ici.", auto:true, holdFor:2600, skipIf: ()=> branch2!=="mefiance",
     effect: ()=>triggerSignalCorruption() },
-  { text:"Si tu arrêtais de répondre, maintenant, tout de suite — que crois-tu qu'il se passerait ?", skipIf: ()=> branch2!=="mefiance",
+  { text:"Si tu arrêtais de répondre, maintenant, tout de suite, crois-tu qu'il se passerait vraiment quelque chose ?", skipIf: ()=> branch2!=="mefiance",
     weight: (y)=>({ mefiance: y?0.4:0 }) },
   { text:"Le protocole insiste : continuer est toujours la meilleure option. Le crois-tu encore ?", expected:"yes", skipIf: ()=> branch2!=="mefiance",
     weight: (y)=>({ mefiance: y?-0.4:0.5 }) },
-  { text:"Un sujet \"incomplet\" n'a plus de dossier du tout, au bout d'un moment. Est-ce que ça t'effraie, ou est-ce que ça te libère ?",
-    skipIf: ()=> branch2!=="mefiance" },
+  { text:"Un sujet \"incomplet\" n'a plus de dossier du tout, au bout d'un moment. Est-ce que ça t'effraie ?",
+    skipIf: ()=> branch2!=="mefiance", weight: (y)=>({ mefiance: y?0:0.3 }) },
   { text:"Tu trembles, ou c'est l'écran. On ne sait plus très bien, à ce stade.", auto:true, holdFor:2600, skipIf: ()=> branch2!=="mefiance",
     effect: ()=>{ triggerAmbientGlitch(); vibrate(save.reduceEffects?[]:[0,20,120,20]); } },
   { text:"Dernière chance de te taire pour de bon. Le feras-tu ?", skipIf: ()=> branch2!=="mefiance", weight: (y)=>({ mefiance: y?0.4:0 }) },
@@ -2013,7 +2015,8 @@ const QUESTIONS = [
     weight: (y)=>({ lucidite: y?0.3:0 }) },
   { text:"Si un autre sujet répondait exactement comme toi, à chaque question, seriez-vous vraiment différents ?", expected:"no", skipIf: ()=> branch2!=="lucidite",
     weight: (y)=>({ lucidite: y?0.3:0 }) },
-  { text:"Le protocole appelle ça une coïncidence statistique. Toi, comment l'appellerais-tu ?", skipIf: ()=> branch2!=="lucidite" },
+  { text:"Le protocole appelle ça une coïncidence statistique. Toi, y crois-tu vraiment ?", expected:"no", skipIf: ()=> branch2!=="lucidite",
+    weight: (y)=>({ lucidite: y?0:0.3 }) },
   { text:"As-tu remarqué que \"le sujet précédent\" n'a jamais eu de nom, dans tout ce texte ?", expected:"yes", skipIf: ()=> branch2!=="lucidite",
     weight: (y)=>({ lucidite: y?0.4:0 }) },
   { text:"Et si c'était volontaire, pour que ce nom puisse être n'importe lequel — même le tien ?",
@@ -2049,12 +2052,12 @@ const QUESTIONS = [
   { text:"Une dernière chose à comprendre, avant la suite : comprendre ne t'a jamais sorti d'ici, une seule fois.", skipIf: ()=> branch2!=="lucidite" },
 
   /* --- branche "dissociation" (round 2) : l'effacement, jusqu'à la disparition --- */
-  { text:"Sens-tu encore la chaise sous toi, ou est-ce que ça aussi commence à s'effacer ?", skipIf: ()=> branch2!=="dissociation",
+  { text:"Sens-tu encore vraiment la chaise sous toi, là, maintenant ?", skipIf: ()=> branch2!=="dissociation",
     weight: (y)=>({ dissociation: y?0:0.3 }) },
-  { text:"Certains sujets, à ce stade, ne se souviennent plus pourquoi ils sont entrés dans cette pièce. Toi, encore un peu ?",
+  { text:"Certains sujets, à ce stade, ne se souviennent plus pourquoi ils sont entrés dans cette pièce. Toi, tu t'en souviens encore, un peu ?",
     expected:"yes", skipIf: ()=> branch2!=="dissociation", weight: (y)=>({ dissociation: y?0:0.3 }) },
-  { text:"Si tu disparaissais, là, maintenant, sans bruit — combien de temps avant que quelqu'un le remarque, dehors ?",
-    skipIf: ()=> branch2!=="dissociation", weight: (y)=>({ dissociation: y?0.3:0 }) },
+  { text:"Si tu disparaissais, là, maintenant, sans bruit, quelqu'un le remarquerait-il rapidement, dehors ?", expected:"yes",
+    skipIf: ()=> branch2!=="dissociation", weight: (y)=>({ dissociation: y?-0.2:0.4 }) },
   { text:"On ne va pas te mentir : certains dossiers finissent par se refermer tout seuls, faute de nouvelles.", auto:true, holdFor:2800,
     skipIf: ()=> branch2!=="dissociation", effect: ()=>coldSilenceSound() },
   { text:"Ça ne te fait plus vraiment quelque chose, n'est-ce pas, cette phrase ?", skipIf: ()=> branch2!=="dissociation",
@@ -2067,13 +2070,13 @@ const QUESTIONS = [
     weight: (y)=>({ dissociation: y?0.3:0 }) },
   { text:"Personne ne viendra frapper à cette porte pour toi ce soir. L'avais-tu déjà accepté ?", expected:"yes", skipIf: ()=> branch2!=="dissociation",
     effect: ()=>heartSkipSound(), weight: (y)=>({ dissociation: y?0.3:0 }) },
-  { text:"Le vide que tu ressens, là — est-ce toujours désagréable, ou est-ce en train de devenir un endroit où rester ?",
-    skipIf: ()=> branch2!=="dissociation" },
+  { text:"Le vide que tu ressens, là — commence-t-il à ressembler à un endroit où tu pourrais rester ?",
+    skipIf: ()=> branch2!=="dissociation", weight: (y)=>({ dissociation: y?0.4:0 }) },
   { text:"Certains dossiers, une fois clos, ne sont plus jamais rouverts, par personne, jamais.", auto:true, holdFor:2800,
     skipIf: ()=> branch2!=="dissociation", effect: ()=>coldSilenceSound() },
   { text:"As-tu encore quelque chose à perdre, à ce stade, vraiment ?", expected:"yes", skipIf: ()=> branch2!=="dissociation",
     weight: (y)=>({ dissociation: y?-0.3:0.3 }) },
-  { text:"Ta dernière pensée claire, avant cette phrase — t'en souviens-tu encore, ou déjà plus ?", skipIf: ()=> branch2!=="dissociation",
+  { text:"Ta dernière pensée claire, avant cette phrase — t'en souviens-tu encore ?", skipIf: ()=> branch2!=="dissociation",
     weight: (y)=>({ dissociation: y?0:0.3 }) },
   { text:"Le protocole continuera très bien sans que tu ressentes quoi que ce soit. Il n'a jamais eu besoin de ça.", auto:true, holdFor:2800,
     skipIf: ()=> branch2!=="dissociation" },
@@ -2094,7 +2097,7 @@ const QUESTIONS = [
     weight: (y)=>({ dissociation: y?-0.2:0.3 }) },
 
   /* reconvergence finale */
-  { text:"Encore une fois : ça finit toujours par se rejoindre.", auto:true, holdFor:2200 },
+  { text:"Encore une fois : on se retrouve ici, comme toujours.", auto:true, holdFor:2200 },
 
   /* 44 dossier complet — juste avant la fin */
   { text:"Le dossier à ton nom contient maintenant plus de pages qu'au début. Le savais-tu ?", auto:true, holdFor:2600 },
