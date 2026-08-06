@@ -13,25 +13,52 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
+<script>
+// hauteur réelle du viewport, mesurée en JS — contourne les bugs connus de 100vh/100dvh
+// dans les WebView iOS en mode standalone (PWA ajoutée à l'écran d'accueil), qui
+// laissent parfois une bande noire résiduelle en bas. Réglé avant le premier rendu.
+// NB : la variante "position:fixed + inset:0 seul, sans hauteur explicite" a été
+// essayée (pensée plus robuste en théorie) mais a fait réapparaître le bug en
+// pratique — revenu à cette version-ci, confirmée correcte par capture d'écran.
+(function(){
+  function currentHeight(){
+    return (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  }
+  function setVH(){ document.documentElement.style.setProperty("--vh", (currentHeight()*0.01)+"px"); }
+  setVH();
+  window.addEventListener("resize", setVH);
+  window.addEventListener("orientationchange", function(){ setTimeout(setVH, 120); });
+  window.addEventListener("pageshow", setVH);
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden) setVH(); });
+  if(window.visualViewport){
+    window.visualViewport.addEventListener("resize", setVH);
+  }
+  setTimeout(setVH, 300);
+  setTimeout(setVH, 1000);
+  setTimeout(setVH, 2000);
+})();
+</script>
 <style>
   :root{ color-scheme: dark; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body{
-    margin:0; padding:0; width:100%; height:100%;
+    margin:0; padding:0; width:100%;
+    height:100%;
+    height:calc(var(--vh, 1vh) * 100 + env(safe-area-inset-bottom, 0px));
     background:#050506; overflow:hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     user-select:none; -webkit-user-select:none;
     touch-action:none;
     overscroll-behavior:none;
   }
-  /* position:fixed + inset:0, sans largeur/hauteur explicite : pour un élément
-     fixed, inset:0 suffit à couvrir exactement le viewport visuel réel tel que
-     le navigateur le connaît en interne (y compris les zones de sécurité, avec
-     viewport-fit=cover) — plus fiable que toute approximation en vh/dvh/JS,
-     qui a produit tour à tour une bande noire en bas puis un léger rognage
-     ailleurs selon la façon dont chaque navigateur résolvait les contraintes
-     concurrentes (top/bottom explicites + hauteur explicite = sur-contraint). */
-  #app{ position:fixed; inset:0; background:#d9d4c6; overflow:hidden; }
+  /* hauteur : window.innerHeight/visualViewport.height s'arrêtent avant la zone
+     de la barre d'accueil en bas sur iOS standalone — compensé en rajoutant
+     explicitement env(safe-area-inset-bottom). Confirmé correct par capture
+     d'écran sur iPhone (écran-titre et écran de jeu, plus de bande en bas). */
+  #app{ position:fixed; inset:0; width:100vw;
+    height:100%;
+    height:calc(var(--vh, 1vh) * 100 + env(safe-area-inset-bottom, 0px));
+    background:#d9d4c6; overflow:hidden; }
   canvas{ position:absolute; inset:0; display:block; }
 
   /* ---------- téléviseur ---------- */
@@ -471,13 +498,14 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.33";
+const APP_VERSION = "1.34";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
-  ["1.33", "Nouvelle approche du plein écran iOS (plus simple et plus fiable), ajout de cet historique des versions."],
-  ["1.32", "Correctif du plein écran iOS (bande noire en bas), première tentative avec compensation de hauteur."],
+  ["1.34", "Retour en arrière : la simplification du plein écran de la 1.33 avait fait réapparaître la bande noire. Revenu à l'approche de la 1.32, confirmée correcte."],
+  ["1.33", "Nouvelle approche du plein écran iOS tentée (plus simple en théorie) — annulée en 1.34, elle a réintroduit le bug. Ajout de cet historique des versions."],
+  ["1.32", "Correctif du plein écran iOS (bande noire en bas), confirmé correct par capture d'écran."],
   ["1.31", "Séquence d'opération refaite : vrai son de battement de cœur fourni, sous-titres blancs à l'écran, plus aucune voix de synthèse."],
   ["1.30", "Fiabilisation du plein écran (recalculs de la hauteur visible sur iPhone)."],
   ["1.29", "Bouton \"version\" ajouté à l'écran-titre."],

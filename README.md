@@ -67,6 +67,8 @@ Appuyer sur "commencer" tente de passer en plein écran réel (API Fullscreen), 
 
 Même installé en mode app, une bande noire en bas a mis plusieurs correctifs à être vraiment comprise. D'abord `100dvh` (retiré — reconnu comme valide par la WKWebView standalone même quand sa valeur calculée est fausse, donc il gagnait toujours la cascade CSS). Ensuite un calcul JS de secours (`--vh`, basé sur `window.innerHeight`/`visualViewport.height`, recalculé au chargement, à la rotation et au retour au premier plan) — qui n'a pas suffi non plus. Une capture d'écran envoyée par un testeur a montré que le haut fonctionnait déjà (le fond passe bien sous l'heure/wifi/batterie) mais que le bas restait toujours court : cause la plus probable, `window.innerHeight` et `visualViewport.height` s'arrêtent avant la zone de la barre d'accueil, contrairement à `100vh`/`100dvh` combinés à `viewport-fit=cover` en CSS pur qui, eux, couvrent tout l'écran. Le correctif ajoute explicitement `env(safe-area-inset-bottom)` par-dessus la hauteur calculée en JS. Les boutons et l'icône réglages tiennent aussi compte des zones encoche/barre d'accueil (`env(safe-area-inset-*)`). **Confirmé réglé** par capture d'écran sur iPhone (écran-titre et écran de jeu, plus de bande en bas).
 
+Une variante plus simple a ensuite été tentée (`position:fixed` + `inset:0` seul, sans hauteur explicite du tout, en théorie suffisant et plus robuste) — mais elle a fait réapparaître la bande noire en pratique. Retour à la version ci-dessus, la seule confirmée par capture d'écran réelle. Leçon retenue : ne pas remplacer un correctif validé par une hypothèse plus "élégante" sans nouvelle preuve.
+
 ## Structure du repo
 
 ```
@@ -93,7 +95,7 @@ Sur l'écran-titre, un petit bouton "actualiser" force le rechargement de la der
 
 Pendant la partie, un petit bouton "⏭" discret en haut à droite (à côté des réglages) permet de passer immédiatement à la question suivante — utile pour spammer et arriver vite au moment qu'on veut tester, sans attendre le texte ou les délais.
 
-Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.33`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes.
+Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.34`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes.
 
 ## Publier sur GitHub Pages
 
