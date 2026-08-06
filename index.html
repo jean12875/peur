@@ -13,57 +13,25 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
-<script>
-// hauteur réelle du viewport, mesurée en JS — contourne les bugs connus de 100vh/100dvh
-// dans les WebView iOS en mode standalone (PWA ajoutée à l'écran d'accueil), qui
-// laissent parfois une bande noire résiduelle en bas. Réglé avant le premier rendu.
-(function(){
-  // visualViewport reflète la zone réellement visible (plus fiable que innerHeight
-  // sur iOS dans certains cas) — utilisé en priorité quand disponible
-  function currentHeight(){
-    return (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-  }
-  function setVH(){ document.documentElement.style.setProperty("--vh", (currentHeight()*0.01)+"px"); }
-  setVH();
-  window.addEventListener("resize", setVH);
-  window.addEventListener("orientationchange", function(){ setTimeout(setVH, 120); });
-  window.addEventListener("pageshow", setVH);
-  document.addEventListener("visibilitychange", function(){ if(!document.hidden) setVH(); });
-  if(window.visualViewport){
-    window.visualViewport.addEventListener("resize", setVH);
-  }
-  // en PWA standalone iOS, la hauteur visible peut se stabiliser un instant après le
-  // premier rendu (transition d'affichage de la zone système) — un seul calcul initial
-  // peut donc être pris trop tôt ; on revérifie à quelques reprises juste après
-  setTimeout(setVH, 300);
-  setTimeout(setVH, 1000);
-  setTimeout(setVH, 2000);
-})();
-</script>
 <style>
   :root{ color-scheme: dark; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body{
-    margin:0; padding:0; width:100%;
-    height:100%;
-    height:calc(var(--vh, 1vh) * 100 + env(safe-area-inset-bottom, 0px));
+    margin:0; padding:0; width:100%; height:100%;
     background:#050506; overflow:hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     user-select:none; -webkit-user-select:none;
     touch-action:none;
     overscroll-behavior:none;
   }
-  /* hauteur : fallback JS (--vh, recalculé sur resize/orientation) — mais
-     window.innerHeight/visualViewport.height s'arrêtent avant la zone de la
-     barre d'accueil en bas (contrairement à 100vh/100dvh + viewport-fit=cover
-     en CSS pur), d'où la bande noire résiduelle malgré --vh : on compense en
-     rajoutant explicitement env(safe-area-inset-bottom) par-dessus.
-     100dvh seul avait aussi été essayé mais certaines WKWebView standalone iOS
-     le déclarent supporté tout en le calculant faux — retiré pour cette raison. */
-  #app{ position:fixed; inset:0; width:100vw;
-    height:100%;
-    height:calc(var(--vh, 1vh) * 100 + env(safe-area-inset-bottom, 0px));
-    background:#d9d4c6; overflow:hidden; }
+  /* position:fixed + inset:0, sans largeur/hauteur explicite : pour un élément
+     fixed, inset:0 suffit à couvrir exactement le viewport visuel réel tel que
+     le navigateur le connaît en interne (y compris les zones de sécurité, avec
+     viewport-fit=cover) — plus fiable que toute approximation en vh/dvh/JS,
+     qui a produit tour à tour une bande noire en bas puis un léger rognage
+     ailleurs selon la façon dont chaque navigateur résolvait les contraintes
+     concurrentes (top/bottom explicites + hauteur explicite = sur-contraint). */
+  #app{ position:fixed; inset:0; background:#d9d4c6; overflow:hidden; }
   canvas{ position:absolute; inset:0; display:block; }
 
   /* ---------- téléviseur ---------- */
@@ -242,17 +210,25 @@
   }
   #versionModal.show{ opacity:1; pointer-events:auto; }
   #versionBox{
-    max-width:24em; text-align:center; padding:2em 1.8em;
+    width:100%; max-width:26em; max-height:82vh; text-align:center; padding:1.8em 1.6em 1.4em;
     background:#0d1420; border:1px solid rgba(255,255,255,0.12);
     color:#dce8fb; letter-spacing:0.04em;
+    display:flex; flex-direction:column;
   }
-  #versionBox .vTitle{ font-size:0.72rem; letter-spacing:0.35em; text-transform:uppercase; color:#6a9fdc; margin-bottom:0.8em; }
-  #versionBox .vNum{ font-size:1.5rem; font-weight:200; letter-spacing:0.1em; color:#e6e6e6; margin-bottom:0.9em; }
-  #versionBox .vText{ font-size:0.82rem; line-height:1.65em; color:#9aa4b2; font-weight:300; margin-bottom:1.4em; }
+  #versionBox .vTitle{ font-size:0.72rem; letter-spacing:0.35em; text-transform:uppercase; color:#6a9fdc; margin-bottom:0.8em; flex:none; }
+  #versionBox .vNum{ font-size:1.5rem; font-weight:200; letter-spacing:0.1em; color:#e6e6e6; margin-bottom:0.9em; flex:none; }
+  #versionBox .vText{ font-size:0.82rem; line-height:1.65em; color:#9aa4b2; font-weight:300; margin-bottom:1em; flex:none; }
+  #versionLog{
+    flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    text-align:left; border-top:1px solid rgba(255,255,255,0.1); border-bottom:1px solid rgba(255,255,255,0.1);
+    margin-bottom:1.2em; padding:0.9em 0.2em;
+  }
+  #versionLog .vEntry{ font-size:0.76rem; line-height:1.55em; color:#9aa4b2; font-weight:300; margin-bottom:0.75em; }
+  #versionLog .vEntry b{ color:#c9d6e8; font-weight:600; letter-spacing:0.05em; }
   #versionBox button{
     background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
     font-size:0.78rem; letter-spacing:0.2em; text-transform:uppercase; padding:0.7em 2em;
-    cursor:pointer; font-family:inherit;
+    cursor:pointer; font-family:inherit; flex:none;
   }
   #versionBox button:active{ background:rgba(255,255,255,0.08); }
 
@@ -454,6 +430,7 @@
       <div class="vTitle">LE TEST</div>
       <div class="vNum" id="versionNum"></div>
       <div class="vText">Ce jeu est encore en bêta : il est en développement actif, certaines parties peuvent changer, être corrigées ou ajoutées sans prévenir d'une version à l'autre.</div>
+      <div id="versionLog"></div>
       <button id="versionCloseBtn">fermer</button>
     </div>
   </div>
@@ -492,10 +469,47 @@
    Utilitaires & état persistant
    ============================================================ */
 const SAVE_KEY = "letest_save_v1";
-// version affichée dans la fenêtre "version" de l'écran-titre — à bumper à la main
-// pour les passes de contenu/features notables (pas à chaque petit correctif, contrairement
-// au cache du service worker qui lui doit changer à chaque déploiement)
-const APP_VERSION = "0.9";
+// version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
+// point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
+const APP_VERSION = "1.33";
+// historique, du plus récent au plus ancien — un résumé par version déployée.
+// v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
+// exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
+const VERSION_LOG = [
+  ["1.33", "Nouvelle approche du plein écran iOS (plus simple et plus fiable), ajout de cet historique des versions."],
+  ["1.32", "Correctif du plein écran iOS (bande noire en bas), première tentative avec compensation de hauteur."],
+  ["1.31", "Séquence d'opération refaite : vrai son de battement de cœur fourni, sous-titres blancs à l'écran, plus aucune voix de synthèse."],
+  ["1.30", "Fiabilisation du plein écran (recalculs de la hauteur visible sur iPhone)."],
+  ["1.29", "Bouton \"version\" ajouté à l'écran-titre."],
+  ["1.28", "Voix moins robotiques (débit fragmenté, meilleure voix disponible), nouvelle tentative de plein écran."],
+  ["1.27", "Petit correctif technique."],
+  ["1.26", "Bouton \"skip\" (développement) pour avancer rapidement dans les questions."],
+  ["1.25", "Correctifs : enchaînement après le \"blanc\", voix et sons de la séquence noire, première tentative de plein écran iOS."],
+  ["1.24", "Encore plus d'effets sonores et de questions."],
+  ["1.23", "Voix et battement de cœur qui ralentit pendant la séquence d'opération."],
+  ["1.22", "Tentative de plein écran réel, nouvelles questions."],
+  ["1.21", "Notifications pendant la partie, à la fermeture de l'onglet, et différée après coup."],
+  ["1.20", "Le monstre devient une vraie image, le jeu s'allonge, notifications ajoutées."],
+  ["1.19", "Intégration de vrais sons fournis pour les écrans rouge et vert."],
+  ["1.18", "Corrections : écran rouge instantané, écran vert stable, délais de lecture avant le blanc/le noir."],
+  ["1.17", "Séquence \"as-tu peur du noir ?\", bouton \"actualiser\" pour les tests."],
+  ["1.16", "Écran rouge revisité (fond qui grésille), première apparition du monstre."],
+  ["1.15", "Texte affiché lettre par lettre, écrans de réussite en vert, effets sonores supplémentaires."],
+  ["1.14", "Corrections de superposition visuelle et de timing entre les effets."],
+  ["1.13", "Contexte renforcé, grande passe de relecture et de corrections."],
+  ["1.12", "Retrait des capteurs (caméra, géolocalisation, micro), formulaire prénom/nom simplifié."],
+  ["1.11", "Grésillements d'écran, séquence blanche, séquence noire avec bruits d'opération."],
+  ["1.10", "Essai d'un mécanisme de vue en glissant (finalement abandonné)."],
+  ["1.9", "Réactions qui s'aggravent, première séquence \"paradis puis rouge\"."],
+  ["1.8", "Porte d'entrée avec permissions, capture du prénom et du nom."],
+  ["1.7", "Retrait du jumpscare classique, questions qui réagissent aux réponses précédentes."],
+  ["1.6", "Refonte totale : la salle capitonnée et le téléviseur, comme aujourd'hui."],
+  ["1.5", "Réécriture complète du jeu et nouveaux tests."],
+  ["1.4", "Refonte en 5 épreuves : souffle, miroir, immobilité."],
+  ["1.3", "Détection du regard par caméra, mini-jeu \"se retourner\"."],
+  ["1.2", "Refonte du monstre et des jumpscares, ajout de contenu et de progression."],
+  ["1.1", "Première version : concept et structure de base, installable comme application."]
+];
 const now = () => Date.now();
 const REDUCE_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function randRange(a,b){ return a + Math.random()*(b-a); }
@@ -1995,9 +2009,18 @@ document.getElementById("refreshBtn").addEventListener("click", (e)=>{
     clearCaches().then(done).catch(done);
   }
 });
+function renderVersionLog(){
+  const el = document.getElementById("versionLog");
+  el.innerHTML = VERSION_LOG.map(([v, text])=>{
+    const safe = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    return `<div class="vEntry"><b>v${v}</b> — ${safe}</div>`;
+  }).join("");
+}
 document.getElementById("versionBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
   document.getElementById("versionNum").textContent = "version " + APP_VERSION + " · bêta";
+  renderVersionLog();
+  document.getElementById("versionLog").scrollTop = 0;
   document.getElementById("versionModal").classList.add("show");
 });
 document.getElementById("versionCloseBtn").addEventListener("click", (e)=>{
