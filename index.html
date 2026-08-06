@@ -18,12 +18,26 @@
 // dans les WebView iOS en mode standalone (PWA ajoutée à l'écran d'accueil), qui
 // laissent parfois une bande noire résiduelle en bas. Réglé avant le premier rendu.
 (function(){
-  function setVH(){ document.documentElement.style.setProperty("--vh", (window.innerHeight*0.01)+"px"); }
+  // visualViewport reflète la zone réellement visible (plus fiable que innerHeight
+  // sur iOS dans certains cas) — utilisé en priorité quand disponible
+  function currentHeight(){
+    return (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  }
+  function setVH(){ document.documentElement.style.setProperty("--vh", (currentHeight()*0.01)+"px"); }
   setVH();
   window.addEventListener("resize", setVH);
   window.addEventListener("orientationchange", function(){ setTimeout(setVH, 120); });
   window.addEventListener("pageshow", setVH);
   document.addEventListener("visibilitychange", function(){ if(!document.hidden) setVH(); });
+  if(window.visualViewport){
+    window.visualViewport.addEventListener("resize", setVH);
+  }
+  // en PWA standalone iOS, la hauteur visible peut se stabiliser un instant après le
+  // premier rendu (transition d'affichage de la zone système) — un seul calcul initial
+  // peut donc être pris trop tôt ; on revérifie à quelques reprises juste après
+  setTimeout(setVH, 300);
+  setTimeout(setVH, 1000);
+  setTimeout(setVH, 2000);
 })();
 </script>
 <style>
