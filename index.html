@@ -214,7 +214,7 @@
   }
   #veil.hidden{ opacity:0; pointer-events:none; }
   .levelTag{ font-size:0.72rem; color:#6a6a6a; letter-spacing:0.35em; text-transform:uppercase; margin-bottom:0.6em; }
-  .title{ font-size:clamp(2rem, 8vw, 3.4rem); font-weight:200; letter-spacing:0.3em; margin:0; color:#e6e6e6; text-shadow:0 0 18px rgba(255,255,255,0.08); }
+  .title{ font-size:clamp(2rem, 8vw, 3.4rem); font-weight:200; letter-spacing:0.3em; margin:0; color:#e6e6e6; text-shadow:0 0 18px rgba(255,255,255,0.08); -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
   .flavor{ font-size:clamp(0.82rem, 2.5vw, 1rem); font-weight:300; color:#8a8a8a; max-width:32em; line-height:1.6em; min-height:3em; }
   .stat{ font-size:0.76rem; color:#5c5c5c; letter-spacing:0.1em; text-transform:uppercase; }
   .startbtn{
@@ -258,6 +258,67 @@
     cursor:pointer; font-family:inherit; flex:none;
   }
   #versionBox button:active{ background:rgba(255,255,255,0.08); }
+
+  /* petite fenêtre "partager" — copie un message avec le lien + instructions
+     d'installation adaptées à la plateforme, prêt à coller dans un message */
+  #shareModal{
+    position:fixed; inset:0; z-index:80;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.72);
+    opacity:0; pointer-events:none; transition:opacity 0.35s ease;
+    padding:6vw;
+  }
+  #shareModal.show{ opacity:1; pointer-events:auto; }
+  #shareBox{
+    width:100%; max-width:22em; text-align:center; padding:1.8em 1.6em;
+    background:#0d1420; border:1px solid rgba(255,255,255,0.12);
+    color:#dce8fb; letter-spacing:0.04em;
+  }
+  #shareBtns{ display:flex; gap:0.8em; margin:1.1em 0 1.4em; }
+  #shareBtns button{
+    flex:1; background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
+    font-size:0.78rem; letter-spacing:0.08em; padding:0.85em 0.5em; cursor:pointer; font-family:inherit;
+    transition:border-color .2s ease, color .2s ease;
+  }
+  #shareBtns button.copied{ border-color:#4bdc72; color:#4bdc72; }
+  #shareBox > button{
+    background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
+    font-size:0.78rem; letter-spacing:0.2em; text-transform:uppercase; padding:0.7em 2em;
+    cursor:pointer; font-family:inherit;
+  }
+  #shareBox > button:active{ background:rgba(255,255,255,0.08); }
+
+  /* "dossier" caché — appui long sur le titre de l'écran-titre, jamais annoncé.
+     Look volontairement différent (papier/administratif) pour trancher avec
+     le reste du jeu, comme si on avait trouvé un vrai document sur soi */
+  #dossierModal{
+    position:fixed; inset:0; z-index:81;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.78);
+    opacity:0; pointer-events:none; transition:opacity 0.4s ease;
+    padding:6vw;
+  }
+  #dossierModal.show{ opacity:1; pointer-events:auto; }
+  #dossierBox{
+    width:100%; max-width:24em; max-height:82vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    background:#e6e0cd; color:#1a1a1a; font-family:"Courier New", Courier, monospace;
+    padding:1.6em 1.5em; border:1px solid #999;
+    box-shadow:0 0 40px rgba(0,0,0,0.6);
+  }
+  #dossierBox .dStamp{
+    display:inline-block; border:2px solid #a11; color:#a11; font-weight:800;
+    font-size:0.7rem; letter-spacing:0.15em; padding:0.2em 0.5em; transform:rotate(-4deg);
+    margin-bottom:1em;
+  }
+  #dossierBox .dLine{ font-size:0.8rem; line-height:1.7em; border-bottom:1px dashed #999; padding:0.3em 0; }
+  #dossierBox .dLine b{ color:#000; }
+  #dossierBox .dFooter{ font-size:0.72rem; margin-top:1.1em; color:#444; font-style:italic; line-height:1.5em; }
+  #dossierBox > button{
+    margin-top:1.2em; background:transparent; border:1px solid #444; color:#222;
+    font-size:0.75rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.6em 1.6em;
+    cursor:pointer; font-family:inherit;
+  }
+  #dossierBox > button:active{ background:rgba(0,0,0,0.08); }
 
   #endScreen{
     position:absolute; inset:0; z-index:75; display:flex; align-items:center; justify-content:center;
@@ -449,7 +510,27 @@
     <div class="flavor" id="flavorText">assieds-toi. ce protocole existe depuis longtemps. réponds sincèrement, ça ne prendra pas longtemps.</div>
     <div class="stat" id="statText"></div>
     <button class="startbtn" id="startBtn">commencer</button>
-    <div class="miniline"><button id="resetBtn">tout oublier</button> <span class="minisep">·</span> <button id="refreshBtn">actualiser</button> <span class="minisep">·</span> <button id="versionBtn">version</button></div>
+    <div class="miniline"><button id="resetBtn">tout oublier</button> <span class="minisep">·</span> <button id="refreshBtn">actualiser</button> <span class="minisep">·</span> <button id="versionBtn">version</button> <span class="minisep">·</span> <button id="shareBtn">partager</button></div>
+  </div>
+
+  <div id="shareModal">
+    <div id="shareBox">
+      <div class="vTitle">PARTAGER</div>
+      <div class="vText">Copie un message avec le lien et les instructions d'installation, adaptées à l'appareil de la personne.</div>
+      <div id="shareBtns">
+        <button id="shareIosBtn">iPhone</button>
+        <button id="shareAndroidBtn">Android</button>
+      </div>
+      <button id="shareCloseBtn">fermer</button>
+    </div>
+  </div>
+
+  <div id="dossierModal">
+    <div id="dossierBox">
+      <div class="dStamp">CONFIDENTIEL</div>
+      <div id="dossierContent"></div>
+      <button id="dossierCloseBtn">fermer</button>
+    </div>
   </div>
 
   <div id="versionModal">
@@ -498,11 +579,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.35";
+const APP_VERSION = "1.36";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.36", "Ajout d'un bouton \"partager\" (copie un message avec le lien et les instructions d'installation, iPhone ou Android) et d'un dossier confidentiel caché (appui long sur le titre)."],
   ["1.35", "Les liens \"tout oublier / actualiser / version\" remontés légèrement, pour rester loin de la barre d'accueil en bas."],
   ["1.34", "Retour en arrière : la simplification du plein écran de la 1.33 avait fait réapparaître la bande noire. Revenu à l'approche de la 1.32, confirmée correcte."],
   ["1.33", "Nouvelle approche du plein écran iOS tentée (plus simple en théorie) — annulée en 1.34, elle a réintroduit le bug. Ajout de cet historique des versions."],
@@ -2059,6 +2141,136 @@ document.getElementById("versionCloseBtn").addEventListener("click", (e)=>{
 document.getElementById("versionModal").addEventListener("click", (e)=>{
   if(e.target.id === "versionModal") document.getElementById("versionModal").classList.remove("show");
 });
+
+/* ============================================================
+   Partager — copie un message prêt à envoyer, avec le lien du
+   jeu et les instructions d'installation adaptées à l'appareil
+   ============================================================ */
+const SHARE_URL = "https://peur.pages.dev";
+const SHARE_MSG_IOS = `${SHARE_URL}\n\nInstalle-le comme une vraie application (sinon ça ne marche pas pareil) :\n1. Ouvre ce lien dans Safari\n2. Appuie sur l'icône "Partager" (le carré avec la flèche vers le haut)\n3. Choisis "Sur l'écran d'accueil"\n4. Appuie sur "Ajouter"\n\nOuvre-le depuis l'icône sur ton écran d'accueil, pas depuis Safari.`;
+const SHARE_MSG_ANDROID = `${SHARE_URL}\n\nInstalle-le comme une vraie application (sinon ça ne marche pas pareil) :\n1. Ouvre ce lien dans Chrome\n2. Appuie sur les 3 points en haut à droite\n3. Choisis "Ajouter à l'écran d'accueil" (ou "Installer l'application")\n4. Confirme\n\nOuvre-le depuis l'icône sur ton écran d'accueil, pas depuis Chrome.`;
+function copyToClipboard(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));
+  }
+  return fallbackCopy(text);
+}
+function fallbackCopy(text){
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    return Promise.resolve();
+  }catch(e){ return Promise.reject(e); }
+}
+function flashCopied(btn){
+  btn.classList.add("copied");
+  const prev = btn.textContent;
+  btn.textContent = "copié !";
+  setTimeout(()=>{ btn.classList.remove("copied"); btn.textContent = prev; }, 1800);
+}
+document.getElementById("shareBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("shareModal").classList.add("show");
+});
+document.getElementById("shareCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("shareModal").classList.remove("show");
+});
+document.getElementById("shareModal").addEventListener("click", (e)=>{
+  if(e.target.id === "shareModal") document.getElementById("shareModal").classList.remove("show");
+});
+document.getElementById("shareIosBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  copyToClipboard(SHARE_MSG_IOS).then(()=>flashCopied(btn));
+});
+document.getElementById("shareAndroidBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  copyToClipboard(SHARE_MSG_ANDROID).then(()=>flashCopied(btn));
+});
+
+/* ============================================================
+   Dossier caché — appui long (900ms) sur le titre de l'écran-titre.
+   Jamais annoncé, aucune indication visuelle qu'il existe.
+   ============================================================ */
+function escHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function hashStr(s){
+  let h = 0;
+  const str = String(s || "");
+  for(let i=0;i<str.length;i++){
+    h = ((h<<5)-h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h).toString(16).toUpperCase().padStart(6,"0").slice(0,6);
+}
+function fmtDate(ts){
+  if(!ts) return "—";
+  try{
+    const d = new Date(ts);
+    return d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"});
+  }catch(e){ return "—"; }
+}
+function renderDossier(){
+  const el = document.getElementById("dossierContent");
+  const id = hashStr((playerName||"anonyme") + "-" + (save.firstVisit||0));
+  const totalSessions = save.totalSessions || 0;
+  const quiet = save.quietEndings || 0;
+  const bad = save.badEndings || 0;
+  const total = quiet + bad;
+  const ratio = total > 0 ? Math.round((bad/total)*100) : null;
+  let statut;
+  if(total === 0) statut = "SUJET NON ÉVALUÉ";
+  else if(ratio >= 60) statut = "SUJET INSTABLE";
+  else if(ratio >= 25) statut = "SOUS SURVEILLANCE";
+  else statut = "SUJET CONFORME";
+  const rows = [
+    ["ID sujet", id],
+    ["Nom déclaré", playerName ? escHtml(playerName) : "— non fourni —"],
+    ["Statut", statut],
+    ["Sessions totales", totalSessions],
+    ["Première entrée", fmtDate(save.firstVisit)],
+    ["Dernière entrée", fmtDate(save.lastVisit)],
+    ["Fins calmes", quiet],
+    ["Fins anormales", bad],
+  ];
+  el.innerHTML = rows.map(([k,v])=>`<div class="dLine"><b>${k}</b> : ${v}</div>`).join("")
+    + `<div class="dFooter">Ce document se régénère à chaque consultation. Il ne devrait pas exister sous cette forme.</div>`;
+}
+function openDossier(){
+  renderDossier();
+  document.getElementById("dossierModal").classList.add("show");
+}
+(function(){
+  const titleEl = document.getElementById("titleText");
+  if(!titleEl) return;
+  let pressTimer = null;
+  function start(e){
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(openDossier, 900);
+  }
+  function cancel(){ clearTimeout(pressTimer); }
+  titleEl.addEventListener("pointerdown", start);
+  titleEl.addEventListener("pointerup", cancel);
+  titleEl.addEventListener("pointerleave", cancel);
+  titleEl.addEventListener("pointercancel", cancel);
+})();
+document.getElementById("dossierCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("dossierModal").classList.remove("show");
+});
+document.getElementById("dossierModal").addEventListener("click", (e)=>{
+  if(e.target.id === "dossierModal") document.getElementById("dossierModal").classList.remove("show");
+});
+
 function updateGearState(){
   const gearEl = document.getElementById("gear");
   gearEl.classList.toggle("active", !!save.reduceEffects);
