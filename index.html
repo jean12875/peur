@@ -13,18 +13,37 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
+<script>
+// hauteur réelle du viewport, mesurée en JS — contourne les bugs connus de 100vh/100dvh
+// dans les WebView iOS en mode standalone (PWA ajoutée à l'écran d'accueil), qui
+// laissent parfois une bande noire résiduelle en bas. Réglé avant le premier rendu.
+(function(){
+  function setVH(){ document.documentElement.style.setProperty("--vh", (window.innerHeight*0.01)+"px"); }
+  setVH();
+  window.addEventListener("resize", setVH);
+  window.addEventListener("orientationchange", function(){ setTimeout(setVH, 120); });
+})();
+</script>
 <style>
   :root{ color-scheme: dark; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body{
-    margin:0; padding:0; width:100%; height:100%;
+    margin:0; padding:0; width:100%;
+    height:100%;
+    height:calc(var(--vh, 1vh) * 100);
     background:#050506; overflow:hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     user-select:none; -webkit-user-select:none;
     touch-action:none;
     overscroll-behavior:none;
   }
-  #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#d9d4c6; overflow:hidden; }
+  /* hauteur : fallback JS (--vh) pour les vieux moteurs, puis dvh en priorité
+     quand le navigateur le supporte correctement (meilleur comportement en PWA standalone) */
+  #app{ position:fixed; inset:0; width:100vw;
+    height:100%;
+    height:calc(var(--vh, 1vh) * 100);
+    height:100dvh;
+    background:#d9d4c6; overflow:hidden; }
   canvas{ position:absolute; inset:0; display:block; }
 
   /* ---------- téléviseur ---------- */
@@ -109,7 +128,7 @@
   #wires path{ transition:stroke 1.4s ease; }
   #app.roomDark #wireL, #app.roomDark #wireR{ stroke:#050505; }
   #buttonRow{
-    position:absolute; left:0; right:0; bottom:8vh; z-index:6;
+    position:absolute; left:0; right:0; bottom:calc(8vh + env(safe-area-inset-bottom)); z-index:6;
     display:flex; justify-content:center; gap:18vw;
   }
   .bigbtn{
@@ -197,7 +216,7 @@
   }
 
   #gear{
-    position:absolute; top:1em; left:1em; z-index:60; width:34px; height:34px; border-radius:50%;
+    position:absolute; top:calc(1em + env(safe-area-inset-top)); left:calc(1em + env(safe-area-inset-left)); z-index:60; width:34px; height:34px; border-radius:50%;
     background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#999;
     display:flex; align-items:center; justify-content:center; font-size:0.9rem; cursor:pointer;
     transition:border-color .3s ease, color .3s ease, background-color .3s ease;
@@ -691,23 +710,29 @@ function terrorStingSound(){
   src.connect(f); f.connect(g2); g2.connect(masterGain);
   src.start(t);
 }
-// grondement grave, comme si quelque chose de grand respirait, pas loin
+// grondement, comme si quelque chose de grand respirait, pas loin — fréquences
+// remontées + distorsion (waveshaper) pour rester audible sur un haut-parleur de
+// téléphone, qui reproduit très mal en dessous de ~150 Hz
 function growlSound(){
   if(!actx) return;
   const t = actx.currentTime;
-  const o1 = actx.createOscillator(); o1.type = "sawtooth"; o1.frequency.setValueAtTime(48, t);
-  const o2 = actx.createOscillator(); o2.type = "sawtooth"; o2.frequency.setValueAtTime(51, t);
-  const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(220, t);
-  f.frequency.linearRampToValueAtTime(140, t+1.6);
-  const lfo = actx.createOscillator(); lfo.frequency.value = 5.5;
-  const lfoGain = actx.createGain(); lfoGain.gain.value = 30;
+  const o1 = actx.createOscillator(); o1.type = "sawtooth"; o1.frequency.setValueAtTime(85, t);
+  const o2 = actx.createOscillator(); o2.type = "sawtooth"; o2.frequency.setValueAtTime(89, t);
+  const shaper = actx.createWaveShaper();
+  const curve = new Float32Array(256);
+  for(let i=0;i<256;i++){ const x = i/128-1; curve[i] = Math.tanh(x*3.2); }
+  shaper.curve = curve;
+  const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(700, t);
+  f.frequency.linearRampToValueAtTime(340, t+1.6);
+  const lfo = actx.createOscillator(); lfo.frequency.value = 6.5;
+  const lfoGain = actx.createGain(); lfoGain.gain.value = 70;
   lfo.connect(lfoGain); lfoGain.connect(f.frequency);
   const g = actx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(0.26, t+0.3);
-  g.gain.setValueAtTime(0.26, t+1.1);
+  g.gain.linearRampToValueAtTime(0.3, t+0.25);
+  g.gain.setValueAtTime(0.3, t+1.1);
   g.gain.linearRampToValueAtTime(0.0001, t+1.8);
-  o1.connect(f); o2.connect(f); f.connect(g); g.connect(masterGain);
+  o1.connect(shaper); o2.connect(shaper); shaper.connect(f); f.connect(g); g.connect(masterGain);
   o1.start(t); o2.start(t); lfo.start(t);
   o1.stop(t+1.85); o2.stop(t+1.85); lfo.stop(t+1.85);
 }
@@ -727,8 +752,8 @@ function distantScreechSound(){
   f.Q.value = 9;
   const g = actx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(0.22, t+0.08);
-  g.gain.setValueAtTime(0.18, t+0.5);
+  g.gain.linearRampToValueAtTime(0.34, t+0.08);
+  g.gain.setValueAtTime(0.26, t+0.5);
   g.gain.exponentialRampToValueAtTime(0.0001, t+0.95);
   src.connect(f); f.connect(g); g.connect(masterGain);
   src.start(t);
@@ -815,7 +840,7 @@ function triggerDisturb(severity){
 // dix secondes de blanc silencieux, puis retour à la normale sans rien dire —
 // pas de coupure rouge ici : le malaise vient justement de l'absence de suite.
 let overlayActive = false; // vrai pendant le blanc ou le noir total : les grésillements ambiants se taisent
-function triggerHeavenThenHell(){
+function triggerHeavenThenHell(onDone){
   const overlay = document.getElementById("heavenOverlay");
   overlayActive = true;
   overlay.classList.add("show");
@@ -825,6 +850,8 @@ function triggerHeavenThenHell(){
     overlayActive = false;
     if(state!==STATE.PLAYING) return;
     overlay.classList.remove("show");
+    // la question suivante n'apparaît qu'à la fin réelle du blanc, jamais pendant
+    if(onDone) onDone();
   }, 10000);
 }
 
@@ -986,15 +1013,28 @@ function heartbeepSound(t0, flatline){
   o.connect(g); g.connect(masterGain);
   o.start(t0); o.stop(t0+0.2);
 }
-// voix étouffées dans la panique — Web Speech API, jamais expliquées, jamais revues
+// voix étouffées dans la panique — Web Speech API, jamais expliquées, jamais revues.
+// iOS/Safari exige que le moteur de synthèse soit "débloqué" par un geste direct
+// de l'utilisateur (comme l'audio) : voir warmUpSpeech(), appelé au clic sur "commencer".
 function speakOminous(text, opts){
   try{
     if(!("speechSynthesis" in window)) return;
+    if(speechSynthesis.paused) speechSynthesis.resume();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "fr-FR";
     u.pitch = (opts && opts.pitch!=null) ? opts.pitch : 0.55;
     u.rate = (opts && opts.rate!=null) ? opts.rate : 0.85;
     u.volume = (opts && opts.volume!=null) ? opts.volume : 1;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function warmUpSpeech(){
+  try{
+    if(!("speechSynthesis" in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0; // silencieux — sert uniquement à débloquer le moteur pendant le geste utilisateur
+    u.lang = "fr-FR";
     speechSynthesis.speak(u);
   }catch(e){}
 }
@@ -1393,14 +1433,21 @@ const QUESTIONS = [
 
   /* 30 une question bizarre, existentielle — puis le blanc */
   // le blanc ne se déclenche qu'une fois la question répondue (voir onAnswered dans answer())
-  { text:"Cesses-tu d'exister quand tu fermes les yeux ?", onAnswered: ()=>triggerHeavenThenHell() },
+  // suspend:true — l'avancement automatique est coupé ; c'est triggerHeavenThenHell()
+  // qui relance la suite lui-même, une fois le blanc réellement terminé
+  { text:"Cesses-tu d'exister quand tu fermes les yeux ?", suspend:true,
+    onAnswered: ()=>triggerHeavenThenHell(()=>{ if(state===STATE.PLAYING) nextQuestion(); }) },
   { text:"……ça va mieux. Tu peux rouvrir les yeux.", auto:true, holdFor:1400 },
   { text:"Une case, sur une feuille, juste à côté de ton nom, dit VIVANT. Pour l'instant.", auto:true, holdFor:2800 },
   { text:"Sais-tu combien de fois tu es déjà venu ici ?" },
   { text: ()=> sessionCount<=1
       ? "C'est la première fois que tu viens ici. Le savais-tu ?"
       : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
-  { text:"La porte, derrière toi. Est-elle toujours fermée ?", effect: ()=>{ triggerAmbientGlitch(); distantScreechSound(); } },
+  { text:"La porte, derrière toi. Est-elle toujours fermée ?", effect: ()=>{
+      triggerAmbientGlitch();
+      // décalé du glitch pour qu'il s'entende distinctement, pas noyé dedans
+      setTimeout(()=>{ if(state===STATE.PLAYING) distantScreechSound(); }, 550);
+    } },
 
   /* 36 une défaillance signalée — puis le noir */
   { text:"Une défaillance vient d'être signalée quelque part dans cette pièce. Reste tranquille, ça ne prendra qu'un instant.", freeze:1100, auto:true, holdFor:10200, effect: ()=>{
@@ -1600,6 +1647,10 @@ function answer(isYes){
     setTimeout(()=>concludeTest(), delay);
     return;
   }
+  // certaines questions (le blanc, entre autres) gèrent elles-mêmes la suite —
+  // l'avancement automatique normal est coupé, pour ne jamais afficher la question
+  // suivante pendant que l'effet est encore en cours
+  if(q.suspend) return;
   setTimeout(()=>nextQuestion(), delay);
 }
 document.getElementById("btnYes").addEventListener("click", (e)=>{ e.stopPropagation(); answer(true); });
@@ -1777,6 +1828,7 @@ function startBoot(){
   requestFullscreenIfPossible();
   ensureAudio();
   if(actx && actx.state==="suspended") actx.resume();
+  warmUpSpeech();
   state = STATE.BOOT;
   document.getElementById("veil").classList.add("hidden");
   const boot = document.getElementById("boot");
