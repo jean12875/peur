@@ -1,11 +1,13 @@
-const CACHE = "letest-v21";
+const CACHE = "letest-v22";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
   "./icons/icon-180.png",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "./sfx/cryo-outage.mp3",
+  "./sfx/cringe-scare.mp3"
 ];
 
 self.addEventListener("install", (e) => {

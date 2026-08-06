@@ -58,9 +58,10 @@ index.html      → tout le jeu (HTML + CSS + JS, un seul fichier)
 manifest.json   → PWA : installable sur téléphone comme une vraie app
 sw.js           → service worker, jeu jouable hors-ligne une fois chargé
 icons/          → icônes générées (192, 512, apple-touch-icon)
+sfx/            → deux sons fournis (pas synthétisés) : rouge et vert
 ```
 
-Aucune build step, aucun framework, aucune dépendance externe. L'audio est entièrement synthétisé (Web Audio API). Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
+Aucune build step, aucun framework. L'audio est presque entièrement synthétisé (Web Audio API) — deux exceptions : `sfx/cryo-outage.mp3` joue à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, chargés et mixés via Web Audio API comme le reste. Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
 
 ## Lancer en local
 

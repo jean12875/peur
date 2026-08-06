@@ -420,7 +420,8 @@ function resize(){
 window.addEventListener("resize", resize);
 
 /* ============================================================
-   Audio (100% procédural)
+   Audio — essentiellement procédural, + deux fichiers fournis
+   (sfx/) pour les moments écran rouge et écran vert
    ============================================================ */
 let actx=null, droneGain=null, noiseGain=null, masterGain=null, noiseSrc=null, lfo=null, lfoGain=null, filter=null, compressor=null;
 function ensureAudio(){
@@ -461,6 +462,38 @@ function ensureAudio(){
   noiseGain = actx.createGain(); noiseGain.gain.value = 0.022;
   noiseSrc.connect(filter); filter.connect(noiseGain); noiseGain.connect(masterGain);
   noiseSrc.start();
+
+  decodeSfxIfReady();
+}
+
+/* deux sons fournis par le joueur, en plus du reste (100% procédural) :
+   un pour les moments écran rouge, un pour les moments écran vert */
+let sfxRedRaw = null, sfxGreenRaw = null;
+let sfxRedBuffer = null, sfxGreenBuffer = null;
+fetch("sfx/cryo-outage.mp3").then(r=>r.ok?r.arrayBuffer():null).then(b=>{ sfxRedRaw = b; decodeSfxIfReady(); }).catch(()=>{});
+fetch("sfx/cringe-scare.mp3").then(r=>r.ok?r.arrayBuffer():null).then(b=>{ sfxGreenRaw = b; decodeSfxIfReady(); }).catch(()=>{});
+function decodeSfxIfReady(){
+  if(!actx) return;
+  if(sfxRedRaw && !sfxRedBuffer){
+    actx.decodeAudioData(sfxRedRaw.slice(0), (buf)=>{ sfxRedBuffer = buf; }, ()=>{});
+  }
+  if(sfxGreenRaw && !sfxGreenBuffer){
+    actx.decodeAudioData(sfxGreenRaw.slice(0), (buf)=>{ sfxGreenBuffer = buf; }, ()=>{});
+  }
+}
+function playSfxRed(){
+  if(!actx || !sfxRedBuffer) return;
+  const src = actx.createBufferSource(); src.buffer = sfxRedBuffer;
+  const g = actx.createGain(); g.gain.value = 0.9;
+  src.connect(g); g.connect(masterGain);
+  src.start();
+}
+function playSfxGreen(){
+  if(!actx || !sfxGreenBuffer) return;
+  const src = actx.createBufferSource(); src.buffer = sfxGreenBuffer;
+  const g = actx.createGain(); g.gain.value = 0.8;
+  src.connect(g); g.connect(masterGain);
+  src.start();
 }
 function setUnease(level){
   if(!actx) return;
@@ -811,6 +844,7 @@ function triggerSuccessPulse(){
   const screen = document.getElementById("tvScreen");
   screen.classList.add("success");
   successChimeSound();
+  playSfxGreen();
   vibrate(save.reduceEffects ? [] : [0,15,10,15,10,25]);
   // pas de minuteur fixe ici : le vert reste tant que le texte de CETTE question
   // est affiché, et n'est retiré qu'au moment où nextQuestion() passe à la suivante
@@ -1286,6 +1320,7 @@ function applyAlertVisual(on, extreme){
   screen.classList.toggle("alert", !!on);
   screen.classList.toggle("extreme", !!on && !!extreme);
   if(on){
+    playSfxRed();
     buildTvStaticTexture();
     staticEl.classList.add("show");
     if(!corruptStaticIv){
