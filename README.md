@@ -93,6 +93,8 @@ Sur l'écran-titre, un petit bouton "actualiser" force le rechargement de la der
 
 Pendant la partie, un petit bouton "⏭" discret en haut à droite (à côté des réglages) permet de passer immédiatement à la question suivante — utile pour spammer et arriver vite au moment qu'on veut tester, sans attendre le texte ou les délais.
 
+Sur l'écran-titre, un bouton "version" ouvre une petite fenêtre indiquant le numéro de version et rappelant que le jeu est en bêta (le numéro est dans `APP_VERSION`, en haut du script — à bumper manuellement pour les passes de contenu notables, séparément du cache du service worker).
+
 ## Publier sur GitHub Pages
 
 1. Pousse ces fichiers à la racine du repo `peur`, branche `main`.
