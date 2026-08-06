@@ -53,11 +53,17 @@ Les grésillements ambiants, eux, ne sont jamais laissés au hasard : chacun est
 
 À l'inverse, l'écran passe brièvement au vert et un petit carillon se fait entendre à deux reprises, quand une partie du test vient d'être validée — un des rares moments où le téléviseur n'est pas hostile.
 
-Une séquence dédiée transforme la pièce en blanc immaculé pendant dix bonnes secondes, avec une musique étrange et légèrement désaccordée — puis tout redevient normal, en silence, comme si de rien n'était. Aucune coupure rouge, aucune explication : c'est cette absence de suite qui dérange. Un autre moment plonge l'écran dans un noir total, avec des bruits d'opération (scie, cliquetis métalliques, un moniteur cardiaque qui finit par s'aplatir) — jamais expliqué non plus.
+Une séquence dédiée transforme la pièce en blanc immaculé pendant dix bonnes secondes, avec une musique étrange et légèrement désaccordée — puis tout redevient normal, en silence, comme si de rien n'était. Aucune coupure rouge, aucune explication : c'est cette absence de suite qui dérange. Elle ne se déclenche qu'une fois qu'on a vraiment répondu à la question qui la précède — jamais avant, pour laisser le temps de lire.
+
+Un autre moment plonge l'écran dans un noir total, avec des bruits d'opération : une scie au loin, des cliquetis métalliques, un moniteur cardiaque dont le rythme ralentit peu à peu avant de s'aplatir — et, par-dessus, de vraies voix, paniquées et étouffées ("On est en train de le perdre. Vite.", "Reste avec nous.", "On l'a perdu."), jamais expliquées, jamais revues.
 
 Une question demande directement si tu as peur du noir. Peu importe la réponse : la lumière de la pièce coupe aussitôt après (disjoncteur, bourdonnement qui retombe) — tout s'éteint autour de toi, sauf l'écran du téléviseur, qui reste seul visible et continue de poser des questions dans le noir, jusqu'à ce que la lumière revienne.
 
 Le scénario distille aussi, sans jamais le dire explicitement, l'idée que ce test décide de quelque chose d'important pour le joueur : un dossier qui existait avant son arrivée, une case "VIVANT" sur une feuille, un sujet précédent qui n'a pas eu de suite, un texte partiellement caviardé. La très grande majorité du jeu reste ambiance et rupture de rythme plutôt que jumpscare — à une exception près : une seule fois par partie, sur la ligne la plus dérangeante du test (celle qui prononce ton prénom), une vraie image apparaît en plein écran — pas un dessin procédural — avec un son pensé pour être aussi terrifiant que possible. Ça n'arrive qu'une fois, jamais annoncé, jamais répété.
+
+## Plein écran
+
+Appuyer sur "commencer" tente de passer en plein écran réel (API Fullscreen), ce qui masque la barre système sur les navigateurs qui l'autorisent — Chrome et Firefox sur Android, notamment. Limite honnête côté iPhone : Safari n'autorise pas les pages web à masquer sa propre barre de statut (heure, wifi, batterie) tant que le jeu tourne dans un onglet normal — c'est une restriction volontaire d'Apple, pas un bug d'ici. La seule façon d'obtenir un vrai plein écran sur iPhone est d'installer LE TEST via "Ajouter à l'écran d'accueil" et de le lancer depuis son icône : il s'ouvre alors en mode app, sans barre d'adresse, avec une barre de statut translucide qui se fond dans le décor.
 
 ## Structure du repo
 
@@ -70,7 +76,7 @@ sfx/            → deux sons fournis (pas synthétisés) : rouge et vert
 img/            → l'image du monstre, utilisée une seule fois par partie
 ```
 
-Aucune build step, aucun framework. L'audio est presque entièrement synthétisé (Web Audio API) — deux exceptions : `sfx/cryo-outage.mp3` joue à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, chargés et mixés via Web Audio API comme le reste. Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
+Aucune build step, aucun framework. L'audio est presque entièrement synthétisé (Web Audio API) — deux exceptions : `sfx/cryo-outage.mp3` joue à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, chargés et mixés via Web Audio API comme le reste. Les voix paniquées de la séquence noire viennent de l'API Web Speech du navigateur (aucun fichier audio, aucun serveur). Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
 
 ## Lancer en local
 

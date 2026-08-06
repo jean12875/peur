@@ -691,6 +691,48 @@ function terrorStingSound(){
   src.connect(f); f.connect(g2); g2.connect(masterGain);
   src.start(t);
 }
+// grondement grave, comme si quelque chose de grand respirait, pas loin
+function growlSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const o1 = actx.createOscillator(); o1.type = "sawtooth"; o1.frequency.setValueAtTime(48, t);
+  const o2 = actx.createOscillator(); o2.type = "sawtooth"; o2.frequency.setValueAtTime(51, t);
+  const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(220, t);
+  f.frequency.linearRampToValueAtTime(140, t+1.6);
+  const lfo = actx.createOscillator(); lfo.frequency.value = 5.5;
+  const lfoGain = actx.createGain(); lfoGain.gain.value = 30;
+  lfo.connect(lfoGain); lfoGain.connect(f.frequency);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.26, t+0.3);
+  g.gain.setValueAtTime(0.26, t+1.1);
+  g.gain.linearRampToValueAtTime(0.0001, t+1.8);
+  o1.connect(f); o2.connect(f); f.connect(g); g.connect(masterGain);
+  o1.start(t); o2.start(t); lfo.start(t);
+  o1.stop(t+1.85); o2.stop(t+1.85); lfo.stop(t+1.85);
+}
+// cri distant, aigu et filtré — comme s'il venait d'ailleurs dans la pièce, jamais expliqué
+function distantScreechSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const bufSize = Math.floor(actx.sampleRate*0.9);
+  const buf = actx.createBuffer(1, bufSize, actx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1);
+  const src = actx.createBufferSource(); src.buffer = buf;
+  const f = actx.createBiquadFilter(); f.type = "bandpass";
+  f.frequency.setValueAtTime(900, t);
+  f.frequency.linearRampToValueAtTime(3200, t+0.35);
+  f.frequency.exponentialRampToValueAtTime(600, t+0.9);
+  f.Q.value = 9;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.22, t+0.08);
+  g.gain.setValueAtTime(0.18, t+0.5);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.95);
+  src.connect(f); f.connect(g); g.connect(masterGain);
+  src.start(t);
+}
 function vibrate(pattern){ if(!save.reduceEffects && navigator.vibrate) navigator.vibrate(pattern); }
 
 /* ============================================================
@@ -944,6 +986,18 @@ function heartbeepSound(t0, flatline){
   o.connect(g); g.connect(masterGain);
   o.start(t0); o.stop(t0+0.2);
 }
+// voix étouffées dans la panique — Web Speech API, jamais expliquées, jamais revues
+function speakOminous(text, opts){
+  try{
+    if(!("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "fr-FR";
+    u.pitch = (opts && opts.pitch!=null) ? opts.pitch : 0.55;
+    u.rate = (opts && opts.rate!=null) ? opts.rate : 0.85;
+    u.volume = (opts && opts.volume!=null) ? opts.volume : 1;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
 function operationSound(duration){
   if(!actx) return;
   const t0 = actx.currentTime;
@@ -953,13 +1007,20 @@ function operationSound(duration){
     if(Math.random()<0.55) metalClinkSound(ct);
     ct += randRange(0.4,1.1);
   }
+  // le battement ralentit progressivement à l'approche de l'arrêt, puis une ligne plate
   let bt = t0+0.15;
   const flatAt = t0+duration*0.76;
-  while(bt < t0+duration){
-    heartbeepSound(bt, bt>=flatAt);
-    if(bt>=flatAt) break;
-    bt += 0.74;
+  while(bt < flatAt){
+    heartbeepSound(bt, false);
+    const progress = Math.max(0, Math.min(1, (bt-t0)/(flatAt-t0)));
+    bt += 0.72 + progress*0.85;
   }
+  heartbeepSound(flatAt, true);
+
+  // des voix, paniquées, étouffées par le noir — jamais expliquées
+  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("On est en train de le perdre. Vite.", {pitch:0.55, rate:0.95}); }, 1300);
+  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("Reste avec nous.", {pitch:0.6, rate:0.85}); }, Math.max(2200, duration*1000*0.48));
+  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("On l'a perdu.", {pitch:0.42, rate:0.7}); }, Math.max(2600, duration*1000*0.8));
 }
 function triggerBlackout(duration){
   const bo = document.getElementById("blackout");
@@ -1305,7 +1366,7 @@ const QUESTIONS = [
       : "Bien. On va vérifier ça.",
     auto:true, holdFor:2000, effect: ()=>{ triggerLightFlicker(); lightsOutSound(); setRoomDark(true); } },
   { text:"Peux-tu toujours voir cet écran, malgré le noir autour de toi ?", expected:"yes", effect: ()=>triggerTvRollGlitch() },
-  { text:"Entends-tu quelque chose bouger, derrière toi, dans le noir ?", expected:"no" },
+  { text:"Entends-tu quelque chose bouger, derrière toi, dans le noir ?", expected:"no", effect: ()=>growlSound() },
   { text:"Si quelque chose te touchait l'épaule, là, maintenant, le dirais-tu ?", expected:"yes" },
   { text:"La lumière revient. Tu peux te détendre — pour l'instant.", auto:true, holdFor:2200, effect: ()=>{ setRoomDark(false); powerHumSound(); } },
 
@@ -1331,18 +1392,15 @@ const QUESTIONS = [
   { text:"Une dernière chose, avant la suite.", auto:true, holdFor:1800 },
 
   /* 30 une question bizarre, existentielle — puis le blanc */
-  { text:"Cesses-tu d'exister quand tu fermes les yeux ?", effect: ()=>{
-      // laisser le temps de lire la question avant que tout devienne blanc
-      const idx = qIndex;
-      setTimeout(()=>{ if(state===STATE.PLAYING && qIndex===idx) triggerHeavenThenHell(); }, 2600);
-    } },
+  // le blanc ne se déclenche qu'une fois la question répondue (voir onAnswered dans answer())
+  { text:"Cesses-tu d'exister quand tu fermes les yeux ?", onAnswered: ()=>triggerHeavenThenHell() },
   { text:"……ça va mieux. Tu peux rouvrir les yeux.", auto:true, holdFor:1400 },
   { text:"Une case, sur une feuille, juste à côté de ton nom, dit VIVANT. Pour l'instant.", auto:true, holdFor:2800 },
   { text:"Sais-tu combien de fois tu es déjà venu ici ?" },
   { text: ()=> sessionCount<=1
       ? "C'est la première fois que tu viens ici. Le savais-tu ?"
       : `C'est ta ${sessionCount}ᵉ visite ici. Le savais-tu vraiment ?` },
-  { text:"La porte, derrière toi. Est-elle toujours fermée ?", effect: ()=>triggerAmbientGlitch() },
+  { text:"La porte, derrière toi. Est-elle toujours fermée ?", effect: ()=>{ triggerAmbientGlitch(); distantScreechSound(); } },
 
   /* 36 une défaillance signalée — puis le noir */
   { text:"Une défaillance vient d'être signalée quelque part dans cette pièce. Reste tranquille, ça ne prendra qu'un instant.", freeze:1100, auto:true, holdFor:10200, effect: ()=>{
@@ -1351,6 +1409,18 @@ const QUESTIONS = [
       setTimeout(()=>{ if(state===STATE.PLAYING && qIndex===idx) triggerBlackout(9200); }, 3000);
     } },
   { text:"N'as-tu vraiment rien senti pendant ce moment ?", expected:"yes", effect: ()=>triggerAmbientGlitch() },
+
+  /* 37 après le noir — les voix qu'on a entendues */
+  { id:"heardVoices", text:"As-tu entendu ces voix, pendant que tout était noir ?", expected:"yes" },
+  { text: ()=> answers.heardVoices===true
+      ? "Une voix a dit qu'on était en train de te perdre. L'as-tu crue ?"
+      : "Une voix a dit qu'on était en train de te perdre. Tu ne l'as pas entendue. Est-ce pire ?" },
+  { text:"Si c'était vrai, voudrais-tu le savoir ?", expected:"yes" },
+  { text:"Ton cœur bat-il plus vite, là, maintenant, qu'au début du test ?" },
+  { text:"Le protocole a noté chaque battement. Le savais-tu ?", auto:true, holdFor:2400 },
+  { text:"Crois-tu qu'on ait vraiment failli te perdre ?" },
+  { text:"Es-tu sûr d'être exactement le même qu'avant ce noir ?", expected:"yes" },
+  { text:"Le protocole reprend son cours normal.", auto:true, holdFor:2000 },
 
   /* 38 dernier tiers — la manipulation à découvert */
   { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
@@ -1507,6 +1577,9 @@ function answer(isYes){
   const q = QUESTIONS[qIndex];
   answers[qIndex] = isYes;
   if(q.id) answers[q.id] = isYes;
+  // certains effets (le blanc, entre autres) ne doivent se déclencher qu'une fois
+  // qu'on a vraiment répondu — jamais avant, sinon on n'a pas le temps de lire
+  if(q.onAnswered) q.onAnswered();
 
   const expected = typeof q.expected === "function" ? q.expected() : q.expected;
   const unexpected = !!expected && ((expected==="yes") !== isYes);
@@ -1686,7 +1759,22 @@ function backToTitle(){
   buildTitleFlavor();
   document.getElementById("veil").classList.remove("hidden");
 }
+// plein écran réel (masque la barre système : heure, wifi, batterie) — ne marche
+// que là où le navigateur l'autorise (Android Chrome/Firefox notamment). Sur iOS,
+// Safari ne permet ça qu'une fois l'app ajoutée à l'écran d'accueil : ce sont les
+// meta apple-mobile-web-app-* dans le <head> qui gèrent ce cas-là, pas cette API.
+function requestFullscreenIfPossible(){
+  try{
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if(req){
+      const p = req.call(el);
+      if(p && p.catch) p.catch(()=>{});
+    }
+  }catch(e){}
+}
 function startBoot(){
+  requestFullscreenIfPossible();
   ensureAudio();
   if(actx && actx.state==="suspended") actx.resume();
   state = STATE.BOOT;
@@ -1708,6 +1796,7 @@ function startTest(){
   state = STATE.PLAYING;
   sessionStart = now();
   if(tabAwayTimer){ clearTimeout(tabAwayTimer); tabAwayTimer = null; }
+  try{ if("speechSynthesis" in window) speechSynthesis.cancel(); }catch(e){}
   qIndex = -1;
   disturbCount = 0;
   answers = [];
