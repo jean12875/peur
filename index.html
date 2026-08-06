@@ -259,6 +259,26 @@
   /* ---------- corruption du signal : flash RVB désaligné, rare et brutal ---------- */
   #app.corruptFlash{ filter:invert(1) hue-rotate(140deg) saturate(4) contrast(1.4); }
 
+  /* ---------- l'unique monstre du jeu : une vraie image, pas un dessin procédural ---------- */
+  #monsterImg{
+    position:absolute; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.55); opacity:0; pointer-events:none;
+  }
+  #monsterImg.show{ opacity:1; }
+  #monsterImg img{
+    max-width:82vw; max-height:74vh; object-fit:contain;
+    filter:contrast(1.15) saturate(1.05) brightness(1.05);
+    animation: monsterJitter 0.11s steps(1,end) infinite;
+  }
+  @keyframes monsterJitter{
+    0%{ transform:translate(0,0) scale(1); }
+    25%{ transform:translate(-4px,3px) scale(1.02); }
+    50%{ transform:translate(4px,-3px) scale(1.015); }
+    75%{ transform:translate(-3px,-4px) scale(1.03); }
+    100%{ transform:translate(0,0) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce){ #monsterImg img{ animation:none; } }
+
   /* ---------- deux mots dans le noir, juste avant le titre ---------- */
   #wakeText{
     position:absolute; inset:0; z-index:44; display:flex; align-items:center; justify-content:center;
@@ -325,6 +345,7 @@
   <div id="heavenOverlay"></div>
   <div id="blackout"></div>
   <div id="wakeText">réveille-toi.</div>
+  <div id="monsterImg"><img src="img/monster.png" alt=""></div>
 
   <div id="boot" class="hidden">
     <div id="hourglass">⧗</div>
@@ -719,19 +740,20 @@ function triggerGlimpse(){
   glimpseUntil = now() + randRange(120,220);
 }
 // l'unique vraie apparition du jeu — pas un aperçu furtif, un vrai face-à-face bref.
-// une seule fois par partie, jamais répétée, jamais annoncée.
-let monsterUntil = 0, monsterShown = false, monsterX = 0.5, monsterY = 0.46;
+// une seule fois par partie, jamais répétée, jamais annoncée. Une vraie image,
+// pas un dessin procédural : plus net, plus reconnaissable, plus efficace.
+let monsterShown = false;
 function triggerMonster(){
   if(monsterShown || state!==STATE.PLAYING) return;
   monsterShown = true;
-  entitySeed = Math.random()*1000;
-  monsterX = 0.5; monsterY = 0.46;
-  monsterUntil = now() + 900;
   triggerLightFlicker();
   ensureAudio();
   terrorStingSound();
   triggerDisturb(2);
   vibrate(save.reduceEffects ? [30] : [0,60,30,60,30,110]);
+  const el = document.getElementById("monsterImg");
+  el.classList.add("show");
+  setTimeout(()=>{ el.classList.remove("show"); }, 850);
 }
 let redPulseUntil = 0, redPulseDuration = 900, redPulsePeak = 0.32;
 function triggerDisturb(severity){
@@ -1000,11 +1022,7 @@ function drawRoom(){
   if(now() < glimpseUntil){
     drawFace(glimpseX*W, glimpseY*H, Math.min(W,H)*0.09, 0.45, 6, "#020202");
   }
-
-  // l'unique monstre du jeu — grand, net, au visage, quelques centaines de ms
-  if(now() < monsterUntil){
-    drawFace(monsterX*W, monsterY*H, Math.min(W,H)*0.24, 0.9 + Math.random()*0.1, 16, "#080000");
-  }
+  // (l'unique monstre du jeu est désormais une vraie image, voir #monsterImg / triggerMonster())
 
   // vignette qui s'assombrit avec le malaise
   const cx=W/2, cy=H*0.42;
@@ -1054,10 +1072,13 @@ function loop(){
    ============================================================ */
 let everGrantedAll = false;
 
-function sendRealNotification(){
+// notification système générique — accepte un message ; le titre reste "…" partout,
+// par cohérence avec le reste du jeu (jamais de nom d'app rassurant dans le titre)
+function sendRealNotification(body){
   try{
     if(!("Notification" in window) || Notification.permission !== "granted") return;
-    const opts = { body: playerName ? `${playerName}, il sait que tu lis ceci.` : "il sait que tu lis ceci.", silent:false, tag:"letest", renotify:true };
+    const msg = body || (playerName ? `${playerName}, il sait que tu lis ceci.` : "il sait que tu lis ceci.");
+    const opts = { body: msg, silent:false, tag:"letest", renotify:true };
     // sur mobile (Android/Chrome), le constructeur direct échoue silencieusement :
     // il faut passer par le service worker pour une vraie notification système.
     if(navigator.serviceWorker && navigator.serviceWorker.ready){
@@ -1069,6 +1090,37 @@ function sendRealNotification(){
       new Notification("…", opts);
     }
   }catch(e){}
+}
+// notification envoyée PENDANT une partie active — jamais sur un moment écran rouge
+// ou le monstre (ça coupe le son en cours). Accompagnée d'un son distinct, pas le
+// bip système par défaut, pour que le jeu se l'approprie.
+function notifyDuringGame(body){
+  notifyPingSound();
+  sendRealNotification(body);
+}
+// petit bip électronique en deux temps, différent de tout le reste du jeu —
+// pensé pour accompagner les notifications, pas pour ressembler au son système
+function notifyPingSound(){
+  if(!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = "triangle";
+  o.frequency.setValueAtTime(1500, t);
+  o.frequency.exponentialRampToValueAtTime(210, t+0.19);
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.24, t+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.22);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t+0.24);
+
+  const o2 = actx.createOscillator(); o2.type = "square";
+  o2.frequency.setValueAtTime(2700, t+0.1);
+  const g2 = actx.createGain();
+  g2.gain.setValueAtTime(0.0001, t+0.1);
+  g2.gain.linearRampToValueAtTime(0.15, t+0.11);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t+0.21);
+  o2.connect(g2); g2.connect(masterGain);
+  o2.start(t+0.1); o2.stop(t+0.23);
 }
 const PERMS = [
   { key:"notif" },
@@ -1239,7 +1291,7 @@ const QUESTIONS = [
   { text:"As-tu remarqué que la lumière vient de changer ?", effect: ()=>triggerLightFlicker() },
   { text:"Ne dis rien. Ne bouge pas. Compte jusqu'à dix, dans ta tête.", auto:true, holdFor:3400 },
   { text:"Un sujet précédent n'a pas réussi à rester immobile. Il n'a pas terminé ce test.", auto:true, holdFor:2800, effect: ()=>triggerAmbientGlitch() },
-  { text:"Ton dossier s'épaissit à chaque réponse que tu donnes.", auto:true, holdFor:2400 },
+  { text:"Ton dossier s'épaissit à chaque réponse que tu donnes.", auto:true, holdFor:2400, effect: ()=>notifyDuringGame(playerName ? `${playerName} : le sujet ne se comporte pas comme prévu.` : "Le sujet ne se comporte pas comme prévu.") },
   { text: ()=> answers.trust===true
       ? "Tu fais confiance à cet écran. Est-ce une erreur, selon toi ?"
       : "Tu ne fais pas confiance à cet écran. Est-ce la chose la plus sensée que tu aies faite aujourd'hui ?" },
@@ -1262,6 +1314,21 @@ const QUESTIONS = [
   { text:"Veuillez patienter. Le test va reprendre sous peu.", auto:true, holdFor:3400 },
   { text:"Le test reprend. Merci pour toute ta participation jusqu'ici.", auto:true, holdFor:1600, effect: ()=>triggerSuccessPulse() },
   { text:"Le sujet a été jugé ██████ pour la suite du protocole.", auto:true, holdFor:2400, effect: ()=>triggerSignalCorruption() },
+
+  /* 27 le protocole reprend, pour de vrai */
+  { text:"Le protocole reprend, cette fois pour de vrai. Es-tu prêt ?", expected:"yes" },
+  { text:"As-tu remarqué que certaines questions reviennent, sous une autre forme ?" },
+  { text: ()=> answers.trust===true
+      ? "Tu faisais confiance à cet écran. Est-ce toujours le cas ?"
+      : "Tu ne faisais pas confiance à cet écran. As-tu changé d'avis, ne serait-ce qu'un peu ?" },
+  { text:"Le silence, entre deux questions, te dérange-t-il plus que les questions elles-mêmes ?" },
+  { text:"Si on te demandait d'arrêter maintenant, le ferais-tu sans discuter ?", expected:"yes" },
+  { text:"Le protocole note un changement dans ton rythme de réponse.", auto:true, holdFor:2400, effect: ()=>triggerAmbientGlitch() },
+  { text: ()=> answers.alone===true
+      ? "Tu as dit être seul. Est-ce toujours le cas, à cet instant ?"
+      : "Tu as dit ne pas être seul. Cette présence est-elle toujours là ?" },
+  { text:"Penses-tu que quelqu'un, ailleurs, lit tes réponses en ce moment même ?", expected:"yes" },
+  { text:"Une dernière chose, avant la suite.", auto:true, holdFor:1800 },
 
   /* 30 une question bizarre, existentielle — puis le blanc */
   { text:"Cesses-tu d'exister quand tu fermes les yeux ?", effect: ()=>{
@@ -1289,15 +1356,26 @@ const QUESTIONS = [
   { id:"wantToKnow", text:"Veux-tu vraiment savoir ce qu'il y a derrière cet écran ?", expected:"no", onUnexpected:()=>triggerGlimpse() },
   { text:"Si on éteignait cet écran maintenant, resterais-tu quand même ?", expected:"yes", effect: ()=>triggerSignalCorruption() },
   { text: ()=> playerName ? `i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̸,—${playerName.split(" ")[0]}` : "i̷l̶—c̸o̷n̸n̶a̵î̸t̷—t̶o̸n̷—n̵o̶m̶",
-    corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); sendRealNotification(); triggerMonster(); } },
+    corrupt:true, freeze:1500, effect: ()=>{ triggerLightFlicker(); whisperSound(0.4); triggerMonster(); } },
   { text: ()=> answers.wantToKnow===true
       ? "...ça va. Tu as quand même voulu savoir. Es-tu prêt pour la suite ?"
       : "...ça va. Ce n'était rien. Es-tu prêt pour la suite ?",
     expected:"yes" },
   { text:"Si je te disais qu'un autre sujet a répondu ces questions à ta place, avant toi, me croirais-tu ?", expected:"no", effect: ()=>triggerTvRollGlitch() },
-  { text:"Tu n'es pas le premier sujet aujourd'hui. Tu ne seras pas le dernier.", auto:true, holdFor:2600 },
-  { text:"Le protocole est presque terminé. Les résultats seront transmis, quelle que soit ta réponse.", auto:true, holdFor:2800 },
+  { text:"Tu n'es pas le premier sujet aujourd'hui. Tu ne seras pas le dernier.", auto:true, holdFor:2600, effect: ()=>notifyDuringGame("Dossier mis à jour.") },
+  { text:"Le protocole est presque terminé. Les résultats seront transmis, quelle que soit ta réponse.", auto:true, holdFor:2800, effect: ()=>notifyDuringGame("Résultats en cours de transmission.") },
   { text:"Ce que tu réponds compte réellement. C'est bien pour ça qu'on te le demande.", auto:true, holdFor:2600 },
+
+  /* 44 dossier complet — juste avant la fin */
+  { text:"Le dossier à ton nom contient maintenant plus de pages qu'au début. Le savais-tu ?", auto:true, holdFor:2600 },
+  { text: ()=> answers.sawName===true
+      ? "Tu as déjà vu ton nom, ici. L'as-tu revu depuis ?"
+      : "Tu n'avais jamais vu ton nom, ici. Le vois-tu, maintenant ?" },
+  { text:"Si ce test recommençait demain, avec les mêmes questions, répondrais-tu pareil ?" },
+  { text:"Crois-tu que la case \"VIVANT\" sur ta feuille a changé, depuis le début ?", expected:"no" },
+  { text:"Le protocole indique que ton dossier est presque complet.", auto:true, holdFor:2400 },
+  { text:"Une dernière vérification : es-tu toujours dans cette pièce ?", expected:"yes" },
+  { text:"Sais-tu ce qui arrive aux dossiers complets ?" },
 
   /* 46 fin */
   { text:"Dernière chance de partir. Veux-tu vraiment continuer ?", expected:"yes" },
@@ -1467,8 +1545,41 @@ const STATE = { TITLE:"title", BOOT:"boot", PLAYING:"playing", END:"end" };
 let state = STATE.TITLE;
 let sessionStart = 0;
 
+/* ============================================================
+   Notifications — mécanique à part entière, jamais sur un moment
+   écran rouge ou le monstre (ça coupe le son en cours) :
+   1) pendant la partie, à des moments neutres choisis (voir QUESTIONS)
+   2) si le joueur quitte l'onglet en pleine partie
+   3) une seule fois, plusieurs minutes après la fin d'une partie
+   ============================================================ */
+let tabAwayTimer = null;
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden){
+    if(state===STATE.PLAYING && !tabAwayTimer){
+      tabAwayTimer = setTimeout(()=>{
+        tabAwayTimer = null;
+        if(state===STATE.PLAYING){
+          sendRealNotification(playerName ? `${playerName}, tu es parti·e au milieu du test.` : "Tu es parti·e au milieu du test.");
+        }
+      }, randRange(20000, 32000));
+    }
+  } else if(tabAwayTimer){
+    clearTimeout(tabAwayTimer);
+    tabAwayTimer = null;
+  }
+});
+let followUpTimer = null;
+function scheduleFollowUpNotification(){
+  if(followUpTimer) return; // une seule notification différée en attente à la fois
+  followUpTimer = setTimeout(()=>{
+    followUpTimer = null;
+    sendRealNotification(playerName ? `${playerName}. On t'attend.` : "On t'attend.");
+  }, randRange(3*60000, 7*60000));
+}
+
 function endQuiet(){
   state = STATE.END;
+  scheduleFollowUpNotification();
   save.quietEndings = (save.quietEndings||0)+1;
   save.lastVisit = now();
   writeSave(save);
@@ -1499,6 +1610,7 @@ function endQuiet(){
 }
 function endDisturbing(){
   state = STATE.END;
+  scheduleFollowUpNotification();
   save.badEndings = (save.badEndings||0)+1;
   save.lastVisit = now();
   writeSave(save);
@@ -1595,6 +1707,7 @@ function startTest(){
 
   state = STATE.PLAYING;
   sessionStart = now();
+  if(tabAwayTimer){ clearTimeout(tabAwayTimer); tabAwayTimer = null; }
   qIndex = -1;
   disturbCount = 0;
   answers = [];
@@ -1607,7 +1720,7 @@ function startTest(){
   clearTypingTimeouts();
   typingActive = false;
   monsterShown = false;
-  monsterUntil = 0;
+  document.getElementById("monsterImg").classList.remove("show");
   roomDark = false;
   roomDarkAlpha = 0;
   if(corruptStaticIv){ clearInterval(corruptStaticIv); corruptStaticIv = null; }
@@ -1640,6 +1753,8 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
   playerName = null;
   everGrantedAll = false;
   permStatus = {};
+  if(followUpTimer){ clearTimeout(followUpTimer); followUpTimer = null; }
+  if(tabAwayTimer){ clearTimeout(tabAwayTimer); tabAwayTimer = null; }
   document.getElementById("pgFirstName").value = "";
   document.getElementById("pgLastName").value = "";
   buildTitleFlavor();

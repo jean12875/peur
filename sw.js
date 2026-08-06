@@ -1,4 +1,4 @@
-const CACHE = "letest-v22";
+const CACHE = "letest-v23";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,7 +7,8 @@ const ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./sfx/cryo-outage.mp3",
-  "./sfx/cringe-scare.mp3"
+  "./sfx/cringe-scare.mp3",
+  "./img/monster.png"
 ];
 
 self.addEventListener("install", (e) => {

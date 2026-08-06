@@ -14,7 +14,7 @@ Ce qui rend LE TEST inhabituel :
 
 - **Une seule mécanique, aucune distraction.** Pas de minuteur à gérer, pas de doigt à maintenir sur l'écran — juste des questions, une par une, et le poids de devoir y répondre.
 - **Le test ment.** Certaines questions prétendent que tu as déjà répondu différemment, ou remettent en cause ta version précédente — alors que ce n'est pas vrai. Le doute est le but.
-- **Il sait vraiment des choses sur toi.** L'heure réelle, la batterie réelle de ton appareil, ton prénom et ton nom — affichés telles quels, sans détour. Une vraie notification système arrive au pire moment.
+- **Il sait vraiment des choses sur toi.** L'heure réelle, la batterie réelle de ton appareil, ton prénom et ton nom — affichés telles quels, sans détour. De vraies notifications système arrivent à des moments choisis pendant la partie — jamais pendant un moment écran rouge ou le monstre, pour ne pas couper le son en cours.
 - **Presque aucune bonne réponse n'est mise en scène pour toi.** Une réponse "étrange" fait trembler l'écran, corrompt le texte, fait basculer le téléviseur en rouge et grésillement — l'essentiel du jeu reste ambiance et rupture de rythme plutôt que jumpscare. Une seule exception, une seule fois par partie : un vrai face-à-face, bref et net, accompagné d'un son pensé pour faire peur.
 - **Deux fins, déterminées par tes choix**, pas par un mini-jeu de réflexes : une fin silencieuse et froide si tu restes conciliant, une fin qui s'effondre lentement dans le glitch et le noir si ta curiosité l'emporte.
 - **La mémoire entre les sessions.** Le jeu se souvient du nombre de fois où tu es venu et depuis combien de temps, et l'écran-titre le formule froidement.
@@ -23,7 +23,15 @@ Ce qui rend LE TEST inhabituel :
 
 La porte d'entrée demande deux choses, dans le même écran : ton prénom et ton nom (un vrai formulaire, deux champs), et l'autorisation d'envoyer des notifications. Le gros bouton central ne s'active que lorsque les deux champs sont remplis et que la permission a été explicitement accordée — jamais de faux "accordé" silencieux. Sur un appareil où les notifications ne peuvent tout simplement pas être proposées (ex : Safari iOS hors écran d'accueil), le rond reste rouge et le jeu ne démarre pas tant que ce n'est pas résolu — c'est volontaire.
 
-Une vraie notification système est envoyée au moment le plus fort du test (via le service worker, pour que ça fonctionne aussi sur mobile).
+## Les notifications, une vraie mécanique
+
+Les notifications ne sont pas un simple gadget de permission : elles reviennent à trois moments distincts, toujours via le service worker (pour fonctionner aussi sur mobile), toujours accompagnées d'un petit bip électronique en deux temps différent de tout le reste du jeu — jamais le son système par défaut, jamais pendant un moment écran rouge ou le monstre (ça couperait le son en cours).
+
+1. **Pendant la partie**, à trois moments neutres du scénario, avec un contenu qui a l'air de "rapporter" sur toi ("Le sujet ne se comporte pas comme prévu.", "Dossier mis à jour.", "Résultats en cours de transmission.").
+2. **Si tu quittes l'onglet** en pleine partie : une notification arrive 20 à 32 secondes plus tard pour te faire revenir — annulée si tu reviens avant.
+3. **Après la fin d'une partie** : une seule notification, 3 à 7 minutes plus tard, tant que l'onglet reste ouvert quelque part — "On t'attend."
+
+(Limite technique honnête : sans serveur, un vrai push après fermeture complète du navigateur n'est pas possible. Ces trois mécaniques fonctionnent tant que l'onglet reste ouvert, même en arrière-plan.)
 
 ## Le nom
 
@@ -49,7 +57,7 @@ Une séquence dédiée transforme la pièce en blanc immaculé pendant dix bonne
 
 Une question demande directement si tu as peur du noir. Peu importe la réponse : la lumière de la pièce coupe aussitôt après (disjoncteur, bourdonnement qui retombe) — tout s'éteint autour de toi, sauf l'écran du téléviseur, qui reste seul visible et continue de poser des questions dans le noir, jusqu'à ce que la lumière revienne.
 
-Le scénario distille aussi, sans jamais le dire explicitement, l'idée que ce test décide de quelque chose d'important pour le joueur : un dossier qui existait avant son arrivée, une case "VIVANT" sur une feuille, un sujet précédent qui n'a pas eu de suite, un texte partiellement caviardé. La très grande majorité du jeu reste ambiance et rupture de rythme plutôt que jumpscare — à une exception près : une seule fois par partie, sur la ligne la plus dérangeante du test (celle qui prononce ton prénom), un visage apparaît réellement à l'écran, net et bref, avec un son pensé pour être aussi terrifiant que possible. Ça n'arrive qu'une fois, jamais annoncé, jamais répété.
+Le scénario distille aussi, sans jamais le dire explicitement, l'idée que ce test décide de quelque chose d'important pour le joueur : un dossier qui existait avant son arrivée, une case "VIVANT" sur une feuille, un sujet précédent qui n'a pas eu de suite, un texte partiellement caviardé. La très grande majorité du jeu reste ambiance et rupture de rythme plutôt que jumpscare — à une exception près : une seule fois par partie, sur la ligne la plus dérangeante du test (celle qui prononce ton prénom), une vraie image apparaît en plein écran — pas un dessin procédural — avec un son pensé pour être aussi terrifiant que possible. Ça n'arrive qu'une fois, jamais annoncé, jamais répété.
 
 ## Structure du repo
 
@@ -59,6 +67,7 @@ manifest.json   → PWA : installable sur téléphone comme une vraie app
 sw.js           → service worker, jeu jouable hors-ligne une fois chargé
 icons/          → icônes générées (192, 512, apple-touch-icon)
 sfx/            → deux sons fournis (pas synthétisés) : rouge et vert
+img/            → l'image du monstre, utilisée une seule fois par partie
 ```
 
 Aucune build step, aucun framework. L'audio est presque entièrement synthétisé (Web Audio API) — deux exceptions : `sfx/cryo-outage.mp3` joue à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, chargés et mixés via Web Audio API comme le reste. Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
