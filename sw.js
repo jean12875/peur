@@ -1,4 +1,4 @@
-const CACHE = "letest-v30";
+const CACHE = "letest-v31";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./icons/icon-512.png",
   "./sfx/cryo-outage.mp3",
   "./sfx/cringe-scare.mp3",
+  "./sfx/heartbeat-flatline.mp3",
   "./img/monster.png"
 ];
 

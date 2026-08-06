@@ -55,7 +55,7 @@ Les grésillements ambiants, eux, ne sont jamais laissés au hasard : chacun est
 
 Une séquence dédiée transforme la pièce en blanc immaculé pendant dix bonnes secondes, avec une musique étrange et légèrement désaccordée — puis tout redevient normal, en silence, comme si de rien n'était. Aucune coupure rouge, aucune explication : c'est cette absence de suite qui dérange. Elle ne se déclenche qu'une fois qu'on a vraiment répondu à la question qui la précède — jamais avant, pour laisser le temps de lire.
 
-Un autre moment plonge l'écran dans un noir total, avec des bruits d'opération : une scie au loin, des cliquetis métalliques, un moniteur cardiaque dont le rythme ralentit peu à peu avant de s'aplatir — et, par-dessus, de vraies voix, paniquées et étouffées ("On est en train de le perdre. Vite.", "Reste avec nous.", "On l'a perdu."), jamais expliquées, jamais revues.
+Un autre moment plonge l'écran dans un noir total pendant qu'un vrai son fourni joue en entier — un battement de cœur qui ralentit peu à peu jusqu'à l'alarme plate d'un moniteur (`sfx/heartbeat-flatline.mp3`, ~29s). Aucune voix synthétique ici : le texte passe par des sous-titres blancs, façon film, affichés par-dessus le noir en rythme avec le son ("On est en train de le perdre. Vite.", "Reste avec nous.", "On l'a perdu."), jamais expliqués, jamais revus.
 
 Une question demande directement si tu as peur du noir. Peu importe la réponse : la lumière de la pièce coupe aussitôt après (disjoncteur, bourdonnement qui retombe) — tout s'éteint autour de toi, sauf l'écran du téléviseur, qui reste seul visible et continue de poser des questions dans le noir, jusqu'à ce que la lumière revienne.
 
@@ -80,7 +80,7 @@ sfx/            → deux sons fournis (pas synthétisés) : rouge et vert
 img/            → l'image du monstre, utilisée une seule fois par partie
 ```
 
-Aucune build step, aucun framework. L'audio est presque entièrement synthétisé (Web Audio API) — deux exceptions : `sfx/cryo-outage.mp3` joue à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, chargés et mixés via Web Audio API comme le reste. Les voix paniquées de la séquence noire viennent de l'API Web Speech du navigateur (aucun fichier audio, aucun serveur). Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
+Aucune build step, aucun framework. L'audio est presque entièrement synthétisé (Web Audio API) — trois exceptions, toutes des fichiers fournis, chargés et mixés via Web Audio API comme le reste : `sfx/cryo-outage.mp3` à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, `sfx/heartbeat-flatline.mp3` pendant la séquence noire. Plus aucune synthèse vocale (Web Speech API) dans le jeu — le texte de la séquence noire passe par des sous-titres blancs à l'écran. Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
 
 ## Lancer en local
 

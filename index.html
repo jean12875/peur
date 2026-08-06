@@ -179,12 +179,22 @@
   }
   #heavenOverlay.show{ opacity:1; }
 
-  /* ---------- noir total (bruits d'opération) ---------- */
+  /* ---------- noir total (bruit d'opération réel) ---------- */
   #blackout{
     position:absolute; inset:0; z-index:42; background:#000; opacity:0; pointer-events:none;
     transition:opacity .8s ease;
   }
   #blackout.show{ opacity:1; }
+  /* sous-titres blancs, façon film — affichés par-dessus le noir pendant que
+     le son de battement de cœur joue, jamais de voix synthétique */
+  #blackoutSub{
+    position:absolute; left:6vw; right:6vw; bottom:14vh; z-index:43;
+    text-align:center; color:#f2f2f2; font-size:clamp(0.95rem, 3.2vw, 1.3rem);
+    font-weight:300; letter-spacing:0.03em; line-height:1.5em;
+    text-shadow:0 0 10px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.9);
+    opacity:0; pointer-events:none; transition:opacity .5s ease;
+  }
+  #blackoutSub.show{ opacity:1; }
 
   /* ---------- écrans overlay ---------- */
   #boot{
@@ -419,6 +429,7 @@
 
   <div id="heavenOverlay"></div>
   <div id="blackout"></div>
+  <div id="blackoutSub"></div>
   <div id="wakeText">réveille-toi.</div>
   <div id="monsterImg"><img src="img/monster.png" alt=""></div>
 
@@ -576,12 +587,13 @@ function ensureAudio(){
   decodeSfxIfReady();
 }
 
-/* deux sons fournis par le joueur, en plus du reste (100% procédural) :
-   un pour les moments écran rouge, un pour les moments écran vert */
-let sfxRedRaw = null, sfxGreenRaw = null;
-let sfxRedBuffer = null, sfxGreenBuffer = null;
+/* sons fournis par le joueur, en plus du reste (100% procédural) :
+   rouge, vert, et le battement de cœur qui ralentit jusqu'à l'alarme plate */
+let sfxRedRaw = null, sfxGreenRaw = null, sfxHeartRaw = null;
+let sfxRedBuffer = null, sfxGreenBuffer = null, sfxHeartBuffer = null;
 fetch("sfx/cryo-outage.mp3").then(r=>r.ok?r.arrayBuffer():null).then(b=>{ sfxRedRaw = b; decodeSfxIfReady(); }).catch(()=>{});
 fetch("sfx/cringe-scare.mp3").then(r=>r.ok?r.arrayBuffer():null).then(b=>{ sfxGreenRaw = b; decodeSfxIfReady(); }).catch(()=>{});
+fetch("sfx/heartbeat-flatline.mp3").then(r=>r.ok?r.arrayBuffer():null).then(b=>{ sfxHeartRaw = b; decodeSfxIfReady(); }).catch(()=>{});
 function decodeSfxIfReady(){
   if(!actx) return;
   if(sfxRedRaw && !sfxRedBuffer){
@@ -590,6 +602,9 @@ function decodeSfxIfReady(){
   if(sfxGreenRaw && !sfxGreenBuffer){
     actx.decodeAudioData(sfxGreenRaw.slice(0), (buf)=>{ sfxGreenBuffer = buf; }, ()=>{});
   }
+  if(sfxHeartRaw && !sfxHeartBuffer){
+    actx.decodeAudioData(sfxHeartRaw.slice(0), (buf)=>{ sfxHeartBuffer = buf; }, ()=>{});
+  }
 }
 function playSfxRed(){
   if(!actx || !sfxRedBuffer) return;
@@ -597,6 +612,16 @@ function playSfxRed(){
   const g = actx.createGain(); g.gain.value = 0.9;
   src.connect(g); g.connect(masterGain);
   src.start();
+}
+// retourne la durée réelle (ms) du fichier joué, pour caler le noir et les
+// sous-titres dessus — 0 si le buffer n'est pas encore prêt
+function playSfxHeart(){
+  if(!actx || !sfxHeartBuffer) return 0;
+  const src = actx.createBufferSource(); src.buffer = sfxHeartBuffer;
+  const g = actx.createGain(); g.gain.value = 1;
+  src.connect(g); g.connect(masterGain);
+  src.start();
+  return sfxHeartBuffer.duration*1000;
 }
 function playSfxGreen(){
   if(!actx || !sfxGreenBuffer) return;
@@ -1035,34 +1060,10 @@ function triggerSignalCorruption(){
 }
 
 /* ============================================================
-   Noir total + bruits d'opération — un moment où on ne voit plus
-   rien, mais où on entend. Jamais expliqué.
+   Noir total — un moment où on ne voit plus rien, mais où on entend
+   un vrai son fourni (battement qui ralentit jusqu'à l'alarme plate).
+   Jamais expliqué.
    ============================================================ */
-function sawSound(t0, dur){
-  if(!actx) return;
-  const o = actx.createOscillator(); o.type = "sawtooth";
-  o.frequency.setValueAtTime(68, t0);
-  const trem = actx.createOscillator(); trem.frequency.value = 11;
-  const tremGain = actx.createGain(); tremGain.gain.value = 16;
-  trem.connect(tremGain); tremGain.connect(o.frequency);
-  const g = actx.createGain();
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.linearRampToValueAtTime(0.19, t0+0.35);
-  g.gain.setValueAtTime(0.19, t0+Math.max(0.4,dur-0.5));
-  g.gain.linearRampToValueAtTime(0.0001, t0+dur);
-  o.connect(g); g.connect(masterGain);
-  o.start(t0); trem.start(t0); o.stop(t0+dur); trem.stop(t0+dur);
-}
-function metalClinkSound(t0){
-  if(!actx) return;
-  const o = actx.createOscillator(); o.type = "square";
-  o.frequency.setValueAtTime(1500+Math.random()*1100, t0);
-  const g = actx.createGain();
-  g.gain.setValueAtTime(0.1, t0);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0+0.12);
-  o.connect(g); g.connect(masterGain);
-  o.start(t0); o.stop(t0+0.13);
-}
 function heartbeepSound(t0, flatline){
   if(!actx) return;
   const o = actx.createOscillator(); o.type = "sine";
@@ -1083,110 +1084,37 @@ function heartbeepSound(t0, flatline){
   o.connect(g); g.connect(masterGain);
   o.start(t0); o.stop(t0+0.2);
 }
-// voix étouffées dans la panique — Web Speech API, jamais expliquées, jamais revues.
-// iOS/Safari exige que le moteur de synthèse soit "débloqué" par un geste direct
-// de l'utilisateur (comme l'audio) : voir warmUpSpeech(), appelé au clic sur "commencer".
-// choisit la meilleure voix fr disponible — sur iOS/Android il existe souvent des
-// voix "Enhanced"/"Premium" bien moins robotiques que la voix "Compact" par défaut
-let frenchVoice = null;
-function pickFrenchVoice(){
-  try{
-    if(!("speechSynthesis" in window)) return null;
-    const voices = speechSynthesis.getVoices() || [];
-    const fr = voices.filter(v=>/^fr/i.test(v.lang));
-    if(!fr.length) return null;
-    const better = fr.find(v=>/enhanced|premium|neural|siri/i.test(v.name));
-    return better || fr[0];
-  }catch(e){ return null; }
+// plus de voix synthétique ici : le son est un vrai fichier fourni (battement qui
+// ralentit jusqu'à l'alarme plate), et le texte passe par des sous-titres blancs,
+// façon film, affichés par-dessus le noir — jamais expliqués, jamais revus.
+function showBlackoutSubtitle(text, holdMs){
+  const el = document.getElementById("blackoutSub");
+  el.textContent = text;
+  el.classList.add("show");
+  setTimeout(()=>{ if(el.textContent===text) el.classList.remove("show"); }, holdMs || 2600);
 }
-if("speechSynthesis" in window){
-  try{
-    speechSynthesis.onvoiceschanged = ()=>{ frenchVoice = pickFrenchVoice(); };
-    frenchVoice = pickFrenchVoice();
-  }catch(e){}
+// joue le fichier réel et cale les sous-titres sur sa durée effective (décodée) ;
+// renvoie cette durée en ms, ou 0 si le fichier n'était pas encore prêt (rare, mais
+// possible si l'opération arrive très tôt dans une partie)
+function operationSound(){
+  const dur = playSfxHeart();
+  if(!dur) return 0;
+  showBlackoutSubtitle("On est en train de le perdre. Vite.", 3400);
+  setTimeout(()=>{ if(state===STATE.PLAYING) showBlackoutSubtitle("Reste avec nous.", 3200); }, dur*0.42);
+  setTimeout(()=>{ if(state===STATE.PLAYING) showBlackoutSubtitle("On l'a perdu.", 3600); }, dur*0.84);
+  return dur;
 }
-// une phrase lue d'une traite par une synthèse vocale sonne toujours posée, jamais
-// paniquée — ici le texte est fragmenté en petites bouffées de 2-3 mots, débitées
-// vite, avec un pitch qui varie d'une bouffée à l'autre : ça casse le débit fluide
-// et robotique, pour se rapprocher d'une vraie voix essoufflée/affolée
-function speakOminous(text, opts){
-  try{
-    if(!("speechSynthesis" in window)) return;
-    if(speechSynthesis.paused) speechSynthesis.resume();
-    const basePitch = (opts && opts.pitch!=null) ? opts.pitch : 0.85;
-    const baseRate = (opts && opts.rate!=null) ? opts.rate : 1.15;
-    const vol = (opts && opts.volume!=null) ? opts.volume : 1;
-    const words = text.split(" ").filter(Boolean);
-    const chunks = [];
-    let i = 0;
-    while(i < words.length){
-      const n = 2 + Math.floor(Math.random()*2); // bouffées de 2-3 mots
-      chunks.push(words.slice(i, i+n).join(" "));
-      i += n;
-    }
-    let idx = 0;
-    const speakNext = ()=>{
-      if(idx >= chunks.length || state!==STATE.PLAYING) return;
-      const u = new SpeechSynthesisUtterance(chunks[idx]);
-      u.lang = "fr-FR";
-      if(frenchVoice) u.voice = frenchVoice;
-      u.pitch = Math.max(0, Math.min(2, basePitch + randRange(-0.18,0.22)));
-      u.rate = Math.max(0.1, baseRate + randRange(-0.08,0.3));
-      u.volume = vol;
-      idx++;
-      u.onend = ()=>{ setTimeout(speakNext, randRange(35,130)); };
-      u.onerror = ()=>{ setTimeout(speakNext, 60); };
-      try{ speechSynthesis.speak(u); }catch(e){}
-    };
-    speakNext();
-  }catch(e){}
-}
-function warmUpSpeech(){
-  try{
-    if(!("speechSynthesis" in window)) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(" ");
-    u.volume = 0; // silencieux — sert uniquement à débloquer le moteur pendant le geste utilisateur
-    u.lang = "fr-FR";
-    speechSynthesis.speak(u);
-  }catch(e){}
-}
-function operationSound(duration){
-  if(!actx) return;
-  const t0 = actx.currentTime;
-  sawSound(t0+0.4, Math.min(3.4, duration*0.4));
-  let ct = t0+0.3;
-  while(ct < t0+duration-0.3){
-    if(Math.random()<0.55) metalClinkSound(ct);
-    ct += randRange(0.4,1.1);
-  }
-  // le battement ralentit progressivement à l'approche de l'arrêt, puis une ligne plate
-  let bt = t0+0.15;
-  const flatAt = t0+duration*0.76;
-  while(bt < flatAt){
-    heartbeepSound(bt, false);
-    const progress = Math.max(0, Math.min(1, (bt-t0)/(flatAt-t0)));
-    bt += 0.72 + progress*0.85;
-  }
-  heartbeepSound(flatAt, true);
-
-  // des voix, paniquées, étouffées par le noir — jamais expliquées.
-  // arc dramatique : panique/urgence (rapide, aigu) → supplication (encore tendue)
-  // → résignation (lente, grave) une fois la ligne plate atteinte
-  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("On est en train de le perdre. Vite.", {pitch:0.9, rate:1.25}); }, 1300);
-  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("Reste avec nous.", {pitch:0.95, rate:1.1}); }, Math.max(2200, duration*1000*0.48));
-  setTimeout(()=>{ if(state===STATE.PLAYING) speakOminous("On l'a perdu.", {pitch:0.5, rate:0.7}); }, Math.max(2600, duration*1000*0.8));
-}
-function triggerBlackout(duration){
+function triggerBlackout(fallbackDuration){
   const bo = document.getElementById("blackout");
   overlayActive = true;
   bo.classList.add("show");
   ensureAudio();
-  operationSound(duration/1000);
   vibrate(save.reduceEffects ? [] : [0,20,320,20]);
+  const duration = operationSound() || fallbackDuration;
   setTimeout(()=>{
     overlayActive = false;
     if(state===STATE.PLAYING) bo.classList.remove("show");
+    document.getElementById("blackoutSub").classList.remove("show");
   }, duration);
 }
 
@@ -1565,10 +1493,11 @@ const QUESTIONS = [
     } },
 
   /* 36 une défaillance signalée — puis le noir */
-  { text:"Une défaillance vient d'être signalée quelque part dans cette pièce. Reste tranquille, ça ne prendra qu'un instant.", freeze:1100, auto:true, holdFor:10200, effect: ()=>{
-      // laisser le temps de lire la question avant que tout devienne noir
+  { text:"Une défaillance vient d'être signalée quelque part dans cette pièce. Reste tranquille, ça ne prendra qu'un instant.", freeze:1100, auto:true, holdFor:33200, effect: ()=>{
+      // laisser le temps de lire la question avant que tout devienne noir ; holdFor
+      // couvre le délai + la durée réelle du son fourni (~29s) + une marge
       const idx = qIndex;
-      setTimeout(()=>{ if(state===STATE.PLAYING && qIndex===idx) triggerBlackout(9200); }, 3000);
+      setTimeout(()=>{ if(state===STATE.PLAYING && qIndex===idx) triggerBlackout(29200); }, 3000);
     } },
   { text:"N'as-tu vraiment rien senti pendant ce moment ?", expected:"yes", effect: ()=>triggerAmbientGlitch() },
 
@@ -1793,6 +1722,7 @@ function devSkip(){
   overlayActive = false;
   document.getElementById("heavenOverlay").classList.remove("show");
   document.getElementById("blackout").classList.remove("show");
+  document.getElementById("blackoutSub").classList.remove("show");
   document.getElementById("tvScreen").classList.remove("success");
   applyAlertVisual(false, false);
   setRoomDark(false);
@@ -1971,7 +1901,6 @@ function startBoot(){
   requestFullscreenIfPossible();
   ensureAudio();
   if(actx && actx.state==="suspended") actx.resume();
-  warmUpSpeech();
   state = STATE.BOOT;
   document.getElementById("veil").classList.add("hidden");
   const boot = document.getElementById("boot");
@@ -2015,6 +1944,7 @@ function startTest(){
   document.getElementById("heavenOverlay").classList.remove("show");
   document.getElementById("tvStatic").classList.remove("show");
   document.getElementById("blackout").classList.remove("show");
+  document.getElementById("blackoutSub").classList.remove("show");
   document.getElementById("wakeText").classList.remove("show");
   document.getElementById("app").classList.remove("corruptFlash");
   document.getElementById("tvText").classList.remove("rollGlitch");
