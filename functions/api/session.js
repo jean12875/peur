@@ -1,4 +1,4 @@
-import { getSessionPhone, getAccount, jsonResponse, publicAccount, errorCode } from "../_lib/auth.js";
+import { getSessionEmail, getAccount, jsonResponse, publicAccount, errorCode } from "../_lib/auth.js";
 
 function tokenFromRequest(request) {
   const auth = request.headers.get("Authorization") || "";
@@ -12,9 +12,9 @@ export async function onRequestGet(context) {
   if (!token) return jsonResponse({ error: "Non connecté." }, 401);
 
   try {
-    const phone = await getSessionPhone(env, token);
-    if (!phone) return jsonResponse({ error: "Session expirée." }, 401);
-    const account = await getAccount(env, phone);
+    const email = await getSessionEmail(env, token);
+    if (!email) return jsonResponse({ error: "Session expirée." }, 401);
+    const account = await getAccount(env, email);
     if (!account) return jsonResponse({ error: "Compte introuvable." }, 404);
     return jsonResponse({ account: publicAccount(account) });
   } catch (e) {

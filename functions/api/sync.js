@@ -1,4 +1,4 @@
-import { getSessionPhone, getAccount, saveAccount, jsonResponse, publicAccount, updateLeaderboards, errorCode } from "../_lib/auth.js";
+import { getSessionEmail, getAccount, saveAccount, jsonResponse, publicAccount, updateLeaderboards, errorCode } from "../_lib/auth.js";
 
 function tokenFromRequest(request) {
   const auth = request.headers.get("Authorization") || "";
@@ -19,9 +19,9 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const phone = await getSessionPhone(env, token);
-    if (!phone) return jsonResponse({ error: "Session expirée." }, 401);
-    const account = await getAccount(env, phone);
+    const email = await getSessionEmail(env, token);
+    if (!email) return jsonResponse({ error: "Session expirée." }, 401);
+    const account = await getAccount(env, email);
     if (!account) return jsonResponse({ error: "Compte introuvable." }, 404);
 
     // le client envoie sa sauvegarde + trace locales — on écrase simplement
@@ -32,7 +32,7 @@ export async function onRequestPost(context) {
     if (body.notif !== undefined) account.notif = !!body.notif;
     if (body.badgeCount !== undefined) account.badgeCount = Number(body.badgeCount) || 0;
 
-    await saveAccount(env, phone, account);
+    await saveAccount(env, email, account);
     // classements — silencieux si pas de pseudo, jamais bloquant pour le joueur
     try { await updateLeaderboards(env, account); } catch (e) {}
     return jsonResponse({ ok: true, account: publicAccount(account) });

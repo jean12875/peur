@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="LE TEST — réponds sincèrement.">
+<meta name="description" content="LE TEST PSYCHOLOGIQUE — réponds sincèrement.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="LE TEST">
-<title>LE TEST</title>
+<meta name="apple-mobile-web-app-title" content="LE TEST PSYCHOLOGIQUE">
+<title>LE TEST PSYCHOLOGIQUE</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
@@ -223,6 +223,10 @@
     color:#d8d8d8; font-size:0.85rem; letter-spacing:0.25em; text-transform:uppercase; cursor:pointer; font-family:inherit;
   }
   .startbtn:active{ background:rgba(255,255,255,0.08); }
+  .startbtn.secondary{
+    margin-top:0.3em; opacity:0.45; border-color:rgba(255,255,255,0.16); font-size:0.72rem; padding:0.7em 2em;
+  }
+  .startbtn.secondary:active{ opacity:0.75; }
   /* ---------- rangée d'icônes (écran-titre) : version / badges / partager / actualiser / tout oublier ---------- */
   #titleIconRow{
     position:absolute; bottom:calc(1.6em + env(safe-area-inset-bottom, 0px)); left:50%; transform:translateX(-50%);
@@ -420,6 +424,19 @@
   #devSkip:active{ opacity:0.9; border-color:#6a9fdc; color:#6a9fdc; }
   #devSkip.hide{ display:none; }
 
+  /* ---------- page d'accueil (avant connexion) : titre + choix ---------- */
+  #introGate{
+    position:absolute; inset:0; z-index:84; display:none; align-items:center; justify-content:center;
+    text-align:center; padding:6vh 6vw;
+    background:
+      repeating-linear-gradient(to bottom, rgba(0,0,0,0.14) 0px, rgba(0,0,0,0.14) 1px, transparent 2px, transparent 3px),
+      radial-gradient(ellipse at 50% 28%, #3a72b8 0%, #1c3f6e 45%, #0d1f38 80%, #060f1c 100%);
+  }
+  #introGate.show{ display:flex; }
+  #introGate .box{ display:flex; flex-direction:column; align-items:center; gap:1.1em; width:min(360px, 100%); margin:auto; }
+  #introTitle{ font-size:clamp(1.6rem, 7vw, 2.6rem); font-weight:200; letter-spacing:0.2em; color:#e6e6e6; text-shadow:0 0 18px rgba(255,255,255,0.08); }
+  #introFlavor{ font-size:clamp(0.82rem, 2.5vw, 1rem); font-weight:300; color:#8a8a8a; line-height:1.6em; margin-bottom:0.4em; }
+
   /* ---------- porte d'entrée : profil / compte ---------- */
   #permGate{
     position:absolute; inset:0; z-index:85; display:none; align-items:center; justify-content:center;
@@ -469,22 +486,22 @@
     background:none; border:none; color:#6a86ac; font-family:inherit; font-size:0.72rem;
     letter-spacing:0.08em; text-decoration:underline; cursor:pointer; padding:0.6em; text-align:center;
   }
-  #pgForgotBtn{
+  #pgForgotBtn, #pgMigrateBtn{
     display:none; background:none; border:none; color:#5c7093; font-family:inherit; font-size:0.68rem;
     letter-spacing:0.06em; text-decoration:underline; cursor:pointer; padding:0.2em; text-align:center;
   }
-  #permGate.loginMode #pgForgotBtn{ display:block; }
+  #permGate.loginMode #pgForgotBtn, #permGate.loginMode #pgMigrateBtn{ display:block; }
 
-  /* ---------- mot de passe oublié (code SMS) + changer mes infos ---------- */
-  #forgotModal, #pseudoPromptModal, #editInfoModal{
+  /* ---------- mot de passe oublié (code email) + changer mes infos + migration ---------- */
+  #forgotModal, #pseudoPromptModal, #editInfoModal, #migrateModal{
     position:fixed; inset:0; z-index:90;
     display:flex; align-items:center; justify-content:center;
     background:rgba(0,0,0,0.72);
     opacity:0; pointer-events:none; transition:opacity 0.35s ease;
     padding:6vw;
   }
-  #forgotModal.show, #pseudoPromptModal.show, #editInfoModal.show{ opacity:1; pointer-events:auto; }
-  #forgotBox, #pseudoPromptBox, #editInfoBox{
+  #forgotModal.show, #pseudoPromptModal.show, #editInfoModal.show, #migrateModal.show{ opacity:1; pointer-events:auto; }
+  #forgotBox, #pseudoPromptBox, #editInfoBox, #migrateBox{
     width:100%; max-width:24em; text-align:center; padding:1.8em 1.6em 1.4em;
     background:#0d1420; border:1px solid rgba(255,255,255,0.12);
     color:#dce8fb; letter-spacing:0.04em;
@@ -494,16 +511,17 @@
   #forgotStep2{ display:none; }
   #forgotModal.step2 #forgotStep1{ display:none; }
   #forgotModal.step2 #forgotStep2{ display:flex; }
-  #forgotError, #pseudoPromptError, #editInfoError{
+  #forgotError, #pseudoPromptError, #editInfoError, #migrateError{
     min-height:1.2em; font-size:0.72rem; color:#ff8f7a; letter-spacing:0.02em; line-height:1.4em; word-break:break-word;
   }
-  #forgotBox button, #pseudoPromptBox button, #editInfoBox button{
+  #forgotBox button, #pseudoPromptBox button, #editInfoBox button, #migrateBox button{
     background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
     font-size:0.78rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.7em 1.4em;
     cursor:pointer; font-family:inherit;
   }
-  #forgotBox button:active, #pseudoPromptBox button:active, #editInfoBox button:active{ background:rgba(255,255,255,0.08); }
-  #forgotCloseBtn, #pseudoPromptLaterBtn, #editInfoCloseBtn{ border-color:rgba(255,255,255,0.14); color:#5c7093; margin-top:0.2em; }
+  #forgotBox button:active, #pseudoPromptBox button:active, #editInfoBox button:active, #migrateBox button:active{ background:rgba(255,255,255,0.08); }
+  #forgotCloseBtn, #pseudoPromptLaterBtn, #editInfoCloseBtn, #migrateCloseBtn{ border-color:rgba(255,255,255,0.14); color:#5c7093; margin-top:0.2em; }
+  #migrateBox .vText{ font-size:0.78rem; line-height:1.55em; color:#9aa4b2; font-weight:300; }
 
   /* ---------- roue de paramètres (écran-titre) ---------- */
   #settingsModal{
@@ -731,10 +749,11 @@
 
   <div id="veil" class="hidden">
     <div class="levelTag">niveau 1</div>
-    <div class="title" id="titleText">LE TEST</div>
+    <div class="title" id="titleText">LE TEST PSYCHOLOGIQUE</div>
     <div class="flavor" id="flavorText">assieds-toi. ce protocole existe depuis longtemps. réponds sincèrement, ça ne prendra pas longtemps.</div>
     <div class="stat" id="statText"></div>
     <button class="startbtn" id="startBtn">commencer</button>
+    <button class="startbtn secondary" id="comingSoonBtn">coming soon</button>
     <div id="titleIconRow">
       <button id="badgesBtn" class="titleIconBtn" aria-label="badges" title="badges"><span class="ticoGlyph">★</span></button>
       <button id="shareBtn" class="titleIconBtn" aria-label="partager" title="partager"><span class="ticoGlyph">↗</span></button>
@@ -811,7 +830,7 @@
 
   <div id="versionModal">
     <div id="versionBox">
-      <div class="vTitle">LE TEST</div>
+      <div class="vTitle">LE TEST PSYCHOLOGIQUE</div>
       <div class="vNum" id="versionNum"></div>
       <div class="vText">Ce jeu est encore en bêta : il est en développement actif, certaines parties peuvent changer, être corrigées ou ajoutées sans prévenir d'une version à l'autre.</div>
       <div id="versionLog"></div>
@@ -824,6 +843,15 @@
     <div id="endSub"></div>
   </div>
 
+  <div id="introGate">
+    <div class="box">
+      <div class="title" id="introTitle">LE TEST PSYCHOLOGIQUE…</div>
+      <div class="flavor" id="introFlavor">Un dossier existe déjà quelque part à ton sujet. Que tu t'en souviennes ou non n'a jamais changé grand-chose.</div>
+      <button class="startbtn" id="introLoginBtn">se connecter</button>
+      <button class="startbtn" id="introSignupBtn">créer un compte</button>
+    </div>
+  </div>
+
   <div id="permGate">
     <div class="box">
       <div class="pgTitle" id="pgTitle">ton profil</div>
@@ -832,7 +860,7 @@
         <input id="pgLastName" class="pgField" type="text" placeholder="nom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
         <input id="pgPseudo" class="pgField" type="text" placeholder="pseudo public (@...)" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false">
       </div>
-      <input id="pgPhone" class="pgField" type="tel" placeholder="numéro de téléphone" maxlength="20" autocomplete="off" spellcheck="false">
+      <input id="pgEmail" class="pgField" type="email" placeholder="email" maxlength="80" autocomplete="off" spellcheck="false">
       <input id="pgPassword" class="pgField" type="password" placeholder="mot de passe" maxlength="64" autocomplete="off" spellcheck="false">
       <div id="pgSignupOnly2">
         <div id="pgNotifRow" class="pgField">
@@ -847,6 +875,7 @@
       <div id="pgError"></div>
       <button id="launchBtn"></button>
       <button id="pgForgotBtn" type="button">mot de passe oublié ?</button>
+      <button id="pgMigrateBtn" type="button">compte créé avec un numéro de téléphone ?</button>
       <button id="pgModeToggle" type="button">déjà un compte ? se connecter</button>
     </div>
   </div>
@@ -855,18 +884,31 @@
     <div id="forgotBox">
       <div class="vTitle">MOT DE PASSE OUBLIÉ</div>
       <div id="forgotStep1">
-        <div class="vText">On envoie un code de vérification par SMS au numéro du compte.</div>
-        <input id="forgotPhone" class="pgField" type="tel" placeholder="numéro de téléphone" maxlength="20" autocomplete="off" spellcheck="false">
+        <div class="vText">On envoie un code de vérification par email à l'adresse du compte.</div>
+        <input id="forgotEmail" class="pgField" type="email" placeholder="email" maxlength="80" autocomplete="off" spellcheck="false">
         <button id="forgotSendBtn">envoyer le code</button>
       </div>
       <div id="forgotStep2">
-        <div class="vText">Code envoyé par SMS (valable 10 minutes).</div>
+        <div class="vText">Code envoyé par email (valable 10 minutes).</div>
         <input id="forgotCode" class="pgField" type="text" inputmode="numeric" placeholder="code à 6 chiffres" maxlength="6" autocomplete="off" spellcheck="false">
         <input id="forgotNewPassword" class="pgField" type="password" placeholder="nouveau mot de passe" maxlength="64" autocomplete="off" spellcheck="false">
         <button id="forgotResetBtn">réinitialiser</button>
       </div>
       <div id="forgotError"></div>
       <button id="forgotCloseBtn">annuler</button>
+    </div>
+  </div>
+
+  <div id="migrateModal">
+    <div id="migrateBox">
+      <div class="vTitle">ANCIEN COMPTE</div>
+      <div class="vText">Ton compte a été créé avant le passage à l'email. Renseigne ton ancien numéro et ton mot de passe, ainsi qu'un email : ton compte (progression, badges, pseudo) sera transféré dessus.</div>
+      <input id="migratePhone" class="pgField" type="tel" placeholder="ancien numéro de téléphone" maxlength="20" autocomplete="off" spellcheck="false">
+      <input id="migratePassword" class="pgField" type="password" placeholder="mot de passe" maxlength="64" autocomplete="off" spellcheck="false">
+      <input id="migrateEmail" class="pgField" type="email" placeholder="nouvel email" maxlength="80" autocomplete="off" spellcheck="false">
+      <div id="migrateError"></div>
+      <button id="migrateSubmitBtn">transférer mon compte</button>
+      <button id="migrateCloseBtn">annuler</button>
     </div>
   </div>
 
@@ -925,11 +967,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.69";
+const APP_VERSION = "1.70";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.70", "Le jeu s'appelle maintenant LE TEST PSYCHOLOGIQUE. Le compte se crée avec un email au lieu d'un numéro de téléphone (mot de passe oublié envoie un code par email). Nouvel écran d'accueil avant le formulaire, avec un lien vers l'autre mode (connexion / création de compte). Un deuxième bouton \"coming soon\" apparaît sous \"commencer\" sur l'écran-titre."],
   ["1.69", "Compte obligatoire pour accéder au menu, avec un pseudo public. Nouveau classement (badges, temps joué, parties). Roue de paramètres regroupant version/actualiser/tout oublier/changer mes infos/se déconnecter/effets réduits. L'ancienne icône lune en jeu est remplacée par un bouton discret pour abandonner le test en cours. Mot de passe oublié par SMS."],
   ["1.68", "\"Tout oublier\" demande maintenant une confirmation avant d'effacer la sauvegarde de l'appareil."],
   ["1.67", "Écran-titre : le bouton menu est remplacé par cinq icônes directes (version, badges, partager, actualiser, tout oublier)."],
@@ -1850,16 +1893,17 @@ async function requestNotifPerm(){
 }
 
 const PSEUDO_RE = /^[a-zA-Z0-9_]{3,20}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function nameFieldsFilled(){
-  const phone = document.getElementById("pgPhone").value.trim();
+  const email = document.getElementById("pgEmail").value.trim();
   const pass = document.getElementById("pgPassword").value;
   if(pgMode === "login"){
-    return phone.length>0 && pass.length>0;
+    return EMAIL_RE.test(email) && pass.length>0;
   }
   const f = document.getElementById("pgFirstName").value.trim();
   const l = document.getElementById("pgLastName").value.trim();
   const p = document.getElementById("pgPseudo").value.trim();
-  return f.length>0 && l.length>0 && PSEUDO_RE.test(p) && phone.length>=6 && pass.length>=4;
+  return f.length>0 && l.length>0 && PSEUDO_RE.test(p) && EMAIL_RE.test(email) && pass.length>=4;
 }
 function updateLaunchBtn(){
   const ok = nameFieldsFilled();
@@ -1887,7 +1931,11 @@ function setPgNotifToggle(wantYes){
   });
 }
 
-function showPermGate(){
+function showIntroGate(){ document.getElementById("introGate").classList.add("show"); }
+function hideIntroGate(){ document.getElementById("introGate").classList.remove("show"); }
+
+function showPermGate(mode){
+  hideIntroGate();
   document.getElementById("permGate").classList.add("show");
   const firstField = document.getElementById("pgFirstName");
   const lastField = document.getElementById("pgLastName");
@@ -1900,10 +1948,10 @@ function showPermGate(){
     lastField.value = "";
   }
   document.getElementById("pgPseudo").value = "";
-  document.getElementById("pgPhone").value = "";
+  document.getElementById("pgEmail").value = "";
   document.getElementById("pgPassword").value = "";
   setPgNotifToggle(true);
-  setPgMode("signup");
+  setPgMode(mode || "signup");
 }
 function hidePermGate(){ document.getElementById("permGate").classList.remove("show"); }
 
@@ -1962,10 +2010,11 @@ function enterTitleScreen(){
 }
 
 async function tryResumeSession(){
-  // le formulaire de connexion est l'écran par défaut : impossible de voir
-  // le menu (badges, classement, etc.) sans être connecté — on ne révèle
-  // l'écran-titre que si une session valide est confirmée
-  showPermGate();
+  // la page d'accueil (se connecter / créer un compte) est l'écran par
+  // défaut : impossible de voir le menu (badges, classement, etc.) sans
+  // être connecté — on ne révèle l'écran-titre que si une session valide
+  // est confirmée
+  showIntroGate();
   const token = loadAccountToken();
   if(!token) return;
   try{
@@ -1983,14 +2032,14 @@ async function handleLaunchClick(){
   if(!updateLaunchBtn()) return;
   const btn = document.getElementById("launchBtn");
   btn.classList.add("disabled");
-  const phone = document.getElementById("pgPhone").value.trim();
+  const email = document.getElementById("pgEmail").value.trim();
   const password = document.getElementById("pgPassword").value;
 
   if(pgMode === "login"){
     try{
       const { ok, data } = await apiCall("/api/login", {
         method:"POST", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ phone, password }),
+        body: JSON.stringify({ email, password }),
       });
       if(!ok){
         setPgError((data.error || "identifiants invalides.") + (data.code ? " (code "+data.code+")" : ""));
@@ -2015,7 +2064,7 @@ async function handleLaunchClick(){
   try{
     const { ok, status, data } = await apiCall("/api/register", {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ prenom:first, nom:last, pseudo, phone, password, notif:pgNotifWanted }),
+      body: JSON.stringify({ prenom:first, nom:last, pseudo, email, password, notif:pgNotifWanted }),
     });
     if(ok){
       applyAccount(data.token, data.account);
@@ -2062,7 +2111,7 @@ document.querySelectorAll(".pgNotifOpt").forEach(btn=>{
   });
   btn.addEventListener("pointerdown",(e)=>e.stopPropagation());
 });
-["pgFirstName","pgLastName","pgPseudo","pgPhone","pgPassword"].forEach(id=>{
+["pgFirstName","pgLastName","pgPseudo","pgEmail","pgPassword"].forEach(id=>{
   const field = document.getElementById(id);
   field.addEventListener("input", updateLaunchBtn);
   field.addEventListener("pointerdown",(e)=>e.stopPropagation());
@@ -2077,12 +2126,22 @@ document.getElementById("pgModeToggle").addEventListener("click", (e)=>{
 });
 document.getElementById("permGate").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
 
+document.getElementById("introLoginBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  showPermGate("login");
+});
+document.getElementById("introSignupBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  showPermGate("signup");
+});
+document.getElementById("introGate").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
+
 /* ============================================================
-   Mot de passe oublié — code de vérification par SMS
+   Mot de passe oublié — code de vérification par email
    ============================================================ */
 function resetForgotModal(){
   document.getElementById("forgotModal").classList.remove("step2");
-  document.getElementById("forgotPhone").value = document.getElementById("pgPhone").value.trim();
+  document.getElementById("forgotEmail").value = document.getElementById("pgEmail").value.trim();
   document.getElementById("forgotCode").value = "";
   document.getElementById("forgotNewPassword").value = "";
   document.getElementById("forgotError").textContent = "";
@@ -2101,14 +2160,14 @@ document.getElementById("forgotModal").addEventListener("click", (e)=>{
 });
 document.getElementById("forgotSendBtn").addEventListener("click", async (e)=>{
   e.stopPropagation();
-  const phone = document.getElementById("forgotPhone").value.trim();
+  const email = document.getElementById("forgotEmail").value.trim();
   const errEl = document.getElementById("forgotError");
   errEl.textContent = "";
-  if(phone.length < 6){ errEl.textContent = "numéro de téléphone invalide."; return; }
+  if(!EMAIL_RE.test(email)){ errEl.textContent = "adresse email invalide."; return; }
   try{
     const { ok, data } = await apiCall("/api/forgot-password", {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ email }),
     });
     if(!ok){
       errEl.textContent = (data.error || "impossible d'envoyer le code.") + (data.code ? " (code "+data.code+")" : "");
@@ -2121,7 +2180,7 @@ document.getElementById("forgotSendBtn").addEventListener("click", async (e)=>{
 });
 document.getElementById("forgotResetBtn").addEventListener("click", async (e)=>{
   e.stopPropagation();
-  const phone = document.getElementById("forgotPhone").value.trim();
+  const email = document.getElementById("forgotEmail").value.trim();
   const code = document.getElementById("forgotCode").value.trim();
   const newPassword = document.getElementById("forgotNewPassword").value;
   const errEl = document.getElementById("forgotError");
@@ -2131,7 +2190,7 @@ document.getElementById("forgotResetBtn").addEventListener("click", async (e)=>{
   try{
     const { ok, data } = await apiCall("/api/reset-password", {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ phone, code, newPassword }),
+      body: JSON.stringify({ email, code, newPassword }),
     });
     if(!ok){
       errEl.textContent = (data.error || "code invalide ou expiré.") + (data.code ? " (code "+data.code+")" : "");
@@ -2139,8 +2198,57 @@ document.getElementById("forgotResetBtn").addEventListener("click", async (e)=>{
     }
     document.getElementById("forgotModal").classList.remove("show");
     setPgMode("login");
-    document.getElementById("pgPhone").value = phone;
+    document.getElementById("pgEmail").value = email;
     setPgError("mot de passe changé — connecte-toi.");
+  }catch(e){
+    errEl.textContent = "connexion impossible pour le moment.";
+  }
+});
+
+/* ============================================================
+   Ancien compte (téléphone) → migration vers un compte email
+   ============================================================ */
+function resetMigrateModal(){
+  document.getElementById("migratePhone").value = "";
+  document.getElementById("migratePassword").value = "";
+  document.getElementById("migrateEmail").value = "";
+  document.getElementById("migrateError").textContent = "";
+}
+document.getElementById("pgMigrateBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  resetMigrateModal();
+  document.getElementById("migrateModal").classList.add("show");
+});
+document.getElementById("migrateCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("migrateModal").classList.remove("show");
+});
+document.getElementById("migrateModal").addEventListener("click", (e)=>{
+  if(e.target.id === "migrateModal") document.getElementById("migrateModal").classList.remove("show");
+});
+document.getElementById("migrateSubmitBtn").addEventListener("click", async (e)=>{
+  e.stopPropagation();
+  const phone = document.getElementById("migratePhone").value.trim();
+  const password = document.getElementById("migratePassword").value;
+  const email = document.getElementById("migrateEmail").value.trim();
+  const errEl = document.getElementById("migrateError");
+  errEl.textContent = "";
+  if(phone.length < 6 || !password){ errEl.textContent = "numéro et mot de passe requis."; return; }
+  if(!EMAIL_RE.test(email)){ errEl.textContent = "adresse email invalide."; return; }
+  try{
+    const { ok, data } = await apiCall("/api/migrate-account", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ phone, password, email }),
+    });
+    if(!ok){
+      errEl.textContent = (data.error || "impossible de transférer le compte.") + (data.code ? " (code "+data.code+")" : "");
+      return;
+    }
+    document.getElementById("migrateModal").classList.remove("show");
+    applyAccount(data.token, data.account);
+    everGrantedAll = true;
+    enterTitleScreen();
+    maybePromptPseudo(data.account);
   }catch(e){
     errEl.textContent = "connexion impossible pour le moment.";
   }
@@ -3522,8 +3630,17 @@ function startTest(){
 
 document.getElementById("startBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
-  if(!everGrantedAll || !playerName){ showPermGate(); return; }
+  if(!everGrantedAll || !playerName){ showIntroGate(); return; }
   startBoot();
+});
+document.getElementById("comingSoonBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  if(btn.dataset.flashing) return;
+  btn.dataset.flashing = "1";
+  const prev = btn.textContent;
+  btn.textContent = "bientôt disponible.";
+  setTimeout(()=>{ btn.textContent = prev; delete btn.dataset.flashing; }, 1800);
 });
 // détache le compte de cet appareil et renvoie vers l'écran de connexion
 // (le compte est obligatoire pour voir le menu — pas de retour à un titre
@@ -3534,7 +3651,7 @@ function returnToPermGate(){
   if(followUpTimer){ clearTimeout(followUpTimer); followUpTimer = null; }
   if(tabAwayTimer){ clearTimeout(tabAwayTimer); tabAwayTimer = null; }
   document.getElementById("veil").classList.add("hidden");
-  showPermGate();
+  showIntroGate();
 }
 function performReset(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}

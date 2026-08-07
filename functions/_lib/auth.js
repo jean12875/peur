@@ -1,5 +1,5 @@
 /* ============================================================
-   LE TEST — helpers backend (Cloudflare Pages Functions + Upstash)
+   LE TEST PSYCHOLOGIQUE — helpers backend (Cloudflare Pages Functions + Upstash)
    Ce fichier n'est pas une route (préfixe "_"), juste une lib partagée.
    ============================================================ */
 
@@ -56,16 +56,27 @@ function errorCode(e) {
   const reqFail = msg.match(/^UPSTASH_REQUEST_FAILED_(\d+)/);
   if (reqFail) return "REQ-" + reqFail[1];
   if (msg.startsWith("UPSTASH_ERROR")) return "DB";
-  if (msg.startsWith("SMS_")) return "SMS";
+  if (msg.startsWith("EMAIL_")) return "MAIL";
   return "UNK";
 }
 
+// --- téléphone : conservé uniquement pour la migration des anciens comptes ---
 function normalizePhone(phone) {
   return String(phone || "").replace(/[^\d+]/g, "");
 }
-
-function accountKey(phone) {
+function legacyAccountKeyByPhone(phone) {
   return "letest:account:" + normalizePhone(phone);
+}
+
+// --- email : identifiant principal du compte, depuis la refonte ---
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ""));
+}
+function accountKey(email) {
+  return "letest:account:email:" + normalizeEmail(email);
 }
 
 function sessionKey(token) {
@@ -78,12 +89,12 @@ function pseudoKey(pseudo) {
   return "letest:pseudo:" + String(pseudo || "").trim().toLowerCase();
 }
 
-function resetCodeKey(phone) {
-  return "letest:resetcode:" + normalizePhone(phone);
+function resetCodeKey(email) {
+  return "letest:resetcode:" + normalizeEmail(email);
 }
 
-// classements — un sorted set par critère, jamais indexé par téléphone
-// (le pseudo public sert de membre, jamais le numéro)
+// classements — un sorted set par critère, jamais indexé par email
+// (le pseudo public sert de membre, jamais l'identifiant de connexion)
 const LB_KEYS = {
   badges: "letest:lb:badges",
   playtime: "letest:lb:playtime",
@@ -105,7 +116,7 @@ function randomToken() {
   return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 }
 
-// code numérique à 6 chiffres pour la récupération de mot de passe par SMS
+// code numérique à 6 chiffres pour la récupération de mot de passe par email
 function randomCode6() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -151,19 +162,19 @@ async function verifyPassword(password, saltHex, expectedHashHex) {
   return diff === 0;
 }
 
-async function getSessionPhone(env, token) {
+async function getSessionEmail(env, token) {
   if (!token) return null;
-  const phone = await redis(env, ["GET", sessionKey(token)]);
-  return phone || null;
+  const email = await redis(env, ["GET", sessionKey(token)]);
+  return email || null;
 }
 
-async function getAccount(env, phone) {
-  const raw = await redis(env, ["GET", accountKey(phone)]);
+async function getAccount(env, email) {
+  const raw = await redis(env, ["GET", accountKey(email)]);
   return raw ? JSON.parse(raw) : null;
 }
 
-async function saveAccount(env, phone, account) {
-  await redis(env, ["SET", accountKey(phone), JSON.stringify(account)]);
+async function saveAccount(env, email, account) {
+  await redis(env, ["SET", accountKey(email), JSON.stringify(account)]);
 }
 
 // met à jour les 3 classements pour un compte donné (silencieux si pas de
@@ -180,33 +191,33 @@ async function updateLeaderboards(env, account) {
   ]);
 }
 
-// envoie un SMS via l'API Twilio — nécessite TWILIO_ACCOUNT_SID,
-// TWILIO_AUTH_TOKEN et TWILIO_FROM_NUMBER en variables d'environnement
-async function sendSms(env, toPhone, body) {
-  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_FROM_NUMBER) {
-    throw new Error("SMS_NOT_CONFIGURED");
+// envoie un email via l'API Resend — nécessite RESEND_API_KEY et
+// RESEND_FROM_EMAIL en variables d'environnement
+async function sendEmail(env, toEmail, subject, text) {
+  if (!env.RESEND_API_KEY || !env.RESEND_FROM_EMAIL) {
+    throw new Error("EMAIL_NOT_CONFIGURED");
   }
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Messages.json`;
-  const form = new URLSearchParams();
-  form.set("From", env.TWILIO_FROM_NUMBER);
-  form.set("To", toPhone);
-  form.set("Body", body);
   let res;
   try {
-    res = await fetch(url, {
+    res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        Authorization: "Basic " + btoa(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`),
-        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
       },
-      body: form.toString(),
+      body: JSON.stringify({
+        from: env.RESEND_FROM_EMAIL,
+        to: [toEmail],
+        subject,
+        text,
+      }),
     });
   } catch (e) {
-    throw new Error("SMS_FETCH_FAILED: " + e.message);
+    throw new Error("EMAIL_FETCH_FAILED: " + e.message);
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error("SMS_SEND_FAILED_" + res.status + ": " + text.slice(0, 200));
+    const t = await res.text().catch(() => "");
+    throw new Error("EMAIL_SEND_FAILED_" + res.status + ": " + t.slice(0, 200));
   }
 }
 
@@ -214,6 +225,7 @@ function publicAccount(account) {
   return {
     prenom: account.prenom,
     nom: account.nom,
+    email: account.email || null,
     pseudo: account.pseudo || null,
     needsPseudo: !account.pseudo,
     notif: !!account.notif,
@@ -228,6 +240,9 @@ export {
   redis,
   errorCode,
   normalizePhone,
+  legacyAccountKeyByPhone,
+  normalizeEmail,
+  validateEmail,
   accountKey,
   sessionKey,
   pseudoKey,
@@ -239,10 +254,10 @@ export {
   randomCode6,
   hashPassword,
   verifyPassword,
-  getSessionPhone,
+  getSessionEmail,
   getAccount,
   saveAccount,
   updateLeaderboards,
-  sendSms,
+  sendEmail,
   publicAccount,
 };

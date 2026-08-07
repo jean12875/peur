@@ -1,7 +1,8 @@
 import {
   redis,
   errorCode,
-  normalizePhone,
+  normalizeEmail,
+  validateEmail,
   resetCodeKey,
   jsonResponse,
   hashPassword,
@@ -18,11 +19,11 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: "Requête invalide." }, 400);
   }
 
-  const phone = normalizePhone(body.phone);
+  const email = normalizeEmail(body.email);
   const code = String(body.code || "").trim();
   const newPassword = String(body.newPassword || "");
 
-  if (phone.length < 6 || !code) {
+  if (!validateEmail(email) || !code) {
     return jsonResponse({ error: "Requête invalide." }, 400);
   }
   if (newPassword.length < 4) {
@@ -30,11 +31,11 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const stored = await redis(env, ["GET", resetCodeKey(phone)]);
+    const stored = await redis(env, ["GET", resetCodeKey(email)]);
     if (!stored || stored !== code) {
       return jsonResponse({ error: "Code invalide ou expiré." }, 401);
     }
-    const account = await getAccount(env, phone);
+    const account = await getAccount(env, email);
     if (!account) {
       return jsonResponse({ error: "Compte introuvable." }, 404);
     }
@@ -42,8 +43,8 @@ export async function onRequestPost(context) {
     const { hash, salt } = await hashPassword(newPassword);
     account.passwordHash = hash;
     account.passwordSalt = salt;
-    await saveAccount(env, phone, account);
-    await redis(env, ["DEL", resetCodeKey(phone)]);
+    await saveAccount(env, email, account);
+    await redis(env, ["DEL", resetCodeKey(email)]);
 
     return jsonResponse({ ok: true });
   } catch (e) {

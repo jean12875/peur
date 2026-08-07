@@ -2,7 +2,7 @@ import {
   SESSION_TTL_SECONDS,
   redis,
   errorCode,
-  normalizePhone,
+  normalizeEmail,
   sessionKey,
   jsonResponse,
   randomToken,
@@ -20,15 +20,15 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: "Requête invalide." }, 400);
   }
 
-  const phone = normalizePhone(body.phone);
+  const email = normalizeEmail(body.email);
   const password = String(body.password || "");
 
-  if (!phone || !password) {
+  if (!email || !password) {
     return jsonResponse({ error: "Identifiants invalides." }, 401);
   }
 
   try {
-    const account = await getAccount(env, phone);
+    const account = await getAccount(env, email);
     if (!account) {
       return jsonResponse({ error: "Identifiants invalides." }, 401);
     }
@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
     }
 
     const token = randomToken();
-    await redis(env, ["SET", sessionKey(token), phone, "EX", String(SESSION_TTL_SECONDS)]);
+    await redis(env, ["SET", sessionKey(token), email, "EX", String(SESSION_TTL_SECONDS)]);
 
     return jsonResponse({ token, account: publicAccount(account) });
   } catch (e) {

@@ -1,4 +1,4 @@
-import { redis, errorCode, LB_KEYS, jsonResponse, getSessionPhone, getAccount } from "../_lib/auth.js";
+import { redis, errorCode, LB_KEYS, jsonResponse, getSessionEmail, getAccount } from "../_lib/auth.js";
 
 function tokenFromRequest(request) {
   const auth = request.headers.get("Authorization") || "";
@@ -18,9 +18,9 @@ export async function onRequestGet(context) {
   const key = LB_KEYS[by] || LB_KEYS.badges;
 
   try {
-    const phone = await getSessionPhone(env, token);
-    if (!phone) return jsonResponse({ error: "Session expirée." }, 401);
-    const account = await getAccount(env, phone);
+    const email = await getSessionEmail(env, token);
+    if (!email) return jsonResponse({ error: "Session expirée." }, 401);
+    const account = await getAccount(env, email);
     if (!account) return jsonResponse({ error: "Compte introuvable." }, 404);
 
     // top 20, du plus haut score au plus bas

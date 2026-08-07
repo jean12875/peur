@@ -1,7 +1,7 @@
 import {
   errorCode,
   jsonResponse,
-  getSessionPhone,
+  getSessionEmail,
   getAccount,
   saveAccount,
   hashPassword,
@@ -15,8 +15,8 @@ function tokenFromRequest(request) {
   return m ? m[1] : null;
 }
 
-// change prénom / nom / mot de passe. Le numéro de téléphone (clé du compte)
-// n'est pas modifiable ici — et le pseudo se change via /api/set-pseudo.
+// change prénom / nom / mot de passe. L'email (clé du compte) n'est pas
+// modifiable ici, et le pseudo se change via /api/set-pseudo.
 export async function onRequestPost(context) {
   const { request, env } = context;
   const token = tokenFromRequest(request);
@@ -45,9 +45,9 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const phone = await getSessionPhone(env, token);
-    if (!phone) return jsonResponse({ error: "Session expirée." }, 401);
-    const account = await getAccount(env, phone);
+    const email = await getSessionEmail(env, token);
+    if (!email) return jsonResponse({ error: "Session expirée." }, 401);
+    const account = await getAccount(env, email);
     if (!account) return jsonResponse({ error: "Compte introuvable." }, 404);
 
     if (newPassword !== undefined) {
@@ -62,7 +62,7 @@ export async function onRequestPost(context) {
     if (prenom !== undefined) account.prenom = prenom;
     if (nom !== undefined) account.nom = nom;
 
-    await saveAccount(env, phone, account);
+    await saveAccount(env, email, account);
     return jsonResponse({ ok: true, account: publicAccount(account) });
   } catch (e) {
     if (String(e.message).startsWith("UPSTASH_NOT_CONFIGURED")) {

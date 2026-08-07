@@ -4,7 +4,7 @@ import {
   pseudoKey,
   validatePseudo,
   jsonResponse,
-  getSessionPhone,
+  getSessionEmail,
   getAccount,
   saveAccount,
   publicAccount,
@@ -36,16 +36,16 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const phone = await getSessionPhone(env, token);
-    if (!phone) return jsonResponse({ error: "Session expirée." }, 401);
-    const account = await getAccount(env, phone);
+    const email = await getSessionEmail(env, token);
+    if (!email) return jsonResponse({ error: "Session expirée." }, 401);
+    const account = await getAccount(env, email);
     if (!account) return jsonResponse({ error: "Compte introuvable." }, 404);
 
     if (account.pseudo && account.pseudo.toLowerCase() === pseudo.toLowerCase()) {
       return jsonResponse({ ok: true, account: publicAccount(account) });
     }
 
-    const claimed = await redis(env, ["SET", pseudoKey(pseudo), phone, "NX"]);
+    const claimed = await redis(env, ["SET", pseudoKey(pseudo), email, "NX"]);
     if (claimed !== "OK") {
       return jsonResponse({ error: "Ce pseudo est déjà pris." }, 409);
     }
@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
       try { await redis(env, ["DEL", pseudoKey(account.pseudo)]); } catch (e) {}
     }
     account.pseudo = pseudo;
-    await saveAccount(env, phone, account);
+    await saveAccount(env, email, account);
 
     return jsonResponse({ ok: true, account: publicAccount(account) });
   } catch (e) {
