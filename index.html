@@ -270,6 +270,32 @@
   }
   #versionBox button:active{ background:rgba(255,255,255,0.08); }
 
+  /* petite fenêtre de confirmation avant "tout oublier" — action destructive,
+     donc pas de clic accidentel possible depuis l'écran-titre */
+  #confirmResetModal{
+    position:fixed; inset:0; z-index:85;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.72);
+    opacity:0; pointer-events:none; transition:opacity 0.35s ease;
+    padding:6vw;
+  }
+  #confirmResetModal.show{ opacity:1; pointer-events:auto; }
+  #confirmResetBox{
+    width:100%; max-width:24em; text-align:center; padding:1.8em 1.6em 1.4em;
+    background:#0d1420; border:1px solid rgba(255,255,255,0.12);
+    color:#dce8fb; letter-spacing:0.04em;
+  }
+  #confirmResetBox .vTitle{ font-size:0.72rem; letter-spacing:0.35em; text-transform:uppercase; color:#c65a4f; margin-bottom:0.9em; }
+  #confirmResetBox .vText{ font-size:0.82rem; line-height:1.65em; color:#9aa4b2; font-weight:300; margin-bottom:1.4em; }
+  #confirmResetActions{ display:flex; gap:0.8em; }
+  #confirmResetActions button{
+    flex:1; background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
+    font-size:0.76rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.7em 0.5em;
+    cursor:pointer; font-family:inherit;
+  }
+  #confirmResetActions button:active{ background:rgba(255,255,255,0.08); }
+  #confirmResetOk{ border-color:#c65a4f !important; color:#e08d84 !important; }
+
   /* petite fenêtre "partager" — copie un message avec le lien + instructions
      d'installation adaptées à la plateforme, prêt à coller dans un message */
   #shareModal{
@@ -652,6 +678,17 @@
     </div>
   </div>
 
+  <div id="confirmResetModal">
+    <div id="confirmResetBox">
+      <div class="vTitle">TOUT OUBLIER</div>
+      <div class="vText">Ça efface la sauvegarde de cet appareil (progression, fins débloquées) et déconnecte le compte, s'il y en a un. Le compte lui-même n'est pas supprimé — tu pourras te reconnecter plus tard.</div>
+      <div id="confirmResetActions">
+        <button id="confirmResetCancel">annuler</button>
+        <button id="confirmResetOk">effacer</button>
+      </div>
+    </div>
+  </div>
+
   <div id="gear" title="paramètres">☾</div>
   <div id="devSkip" title="skip (dev)">⏭</div>
 </div>
@@ -666,11 +703,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.67";
+const APP_VERSION = "1.68";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.68", "\"Tout oublier\" demande maintenant une confirmation avant d'effacer la sauvegarde de l'appareil."],
   ["1.67", "Écran-titre : le bouton menu est remplacé par cinq icônes directes (version, badges, partager, actualiser, tout oublier)."],
   ["1.66", "Correctif du compte en ligne : la progression déjà présente sur l'appareil est maintenant envoyée dès la création du profil, au lieu d'attendre la fin d'une partie."],
   ["1.65", "Menu de l'écran-titre repensé (un seul bouton, tout est rangé dedans). Quelques répliques retravaillées."],
@@ -3125,8 +3163,7 @@ document.getElementById("startBtn").addEventListener("click", (e)=>{
   if(!everGrantedAll || !playerName){ showPermGate(); return; }
   startBoot();
 });
-document.getElementById("resetBtn").addEventListener("click", (e)=>{
-  e.stopPropagation();
+function performReset(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
   // "tout oublier" n'efface QUE ça (+ déconnecte le compte de cet appareil) —
   // la trace, séparée, garde le compte des resets ; le compte lui-même,
@@ -3148,6 +3185,22 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
   document.getElementById("pgLastName").value = "";
   buildTitleFlavor();
   updateGearState();
+}
+document.getElementById("resetBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("confirmResetModal").classList.add("show");
+});
+document.getElementById("confirmResetCancel").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("confirmResetModal").classList.remove("show");
+});
+document.getElementById("confirmResetOk").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("confirmResetModal").classList.remove("show");
+  performReset();
+});
+document.getElementById("confirmResetModal").addEventListener("click", (e)=>{
+  if(e.target.id === "confirmResetModal") document.getElementById("confirmResetModal").classList.remove("show");
 });
 document.getElementById("refreshBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
