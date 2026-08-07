@@ -701,11 +701,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.65";
+const APP_VERSION = "1.66";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.66", "Correctif du compte en ligne : la progression déjà présente sur l'appareil est maintenant envoyée dès la création du profil, au lieu d'attendre la fin d'une partie."],
   ["1.65", "Menu de l'écran-titre repensé (un seul bouton, tout est rangé dedans). Quelques répliques retravaillées."],
   ["1.64", "Les erreurs du profil en ligne affichent maintenant un petit code au lieu d'un message technique brut, plus propre à l'écran."],
   ["1.63", "Correctif de la création de profil : le nombre d'itérations utilisé pour protéger le mot de passe dépassait la limite autorisée par l'hébergeur, ce qui empêchait tous les comptes de se créer."],
@@ -1751,6 +1752,11 @@ async function handleLaunchClick(){
     });
     if(ok){
       applyAccount(data.token, data.account);
+      // le compte vient d'être créé (save/trace vides côté serveur) : on pousse
+      // tout de suite la progression déjà présente sur cet appareil, sans
+      // attendre la fin d'une partie — sinon un compte jamais "terminé" une
+      // fois reste vide côté serveur et semble reparti de zéro ailleurs
+      syncAccountData();
       if(pgNotifWanted) requestNotifPerm();
       everGrantedAll = true;
       hidePermGate();
