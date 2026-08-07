@@ -371,13 +371,41 @@
     font-size:0.7rem; max-width:9em; line-height:1.4em; transform:rotate(-2deg);
   }
 
-  #gear{
+  /* bouton discret pour abandonner le test en cours et revenir au menu
+     (avant : une icône lune qui ne servait qu'à activer "effets réduits",
+     réglage déplacé depuis dans la roue de paramètres de l'écran-titre) */
+  #quitBtn{
     position:absolute; top:calc(1em + env(safe-area-inset-top)); left:calc(1em + env(safe-area-inset-left)); z-index:60; width:34px; height:34px; border-radius:50%;
     background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#999;
-    display:flex; align-items:center; justify-content:center; font-size:0.9rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:0.85rem; cursor:pointer;
     transition:border-color .3s ease, color .3s ease, background-color .3s ease;
   }
-  #gear.active{ border-color:#6a9fdc; color:#6a9fdc; background:rgba(106,159,220,0.12); }
+  #quitBtn:active{ border-color:#c65a4f; color:#e08d84; }
+
+  /* ---------- confirmation avant d'abandonner une partie en cours ---------- */
+  #confirmQuitModal{
+    position:fixed; inset:0; z-index:90;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.72);
+    opacity:0; pointer-events:none; transition:opacity 0.35s ease;
+    padding:6vw;
+  }
+  #confirmQuitModal.show{ opacity:1; pointer-events:auto; }
+  #confirmQuitBox{
+    width:100%; max-width:24em; text-align:center; padding:1.8em 1.6em 1.4em;
+    background:#0d1420; border:1px solid rgba(255,255,255,0.12);
+    color:#dce8fb; letter-spacing:0.04em;
+  }
+  #confirmQuitBox .vTitle{ font-size:0.72rem; letter-spacing:0.35em; text-transform:uppercase; color:#c65a4f; margin-bottom:0.9em; }
+  #confirmQuitBox .vText{ font-size:0.82rem; line-height:1.65em; color:#9aa4b2; font-weight:300; margin-bottom:1.4em; }
+  #confirmQuitActions{ display:flex; gap:0.8em; }
+  #confirmQuitActions button{
+    flex:1; background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
+    font-size:0.76rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.7em 0.5em;
+    cursor:pointer; font-family:inherit;
+  }
+  #confirmQuitActions button:active{ background:rgba(255,255,255,0.08); }
+  #confirmQuitOk{ border-color:#c65a4f !important; color:#e08d84 !important; }
 
   /* bouton dev : passe à la question suivante sans attendre, pour tester vite.
      discret (faible opacité) pour ne pas polluer l'ambiance à l'écran */
@@ -441,10 +469,117 @@
     background:none; border:none; color:#6a86ac; font-family:inherit; font-size:0.72rem;
     letter-spacing:0.08em; text-decoration:underline; cursor:pointer; padding:0.6em; text-align:center;
   }
-  #permGateBack{
-    position:absolute; top:calc(1.4em + env(safe-area-inset-top, 0px)); left:1.4em; width:30px; height:30px;
-    border-radius:50%; border:none; background:none; color:#6a86ac; font-size:0.95rem; cursor:pointer; z-index:1;
+  #pgForgotBtn{
+    display:none; background:none; border:none; color:#5c7093; font-family:inherit; font-size:0.68rem;
+    letter-spacing:0.06em; text-decoration:underline; cursor:pointer; padding:0.2em; text-align:center;
   }
+  #permGate.loginMode #pgForgotBtn{ display:block; }
+
+  /* ---------- mot de passe oublié (code SMS) + changer mes infos ---------- */
+  #forgotModal, #pseudoPromptModal, #editInfoModal{
+    position:fixed; inset:0; z-index:90;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.72);
+    opacity:0; pointer-events:none; transition:opacity 0.35s ease;
+    padding:6vw;
+  }
+  #forgotModal.show, #pseudoPromptModal.show, #editInfoModal.show{ opacity:1; pointer-events:auto; }
+  #forgotBox, #pseudoPromptBox, #editInfoBox{
+    width:100%; max-width:24em; text-align:center; padding:1.8em 1.6em 1.4em;
+    background:#0d1420; border:1px solid rgba(255,255,255,0.12);
+    color:#dce8fb; letter-spacing:0.04em;
+    display:flex; flex-direction:column; gap:0.7em;
+  }
+  #forgotStep1, #forgotStep2{ display:flex; flex-direction:column; gap:0.7em; }
+  #forgotStep2{ display:none; }
+  #forgotModal.step2 #forgotStep1{ display:none; }
+  #forgotModal.step2 #forgotStep2{ display:flex; }
+  #forgotError, #pseudoPromptError, #editInfoError{
+    min-height:1.2em; font-size:0.72rem; color:#ff8f7a; letter-spacing:0.02em; line-height:1.4em; word-break:break-word;
+  }
+  #forgotBox button, #pseudoPromptBox button, #editInfoBox button{
+    background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
+    font-size:0.78rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.7em 1.4em;
+    cursor:pointer; font-family:inherit;
+  }
+  #forgotBox button:active, #pseudoPromptBox button:active, #editInfoBox button:active{ background:rgba(255,255,255,0.08); }
+  #forgotCloseBtn, #pseudoPromptLaterBtn, #editInfoCloseBtn{ border-color:rgba(255,255,255,0.14); color:#5c7093; margin-top:0.2em; }
+
+  /* ---------- roue de paramètres (écran-titre) ---------- */
+  #settingsModal{
+    position:fixed; inset:0; z-index:80;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.72);
+    opacity:0; pointer-events:none; transition:opacity 0.35s ease;
+    padding:6vw;
+  }
+  #settingsModal.show{ opacity:1; pointer-events:auto; }
+  #settingsBox{
+    width:100%; max-width:24em; padding:1.8em 1.6em 1.4em;
+    background:#0d1420; border:1px solid rgba(255,255,255,0.12);
+    color:#dce8fb; letter-spacing:0.04em; text-align:center;
+  }
+  #settingsList{ display:flex; flex-direction:column; margin-bottom:1.2em; }
+  .settingsRow{
+    display:flex; align-items:center; justify-content:space-between; gap:0.6em; text-align:left;
+    background:none; border:none; border-bottom:1px solid rgba(255,255,255,0.1);
+    color:#dce8fb; font-family:inherit; padding:0.9em 0.3em; cursor:pointer; width:100%;
+    transition:background-color .2s ease;
+  }
+  button.settingsRow{ flex-direction:column; align-items:flex-start; gap:0.2em; }
+  #settingsList > *:last-child{ border-bottom:none; }
+  button.settingsRow:active{ background:rgba(255,255,255,0.05); }
+  .settingsItemLabel{ font-size:0.88rem; letter-spacing:0.06em; }
+  .settingsItemHint{ font-size:0.68rem; color:#5c7093; letter-spacing:0.02em; }
+  .settingsToggleBtn{
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.2); color:#9aa4b2;
+    font-family:inherit; font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase;
+    padding:0.4em 0.9em; border-radius:6px; cursor:pointer;
+  }
+  .settingsToggleBtn.active{ border-color:#6a9fdc; color:#6a9fdc; background:rgba(106,159,220,0.12); }
+  #settingsBox > button{
+    background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
+    font-size:0.78rem; letter-spacing:0.2em; text-transform:uppercase; padding:0.7em 2em;
+    cursor:pointer; font-family:inherit;
+  }
+  #settingsBox > button:active{ background:rgba(255,255,255,0.08); }
+
+  /* ---------- classement ---------- */
+  #leaderboardModal{
+    position:fixed; inset:0; z-index:80; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.72);
+  }
+  #leaderboardModal.show{ display:flex; }
+  #leaderboardBox{
+    width:min(420px, 90vw); max-height:80vh; overflow-y:auto;
+    background:#0d1420; border:1px solid rgba(255,255,255,0.12); color:#dce8fb; letter-spacing:0.04em;
+    border-radius:8px; padding:1.6em 1.4em; display:flex; flex-direction:column; align-items:center; gap:1em;
+  }
+  #leaderboardTabs{ display:flex; border:1px solid rgba(220,232,251,0.28); border-radius:6px; overflow:hidden; }
+  .lbTab{
+    background:transparent; border:none; color:#7c93b8; font-family:inherit; font-size:0.72rem;
+    letter-spacing:0.1em; text-transform:uppercase; padding:0.55em 0.9em; cursor:pointer;
+    transition:background-color .25s ease, color .25s ease;
+  }
+  .lbTab + .lbTab{ border-left:1px solid rgba(220,232,251,0.28); }
+  .lbTab.active{ background:rgba(220,232,251,0.16); color:#dce8fb; }
+  #leaderboardList{ width:100%; display:flex; flex-direction:column; gap:0.4em; }
+  .lbRow{
+    display:flex; align-items:center; gap:0.7em; padding:0.5em 0.6em; border-radius:6px;
+    background:rgba(255,255,255,0.03); font-size:0.8rem;
+  }
+  .lbRow.me{ background:rgba(106,159,220,0.14); border:1px solid rgba(106,159,220,0.4); }
+  .lbRank{ color:#5c7093; width:1.6em; text-align:right; flex:none; }
+  .lbPseudo{ flex:1; color:#dce8fb; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbScore{ color:#9aa4b2; flex:none; }
+  .lbLoading{ color:#5c7093; font-size:0.78rem; padding:1em 0; text-align:center; }
+  #leaderboardMe{ font-size:0.72rem; color:#6a9fdc; text-align:center; }
+  #leaderboardCloseBtn{
+    background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
+    font-size:0.78rem; letter-spacing:0.2em; text-transform:uppercase; padding:0.7em 2em;
+    cursor:pointer; font-family:inherit;
+  }
+  #leaderboardCloseBtn:active{ background:rgba(255,255,255,0.08); }
 
   /* ---------- page des badges ---------- */
   #badgesModal{
@@ -594,18 +729,63 @@
     <div id="bootLabel">chargement</div>
   </div>
 
-  <div id="veil">
+  <div id="veil" class="hidden">
     <div class="levelTag">niveau 1</div>
     <div class="title" id="titleText">LE TEST</div>
     <div class="flavor" id="flavorText">assieds-toi. ce protocole existe depuis longtemps. réponds sincèrement, ça ne prendra pas longtemps.</div>
     <div class="stat" id="statText"></div>
     <button class="startbtn" id="startBtn">commencer</button>
     <div id="titleIconRow">
-      <button id="versionBtn" class="titleIconBtn" aria-label="version" title="version"><span class="ticoGlyph">≡</span></button>
       <button id="badgesBtn" class="titleIconBtn" aria-label="badges" title="badges"><span class="ticoGlyph">★</span></button>
       <button id="shareBtn" class="titleIconBtn" aria-label="partager" title="partager"><span class="ticoGlyph">↗</span></button>
-      <button id="refreshBtn" class="titleIconBtn" aria-label="actualiser" title="actualiser"><span class="ticoGlyph">↻</span></button>
-      <button id="resetBtn" class="titleIconBtn" aria-label="tout oublier" title="tout oublier"><span class="ticoGlyph">∅</span></button>
+      <button id="leaderboardBtn" class="titleIconBtn" aria-label="classement" title="classement"><span class="ticoGlyph">▲</span></button>
+      <button id="settingsBtn" class="titleIconBtn" aria-label="paramètres" title="paramètres"><span class="ticoGlyph">⚙</span></button>
+    </div>
+  </div>
+
+  <div id="settingsModal">
+    <div id="settingsBox">
+      <div class="vTitle">PARAMÈTRES</div>
+      <div id="settingsList">
+        <div id="settingsReduceRow" class="settingsRow">
+          <span class="settingsItemLabel">effets réduits</span>
+          <button type="button" id="settingsReduceToggle" class="settingsToggleBtn">non</button>
+        </div>
+        <button id="versionBtn" class="settingsRow"><span class="settingsItemLabel">version</span><span class="settingsItemHint">historique des mises à jour</span></button>
+        <button id="refreshBtn" class="settingsRow"><span class="settingsItemLabel">actualiser</span><span class="settingsItemHint">forcer le rechargement</span></button>
+        <button id="editInfoOpenBtn" class="settingsRow"><span class="settingsItemLabel">changer mes infos</span><span class="settingsItemHint">prénom, nom, pseudo, mot de passe</span></button>
+        <button id="logoutBtn" class="settingsRow"><span class="settingsItemLabel">se déconnecter</span><span class="settingsItemHint">revenir à l'écran de connexion</span></button>
+        <button id="resetBtn" class="settingsRow"><span class="settingsItemLabel">tout oublier</span><span class="settingsItemHint">effacer la sauvegarde de cet appareil</span></button>
+      </div>
+      <button id="settingsCloseBtn">fermer</button>
+    </div>
+  </div>
+
+  <div id="editInfoModal">
+    <div id="editInfoBox">
+      <div class="vTitle">MES INFOS</div>
+      <input id="editFirstName" class="pgField" type="text" placeholder="prénom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
+      <input id="editLastName" class="pgField" type="text" placeholder="nom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
+      <input id="editPseudo" class="pgField" type="text" placeholder="pseudo public (@...)" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <input id="editCurrentPassword" class="pgField" type="password" placeholder="mot de passe actuel (pour le changer)" maxlength="64" autocomplete="off" spellcheck="false">
+      <input id="editNewPassword" class="pgField" type="password" placeholder="nouveau mot de passe (optionnel)" maxlength="64" autocomplete="off" spellcheck="false">
+      <div id="editInfoError"></div>
+      <button id="editInfoSaveBtn">enregistrer</button>
+      <button id="editInfoCloseBtn">fermer</button>
+    </div>
+  </div>
+
+  <div id="leaderboardModal">
+    <div id="leaderboardBox">
+      <div class="vTitle">CLASSEMENT</div>
+      <div id="leaderboardTabs">
+        <button type="button" class="lbTab active" data-by="badges">badges</button>
+        <button type="button" class="lbTab" data-by="playtime">temps</button>
+        <button type="button" class="lbTab" data-by="games">parties</button>
+      </div>
+      <div id="leaderboardList"></div>
+      <div id="leaderboardMe"></div>
+      <button id="leaderboardCloseBtn">fermer</button>
     </div>
   </div>
 
@@ -645,12 +825,12 @@
   </div>
 
   <div id="permGate">
-    <button id="permGateBack">←</button>
     <div class="box">
       <div class="pgTitle" id="pgTitle">ton profil</div>
       <div id="pgSignupOnly">
         <input id="pgFirstName" class="pgField" type="text" placeholder="prénom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
         <input id="pgLastName" class="pgField" type="text" placeholder="nom" maxlength="24" autocomplete="off" autocapitalize="words" spellcheck="false">
+        <input id="pgPseudo" class="pgField" type="text" placeholder="pseudo public (@...)" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false">
       </div>
       <input id="pgPhone" class="pgField" type="tel" placeholder="numéro de téléphone" maxlength="20" autocomplete="off" spellcheck="false">
       <input id="pgPassword" class="pgField" type="password" placeholder="mot de passe" maxlength="64" autocomplete="off" spellcheck="false">
@@ -666,7 +846,38 @@
       </div>
       <div id="pgError"></div>
       <button id="launchBtn"></button>
+      <button id="pgForgotBtn" type="button">mot de passe oublié ?</button>
       <button id="pgModeToggle" type="button">déjà un compte ? se connecter</button>
+    </div>
+  </div>
+
+  <div id="forgotModal">
+    <div id="forgotBox">
+      <div class="vTitle">MOT DE PASSE OUBLIÉ</div>
+      <div id="forgotStep1">
+        <div class="vText">On envoie un code de vérification par SMS au numéro du compte.</div>
+        <input id="forgotPhone" class="pgField" type="tel" placeholder="numéro de téléphone" maxlength="20" autocomplete="off" spellcheck="false">
+        <button id="forgotSendBtn">envoyer le code</button>
+      </div>
+      <div id="forgotStep2">
+        <div class="vText">Code envoyé par SMS (valable 10 minutes).</div>
+        <input id="forgotCode" class="pgField" type="text" inputmode="numeric" placeholder="code à 6 chiffres" maxlength="6" autocomplete="off" spellcheck="false">
+        <input id="forgotNewPassword" class="pgField" type="password" placeholder="nouveau mot de passe" maxlength="64" autocomplete="off" spellcheck="false">
+        <button id="forgotResetBtn">réinitialiser</button>
+      </div>
+      <div id="forgotError"></div>
+      <button id="forgotCloseBtn">annuler</button>
+    </div>
+  </div>
+
+  <div id="pseudoPromptModal">
+    <div id="pseudoPromptBox">
+      <div class="vTitle">CHOISIS TON PSEUDO</div>
+      <div class="vText">Ton compte a été créé avant l'arrivée du classement public. Choisis un pseudo (visible des autres joueurs — ton prénom et ton nom, eux, restent privés).</div>
+      <input id="pseudoPromptInput" class="pgField" type="text" placeholder="pseudo public (@...)" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <div id="pseudoPromptError"></div>
+      <button id="pseudoPromptSaveBtn">valider</button>
+      <button id="pseudoPromptLaterBtn">plus tard</button>
     </div>
   </div>
 
@@ -689,8 +900,19 @@
     </div>
   </div>
 
-  <div id="gear" title="paramètres">☾</div>
+  <div id="quitBtn" title="abandonner">✕</div>
   <div id="devSkip" title="skip (dev)">⏭</div>
+</div>
+
+<div id="confirmQuitModal">
+  <div id="confirmQuitBox">
+    <div class="vTitle">ABANDONNER</div>
+    <div class="vText">Ça interrompt le test en cours et te ramène au menu. Rien n'est compté comme une fin.</div>
+    <div id="confirmQuitActions">
+      <button id="confirmQuitCancel">annuler</button>
+      <button id="confirmQuitOk">abandonner</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -703,11 +925,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.68";
+const APP_VERSION = "1.69";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.69", "Compte obligatoire pour accéder au menu, avec un pseudo public. Nouveau classement (badges, temps joué, parties). Roue de paramètres regroupant version/actualiser/tout oublier/changer mes infos/se déconnecter/effets réduits. L'ancienne icône lune en jeu est remplacée par un bouton discret pour abandonner le test en cours. Mot de passe oublié par SMS."],
   ["1.68", "\"Tout oublier\" demande maintenant une confirmation avant d'effacer la sauvegarde de l'appareil."],
   ["1.67", "Écran-titre : le bouton menu est remplacé par cinq icônes directes (version, badges, partager, actualiser, tout oublier)."],
   ["1.66", "Correctif du compte en ligne : la progression déjà présente sur l'appareil est maintenant envoyée dès la création du profil, au lieu d'attendre la fin d'une partie."],
@@ -799,6 +1022,9 @@ function withTraceDefaults(t){
     // seulement en rétrospective dans le dossier caché
     traitTotals:{ soumission:0, mefiance:0, lucidite:0, dissociation:0 },
     gamesRecorded:0,
+    // temps total passé en jeu (ms), toutes parties confondues — sert de
+    // base au classement "temps" ; jamais réinitialisé par "tout oublier"
+    totalPlayMs:0,
     // habitudes de connexion réelles, jamais réinitialisées par "tout oublier"
     lateNightVisits:0, weekdayCounts:[0,0,0,0,0,0,0]
   }, t || {});
@@ -1623,6 +1849,7 @@ async function requestNotifPerm(){
   }
 }
 
+const PSEUDO_RE = /^[a-zA-Z0-9_]{3,20}$/;
 function nameFieldsFilled(){
   const phone = document.getElementById("pgPhone").value.trim();
   const pass = document.getElementById("pgPassword").value;
@@ -1631,7 +1858,8 @@ function nameFieldsFilled(){
   }
   const f = document.getElementById("pgFirstName").value.trim();
   const l = document.getElementById("pgLastName").value.trim();
-  return f.length>0 && l.length>0 && phone.length>=6 && pass.length>=4;
+  const p = document.getElementById("pgPseudo").value.trim();
+  return f.length>0 && l.length>0 && PSEUDO_RE.test(p) && phone.length>=6 && pass.length>=4;
 }
 function updateLaunchBtn(){
   const ok = nameFieldsFilled();
@@ -1667,7 +1895,11 @@ function showPermGate(){
     const parts = playerName.split(" ");
     firstField.value = parts[0] || "";
     lastField.value = parts.slice(1).join(" ") || "";
+  } else {
+    firstField.value = "";
+    lastField.value = "";
   }
+  document.getElementById("pgPseudo").value = "";
   document.getElementById("pgPhone").value = "";
   document.getElementById("pgPassword").value = "";
   setPgNotifToggle(true);
@@ -1693,18 +1925,47 @@ function applyAccount(token, account){
   if(account.trace){ trace = withTraceDefaults(account.trace); writeTrace(trace); }
 }
 
+// nombre de badges débloqués en ce moment — envoyé au serveur pour le
+// classement, jamais stocké autrement que via ce calcul à la volée
+function computeBadgeCount(){
+  let n = 0;
+  for(const b of BADGES){ try{ if(b.check()) n++; }catch(e){} }
+  return n;
+}
+
 async function syncAccountData(){
   if(!accountToken) return;
   try{
     await apiCall("/api/sync", {
       method:"POST",
       headers:{ "Content-Type":"application/json", Authorization:"Bearer "+accountToken },
-      body: JSON.stringify({ save, trace, notif: pgNotifWanted }),
+      body: JSON.stringify({ save, trace, notif: pgNotifWanted, badgeCount: computeBadgeCount() }),
     });
   }catch(e){ /* pas grave — on retentera à la prochaine occasion */ }
 }
 
+// le compte est obligatoire pour voir le menu : un profil créé avant
+// l'arrivée du pseudo public n'en a pas encore — on lui propose d'en
+// choisir un, sans bloquer l'accès au jeu s'il préfère "plus tard"
+function maybePromptPseudo(account){
+  if(account && account.needsPseudo){
+    document.getElementById("pseudoPromptInput").value = "";
+    document.getElementById("pseudoPromptError").textContent = "";
+    document.getElementById("pseudoPromptModal").classList.add("show");
+  }
+}
+
+function enterTitleScreen(){
+  buildTitleFlavor();
+  hidePermGate();
+  document.getElementById("veil").classList.remove("hidden");
+}
+
 async function tryResumeSession(){
+  // le formulaire de connexion est l'écran par défaut : impossible de voir
+  // le menu (badges, classement, etc.) sans être connecté — on ne révèle
+  // l'écran-titre que si une session valide est confirmée
+  showPermGate();
   const token = loadAccountToken();
   if(!token) return;
   try{
@@ -1712,8 +1973,9 @@ async function tryResumeSession(){
     if(!ok || !data.account){ clearAccountToken(); return; }
     applyAccount(token, data.account);
     everGrantedAll = true;
-    buildTitleFlavor();
-  }catch(e){ /* backend injoignable — on reste en mode local, pas grave */ }
+    enterTitleScreen();
+    maybePromptPseudo(data.account);
+  }catch(e){ /* backend injoignable — on reste sur le formulaire */ }
 }
 
 async function handleLaunchClick(){
@@ -1737,8 +1999,8 @@ async function handleLaunchClick(){
       }
       applyAccount(data.token, data.account);
       everGrantedAll = true;
-      hidePermGate();
-      startBoot();
+      enterTitleScreen();
+      maybePromptPseudo(data.account);
     }catch(e){
       setPgError("impossible de se connecter pour le moment (hors-ligne). réessaie plus tard.");
       updateLaunchBtn();
@@ -1749,10 +2011,11 @@ async function handleLaunchClick(){
   // pgMode === "signup"
   const first = document.getElementById("pgFirstName").value.trim().slice(0,24);
   const last = document.getElementById("pgLastName").value.trim().slice(0,24);
+  const pseudo = document.getElementById("pgPseudo").value.trim();
   try{
     const { ok, status, data } = await apiCall("/api/register", {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ prenom:first, nom:last, phone, password, notif:pgNotifWanted }),
+      body: JSON.stringify({ prenom:first, nom:last, pseudo, phone, password, notif:pgNotifWanted }),
     });
     if(ok){
       applyAccount(data.token, data.account);
@@ -1763,20 +2026,19 @@ async function handleLaunchClick(){
       syncAccountData();
       if(pgNotifWanted) requestNotifPerm();
       everGrantedAll = true;
-      hidePermGate();
-      startBoot();
+      enterTitleScreen();
       return;
     }
     if(status === 503){
-      // backend pas encore configuré sur ce déploiement — on ne bloque pas la partie,
-      // on continue en local, sans compte synchronisé
+      // backend pas encore configuré sur ce déploiement : filet de sécurité
+      // pour ne pas rendre le jeu totalement injouable si l'hébergeur est en
+      // panne — on continue en local, sans compte synchronisé
       playerName = `${first} ${last}`.trim();
       save.playerName = playerName;
       writeSave(save);
       if(pgNotifWanted) requestNotifPerm();
       everGrantedAll = true;
-      hidePermGate();
-      startBoot();
+      enterTitleScreen();
       return;
     }
     setPgError((data.error || "impossible de créer le profil.") + (data.code ? " (code "+data.code+")" : ""));
@@ -1789,8 +2051,7 @@ async function handleLaunchClick(){
     writeSave(save);
     if(pgNotifWanted) requestNotifPerm();
     everGrantedAll = true;
-    hidePermGate();
-    startBoot();
+    enterTitleScreen();
   }
 }
 
@@ -1801,7 +2062,7 @@ document.querySelectorAll(".pgNotifOpt").forEach(btn=>{
   });
   btn.addEventListener("pointerdown",(e)=>e.stopPropagation());
 });
-["pgFirstName","pgLastName","pgPhone","pgPassword"].forEach(id=>{
+["pgFirstName","pgLastName","pgPseudo","pgPhone","pgPassword"].forEach(id=>{
   const field = document.getElementById(id);
   field.addEventListener("input", updateLaunchBtn);
   field.addEventListener("pointerdown",(e)=>e.stopPropagation());
@@ -1814,8 +2075,107 @@ document.getElementById("pgModeToggle").addEventListener("click", (e)=>{
   e.stopPropagation();
   setPgMode(pgMode==="login" ? "signup" : "login");
 });
-document.getElementById("permGateBack").addEventListener("click", (e)=>{ e.stopPropagation(); hidePermGate(); });
 document.getElementById("permGate").addEventListener("pointerdown", (e)=>{ e.stopPropagation(); });
+
+/* ============================================================
+   Mot de passe oublié — code de vérification par SMS
+   ============================================================ */
+function resetForgotModal(){
+  document.getElementById("forgotModal").classList.remove("step2");
+  document.getElementById("forgotPhone").value = document.getElementById("pgPhone").value.trim();
+  document.getElementById("forgotCode").value = "";
+  document.getElementById("forgotNewPassword").value = "";
+  document.getElementById("forgotError").textContent = "";
+}
+document.getElementById("pgForgotBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  resetForgotModal();
+  document.getElementById("forgotModal").classList.add("show");
+});
+document.getElementById("forgotCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("forgotModal").classList.remove("show");
+});
+document.getElementById("forgotModal").addEventListener("click", (e)=>{
+  if(e.target.id === "forgotModal") document.getElementById("forgotModal").classList.remove("show");
+});
+document.getElementById("forgotSendBtn").addEventListener("click", async (e)=>{
+  e.stopPropagation();
+  const phone = document.getElementById("forgotPhone").value.trim();
+  const errEl = document.getElementById("forgotError");
+  errEl.textContent = "";
+  if(phone.length < 6){ errEl.textContent = "numéro de téléphone invalide."; return; }
+  try{
+    const { ok, data } = await apiCall("/api/forgot-password", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    if(!ok){
+      errEl.textContent = (data.error || "impossible d'envoyer le code.") + (data.code ? " (code "+data.code+")" : "");
+      return;
+    }
+    document.getElementById("forgotModal").classList.add("step2");
+  }catch(e){
+    errEl.textContent = "connexion impossible pour le moment.";
+  }
+});
+document.getElementById("forgotResetBtn").addEventListener("click", async (e)=>{
+  e.stopPropagation();
+  const phone = document.getElementById("forgotPhone").value.trim();
+  const code = document.getElementById("forgotCode").value.trim();
+  const newPassword = document.getElementById("forgotNewPassword").value;
+  const errEl = document.getElementById("forgotError");
+  errEl.textContent = "";
+  if(!code){ errEl.textContent = "code manquant."; return; }
+  if(newPassword.length < 4){ errEl.textContent = "le nouveau mot de passe doit faire au moins 4 caractères."; return; }
+  try{
+    const { ok, data } = await apiCall("/api/reset-password", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ phone, code, newPassword }),
+    });
+    if(!ok){
+      errEl.textContent = (data.error || "code invalide ou expiré.") + (data.code ? " (code "+data.code+")" : "");
+      return;
+    }
+    document.getElementById("forgotModal").classList.remove("show");
+    setPgMode("login");
+    document.getElementById("pgPhone").value = phone;
+    setPgError("mot de passe changé — connecte-toi.");
+  }catch(e){
+    errEl.textContent = "connexion impossible pour le moment.";
+  }
+});
+
+/* ============================================================
+   Pseudo public — obligatoire à l'inscription, proposé une fois aux
+   comptes créés avant l'arrivée du classement
+   ============================================================ */
+document.getElementById("pseudoPromptSaveBtn").addEventListener("click", async (e)=>{
+  e.stopPropagation();
+  if(!accountToken) return;
+  const pseudo = document.getElementById("pseudoPromptInput").value.trim();
+  const errEl = document.getElementById("pseudoPromptError");
+  errEl.textContent = "";
+  if(!PSEUDO_RE.test(pseudo)){ errEl.textContent = "3 à 20 caractères (lettres, chiffres, underscore)."; return; }
+  try{
+    const { ok, data } = await apiCall("/api/set-pseudo", {
+      method:"POST", headers:{ "Content-Type":"application/json", Authorization:"Bearer "+accountToken },
+      body: JSON.stringify({ pseudo }),
+    });
+    if(!ok){
+      errEl.textContent = (data.error || "pseudo invalide.") + (data.code ? " (code "+data.code+")" : "");
+      return;
+    }
+    accountInfo = data.account;
+    document.getElementById("pseudoPromptModal").classList.remove("show");
+  }catch(e){
+    errEl.textContent = "connexion impossible pour le moment.";
+  }
+});
+document.getElementById("pseudoPromptLaterBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("pseudoPromptModal").classList.remove("show");
+});
 
 /* ============================================================
    Fils SVG reliant les boutons au téléviseur
@@ -2780,6 +3140,8 @@ function finishEnding(key){
   trace.traitTotals = tt;
   trace.gamesRecorded = (trace.gamesRecorded||0) + 1;
   trace.everVisited = true;
+  // temps total joué — base du classement "temps", jamais affiché en jeu
+  trace.totalPlayMs = (trace.totalPlayMs||0) + Math.max(0, now() - sessionStart);
   writeTrace(trace);
   // si un compte est connecté, on sauvegarde aussi côté serveur — pour ne pas
   // perdre la progression si l'appareil change ou si le navigateur est vidé
@@ -3163,6 +3525,17 @@ document.getElementById("startBtn").addEventListener("click", (e)=>{
   if(!everGrantedAll || !playerName){ showPermGate(); return; }
   startBoot();
 });
+// détache le compte de cet appareil et renvoie vers l'écran de connexion
+// (le compte est obligatoire pour voir le menu — pas de retour à un titre
+// "sans compte" possible depuis ici)
+function returnToPermGate(){
+  playerName = null;
+  everGrantedAll = false;
+  if(followUpTimer){ clearTimeout(followUpTimer); followUpTimer = null; }
+  if(tabAwayTimer){ clearTimeout(tabAwayTimer); tabAwayTimer = null; }
+  document.getElementById("veil").classList.add("hidden");
+  showPermGate();
+}
 function performReset(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
   // "tout oublier" n'efface QUE ça (+ déconnecte le compte de cet appareil) —
@@ -3177,17 +3550,22 @@ function performReset(){
   trace.resets = (trace.resets||0)+1;
   writeTrace(trace);
   save = loadSave();
-  playerName = null;
-  everGrantedAll = false;
-  if(followUpTimer){ clearTimeout(followUpTimer); followUpTimer = null; }
-  if(tabAwayTimer){ clearTimeout(tabAwayTimer); tabAwayTimer = null; }
-  document.getElementById("pgFirstName").value = "";
-  document.getElementById("pgLastName").value = "";
-  buildTitleFlavor();
-  updateGearState();
+  returnToPermGate();
+}
+function performLogout(){
+  // contrairement à "tout oublier", la sauvegarde locale de l'appareil
+  // n'est pas effacée — seul le compte est détaché
+  if(accountToken){
+    apiCall("/api/logout", { method:"POST", headers:{ Authorization:"Bearer "+accountToken } }).catch(()=>{});
+  }
+  clearAccountToken();
+  accountToken = null;
+  accountInfo = null;
+  returnToPermGate();
 }
 document.getElementById("resetBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
+  document.getElementById("settingsModal").classList.remove("show");
   document.getElementById("confirmResetModal").classList.add("show");
 });
 document.getElementById("confirmResetCancel").addEventListener("click", (e)=>{
@@ -3204,6 +3582,7 @@ document.getElementById("confirmResetModal").addEventListener("click", (e)=>{
 });
 document.getElementById("refreshBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
+  document.getElementById("settingsModal").classList.remove("show");
   const btn = e.currentTarget;
   btn.innerHTML = "…";
   const done = ()=> location.reload();
@@ -3230,6 +3609,7 @@ function renderVersionLog(){
 }
 document.getElementById("versionBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
+  document.getElementById("settingsModal").classList.remove("show");
   document.getElementById("versionNum").textContent = "version " + APP_VERSION + " · bêta";
   renderVersionLog();
   document.getElementById("versionLog").scrollTop = 0;
@@ -3241,6 +3621,161 @@ document.getElementById("versionCloseBtn").addEventListener("click", (e)=>{
 });
 document.getElementById("versionModal").addEventListener("click", (e)=>{
   if(e.target.id === "versionModal") document.getElementById("versionModal").classList.remove("show");
+});
+
+/* ============================================================
+   Roue de paramètres (écran-titre) — regroupe les réglages/actions
+   liés au compte et à l'appareil, séparé des icônes de contenu
+   (badges, partager, classement) qui restent directement accessibles
+   ============================================================ */
+function renderReduceToggle(){
+  const btn = document.getElementById("settingsReduceToggle");
+  btn.textContent = save.reduceEffects ? "oui" : "non";
+  btn.classList.toggle("active", !!save.reduceEffects);
+}
+document.getElementById("settingsBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  renderReduceToggle();
+  document.getElementById("settingsModal").classList.add("show");
+});
+document.getElementById("settingsCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("settingsModal").classList.remove("show");
+});
+document.getElementById("settingsModal").addEventListener("click", (e)=>{
+  if(e.target.id === "settingsModal") document.getElementById("settingsModal").classList.remove("show");
+});
+document.getElementById("settingsReduceToggle").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  save.reduceEffects = !save.reduceEffects;
+  writeSave(save);
+  renderReduceToggle();
+});
+document.getElementById("logoutBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("settingsModal").classList.remove("show");
+  performLogout();
+});
+
+/* ============================================================
+   Changer mes infos — prénom, nom, pseudo, mot de passe
+   ============================================================ */
+function openEditInfoModal(){
+  document.getElementById("editFirstName").value = accountInfo ? accountInfo.prenom : "";
+  document.getElementById("editLastName").value = accountInfo ? accountInfo.nom : "";
+  document.getElementById("editPseudo").value = accountInfo && accountInfo.pseudo ? accountInfo.pseudo : "";
+  document.getElementById("editCurrentPassword").value = "";
+  document.getElementById("editNewPassword").value = "";
+  document.getElementById("editInfoError").textContent = "";
+  document.getElementById("editInfoModal").classList.add("show");
+}
+document.getElementById("editInfoOpenBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("settingsModal").classList.remove("show");
+  openEditInfoModal();
+});
+document.getElementById("editInfoCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("editInfoModal").classList.remove("show");
+});
+document.getElementById("editInfoModal").addEventListener("click", (e)=>{
+  if(e.target.id === "editInfoModal") document.getElementById("editInfoModal").classList.remove("show");
+});
+document.getElementById("editInfoSaveBtn").addEventListener("click", async (e)=>{
+  e.stopPropagation();
+  if(!accountToken) return;
+  const prenom = document.getElementById("editFirstName").value.trim();
+  const nom = document.getElementById("editLastName").value.trim();
+  const pseudo = document.getElementById("editPseudo").value.trim();
+  const currentPassword = document.getElementById("editCurrentPassword").value;
+  const newPassword = document.getElementById("editNewPassword").value;
+  const errEl = document.getElementById("editInfoError");
+  errEl.textContent = "";
+  try{
+    if(pseudo && (!accountInfo || pseudo.toLowerCase() !== String(accountInfo.pseudo||"").toLowerCase())){
+      if(!PSEUDO_RE.test(pseudo)){ errEl.textContent = "pseudo : 3 à 20 caractères (lettres, chiffres, underscore)."; return; }
+      const { ok, data } = await apiCall("/api/set-pseudo", {
+        method:"POST", headers:{ "Content-Type":"application/json", Authorization:"Bearer "+accountToken },
+        body: JSON.stringify({ pseudo }),
+      });
+      if(!ok){ errEl.textContent = (data.error || "pseudo invalide.") + (data.code ? " (code "+data.code+")" : ""); return; }
+      accountInfo = data.account;
+    }
+    const body = {};
+    if(prenom) body.prenom = prenom;
+    if(nom) body.nom = nom;
+    if(newPassword){ body.newPassword = newPassword; body.currentPassword = currentPassword; }
+    if(Object.keys(body).length){
+      const { ok, data } = await apiCall("/api/update-account", {
+        method:"POST", headers:{ "Content-Type":"application/json", Authorization:"Bearer "+accountToken },
+        body: JSON.stringify(body),
+      });
+      if(!ok){ errEl.textContent = (data.error || "impossible de mettre à jour.") + (data.code ? " (code "+data.code+")" : ""); return; }
+      accountInfo = data.account;
+    }
+    if(accountInfo){
+      playerName = `${accountInfo.prenom} ${accountInfo.nom}`.trim();
+      save.playerName = playerName;
+      writeSave(save);
+      buildTitleFlavor();
+    }
+    document.getElementById("editInfoModal").classList.remove("show");
+  }catch(e){
+    errEl.textContent = "connexion impossible pour le moment.";
+  }
+});
+
+/* ============================================================
+   Classement — badges / temps joué / parties, réservé aux joueurs
+   connectés (l'API elle-même vérifie la session, pas seulement l'UI)
+   ============================================================ */
+function fmtLbScore(by, score){
+  if(by==="playtime") return fmtDuration(score);
+  return String(score);
+}
+async function renderLeaderboard(by){
+  document.querySelectorAll(".lbTab").forEach(t=> t.classList.toggle("active", t.dataset.by===by));
+  const listEl = document.getElementById("leaderboardList");
+  const meEl = document.getElementById("leaderboardMe");
+  listEl.innerHTML = `<div class="lbLoading">chargement…</div>`;
+  meEl.textContent = "";
+  if(!accountToken){ listEl.innerHTML = `<div class="lbLoading">connecte-toi pour voir le classement.</div>`; return; }
+  try{
+    const { ok, data } = await apiCall("/api/leaderboard?by="+encodeURIComponent(by), { headers:{ Authorization:"Bearer "+accountToken } });
+    if(!ok){
+      listEl.innerHTML = `<div class="lbLoading">indisponible pour le moment${data.code ? " (code "+data.code+")" : ""}.</div>`;
+      return;
+    }
+    if(!data.entries || !data.entries.length){
+      listEl.innerHTML = `<div class="lbLoading">personne n'a encore de score ici.</div>`;
+    } else {
+      listEl.innerHTML = data.entries.map((en,i)=>
+        `<div class="lbRow${data.me && data.me.pseudo===en.pseudo ? " me" : ""}"><span class="lbRank">${i+1}</span><span class="lbPseudo">@${escHtml(en.pseudo)}</span><span class="lbScore">${escHtml(fmtLbScore(by,en.score))}</span></div>`
+      ).join("");
+    }
+    if(data.needsPseudo){
+      meEl.textContent = "choisis un pseudo dans tes paramètres pour apparaître dans le classement.";
+    } else if(data.me){
+      meEl.textContent = `ton rang : ${data.me.rank} (${fmtLbScore(by, data.me.score)})`;
+    }
+  }catch(e){
+    listEl.innerHTML = `<div class="lbLoading">connexion impossible pour le moment.</div>`;
+  }
+}
+document.getElementById("leaderboardBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  renderLeaderboard("badges");
+  document.getElementById("leaderboardModal").classList.add("show");
+});
+document.getElementById("leaderboardCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("leaderboardModal").classList.remove("show");
+});
+document.getElementById("leaderboardModal").addEventListener("click", (e)=>{
+  if(e.target.id === "leaderboardModal") document.getElementById("leaderboardModal").classList.remove("show");
+});
+document.querySelectorAll(".lbTab").forEach(t=>{
+  t.addEventListener("click", (e)=>{ e.stopPropagation(); renderLeaderboard(t.dataset.by); });
 });
 
 /* ============================================================
@@ -3469,17 +4004,49 @@ document.getElementById("badgesModal").addEventListener("click", (e)=>{
   if(e.target.id === "badgesModal") document.getElementById("badgesModal").classList.remove("show");
 });
 
-function updateGearState(){
-  const gearEl = document.getElementById("gear");
-  gearEl.classList.toggle("active", !!save.reduceEffects);
-  gearEl.title = save.reduceEffects ? "paramètres — effets réduits (activé)" : "paramètres — effets réduits";
+/* ============================================================
+   Abandonner — bouton discret pendant la partie, remplace l'ancienne
+   icône lune (qui ne servait qu'à activer "effets réduits", déplacé
+   depuis dans la roue de paramètres). Interrompt le test en cours sans
+   le compter comme une fin, et nettoie tout état visuel en attente.
+   ============================================================ */
+function abandonGame(){
+  setButtonsEnabled(false);
+  if(followUpTimer){ clearTimeout(followUpTimer); followUpTimer = null; }
+  if(tabAwayTimer){ clearTimeout(tabAwayTimer); tabAwayTimer = null; }
+  try{ if("speechSynthesis" in window) speechSynthesis.cancel(); }catch(e){}
+  clearTypingTimeouts();
+  typingActive = false;
+  if(corruptStaticIv){ clearInterval(corruptStaticIv); corruptStaticIv = null; }
+  document.getElementById("monsterImg").classList.remove("show");
+  document.getElementById("tvScreen").classList.remove("alert","extreme","success");
+  document.getElementById("app").classList.remove("roomDark","shake","shakeHard","corruptFlash");
+  document.getElementById("buttonRow").classList.remove("hide");
+  document.getElementById("heavenOverlay").classList.remove("show");
+  document.getElementById("tvStatic").classList.remove("show");
+  document.getElementById("blackout").classList.remove("show");
+  document.getElementById("blackoutSub").classList.remove("show");
+  document.getElementById("wakeText").classList.remove("show");
+  document.getElementById("tvText").classList.remove("rollGlitch");
+  document.getElementById("endScreen").classList.remove("show");
+  unease = 0; setUnease(0);
+  backToTitle();
 }
-document.getElementById("gear").addEventListener("click", (e)=>{
+document.getElementById("quitBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
-  save.reduceEffects = !save.reduceEffects;
-  writeSave(save);
-  updateGearState();
-  vibrate([12]);
+  document.getElementById("confirmQuitModal").classList.add("show");
+});
+document.getElementById("confirmQuitCancel").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("confirmQuitModal").classList.remove("show");
+});
+document.getElementById("confirmQuitOk").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("confirmQuitModal").classList.remove("show");
+  abandonGame();
+});
+document.getElementById("confirmQuitModal").addEventListener("click", (e)=>{
+  if(e.target.id === "confirmQuitModal") document.getElementById("confirmQuitModal").classList.remove("show");
 });
 
 /* ============================================================
@@ -3499,8 +4066,6 @@ if("serviceWorker" in navigator){
 /* Init */
 resize();
 requestAnimationFrame(()=>layoutWires());
-buildTitleFlavor();
-updateGearState();
 requestAnimationFrame(loop);
 tryResumeSession();
 

@@ -5,6 +5,8 @@ import {
   normalizePhone,
   accountKey,
   sessionKey,
+  pseudoKey,
+  validatePseudo,
   jsonResponse,
   randomToken,
   hashPassword,
@@ -26,6 +28,7 @@ export async function onRequestPost(context) {
   const nom = String(body.nom || "").trim().slice(0, 24);
   const phone = normalizePhone(body.phone);
   const password = String(body.password || "");
+  const pseudo = String(body.pseudo || "").trim();
   const notif = !!body.notif;
 
   if (!prenom || !nom) {
@@ -37,6 +40,9 @@ export async function onRequestPost(context) {
   if (password.length < 4) {
     return jsonResponse({ error: "Le mot de passe doit faire au moins 4 caractères." }, 400);
   }
+  if (!validatePseudo(pseudo)) {
+    return jsonResponse({ error: "Le pseudo doit faire 3 à 20 caractères (lettres, chiffres, underscore)." }, 400);
+  }
 
   try {
     const existing = await getAccount(env, phone);
@@ -44,17 +50,26 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: "Un compte existe déjà avec ce numéro. Essaie de te connecter." }, 409);
     }
 
+    // réserve le pseudo de façon atomique (NX = seulement si absent) —
+    // évite que deux inscriptions simultanées prennent le même pseudo
+    const claimed = await redis(env, ["SET", pseudoKey(pseudo), phone, "NX"]);
+    if (claimed !== "OK") {
+      return jsonResponse({ error: "Ce pseudo est déjà pris." }, 409);
+    }
+
     const { hash, salt } = await hashPassword(password);
     const account = {
       phone,
       prenom,
       nom,
+      pseudo,
       notif,
       passwordHash: hash,
       passwordSalt: salt,
       createdAt: Date.now(),
       save: null,
       trace: null,
+      badgeCount: 0,
     };
     await saveAccount(env, phone, account);
 

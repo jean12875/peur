@@ -19,8 +19,8 @@ Ce qui rend LE TEST inhabituel :
 - **Un profil psychologique caché, à plusieurs axes.** Soumission, méfiance, lucidité, dissociation — quatre scores qui montent et descendent en secret selon chaque réponse, jamais affichés au joueur, jamais réduits à un seul "type" de joueur. Voir la section dédiée plus bas.
 - **Deux vraies bifurcations, neuf fins.** Pas un simple mini-jeu de réflexes : à deux moments du test, jamais annoncés, le jeu choisit parmi quatre directions de questions selon le profil du joueur — et la combinaison finale des quatre axes (plus le nombre de réponses "inattendues") détermine laquelle des huit fins de base arrive. Une neuvième fin, secrète, existe au-delà de ces huit-là.
 - **La mémoire entre les sessions — et même après un reset.** Le jeu se souvient du nombre de fois où tu es venu, depuis combien de temps, et des fins déjà vécues ; certaines questions ne sont même visibles qu'après avoir déjà obtenu une fin précise lors d'une partie antérieure — chacune des huit fins de base a désormais au moins une ligne de rappel qui lui est propre. Le bouton "tout oublier" efface la sauvegarde visible, mais une trace séparée, jamais vidée par ce bouton, garde le souvenir des resets eux-mêmes, un résumé cumulé du profil psychologique sur toutes les parties jamais jouées, et un peu de mémoire sur les habitudes réelles de visite (heure, jour de la semaine) — et tout ça peut ressortir, sous une forme ou une autre.
-- **Un profil optionnel, pour ne pas perdre sa progression.** Prénom, nom, téléphone et mot de passe créent un compte qui sauvegarde la partie côté serveur — utile pour reprendre sur un autre appareil. Le jeu reste entièrement jouable sans en créer un.
-- **Des badges à débloquer.** Une grille accessible depuis l'écran-titre, calculée à partir de ce que le joueur a réellement fait (fins obtenues, resets, fidélité) — les badges non obtenus restent des points d'interrogation.
+- **Un compte, pour ne pas perdre sa progression.** Prénom, nom, pseudo public, téléphone et mot de passe créent un profil qui sauvegarde la partie côté serveur — indispensable pour reprendre sur un autre appareil. Depuis la refonte du compte obligatoire, le formulaire de connexion/inscription est l'écran d'accueil : on ne voit le menu qu'une fois connecté.
+- **Des badges à débloquer, et un classement.** Une grille accessible depuis l'écran-titre, calculée à partir de ce que le joueur a réellement fait (fins obtenues, resets, fidélité) — les badges non obtenus restent des points d'interrogation. Un classement public (par pseudo, jamais par vrai nom) compare les joueurs connectés sur trois critères : badges, temps joué, nombre de parties.
 
 ## Avant de commencer : formulaire + notifications
 
@@ -100,26 +100,31 @@ sw.js           → service worker, jeu jouable hors-ligne une fois chargé
 icons/          → icônes générées (192, 512, apple-touch-icon)
 sfx/            → deux sons fournis (pas synthétisés) : rouge et vert
 img/            → l'image du monstre, utilisée une seule fois par partie
-functions/      → backend optionnel (compte), Cloudflare Pages Functions
-  _lib/auth.js    → hashage de mot de passe, sessions, appels Upstash
-  api/register.js → création de compte
-  api/login.js    → connexion
-  api/session.js  → vérifie un token existant (reconnexion silencieuse)
-  api/sync.js     → sauvegarde la progression sur le compte
-  api/logout.js   → invalide un token
+functions/      → backend du compte (obligatoire), Cloudflare Pages Functions
+  _lib/auth.js          → hashage de mot de passe, sessions, Upstash, SMS (Twilio), classements
+  api/register.js       → création de compte (prénom, nom, pseudo, téléphone, mot de passe)
+  api/login.js          → connexion
+  api/session.js        → vérifie un token existant (reconnexion silencieuse)
+  api/sync.js           → sauvegarde la progression + met à jour les classements
+  api/logout.js         → invalide un token
+  api/set-pseudo.js     → choisit/change le pseudo public
+  api/update-account.js → change prénom, nom, mot de passe
+  api/leaderboard.js    → classement (badges / temps / parties), réservé aux connectés
+  api/forgot-password.js → envoie un code de vérification par SMS
+  api/reset-password.js  → valide le code, change le mot de passe
 ```
 
 Aucune build step, aucun framework côté jeu. L'audio est presque entièrement synthétisé (Web Audio API) — trois exceptions, toutes des fichiers fournis, chargés et mixés via Web Audio API comme le reste : `sfx/cryo-outage.mp3` à chaque moment écran rouge, `sfx/cringe-scare.mp3` à chaque moment écran vert, `sfx/heartbeat-flatline.mp3` pendant la séquence noire. Plus aucune synthèse vocale (Web Speech API) dans le jeu — le texte de la séquence noire passe par des sous-titres blancs à l'écran. Les visuels combinent Canvas 2D (ambiance de la pièce, grain, glimpses brefs) et DOM/CSS (le téléviseur et son texte, pour un rendu net et lisible).
 
-## Compte (optionnel) et badges
+## Compte (obligatoire), badges et classement
 
-Depuis la v1.6x, le formulaire d'entrée permet de créer un profil (prénom, nom, numéro de téléphone, mot de passe) plutôt qu'un simple prénom/nom local. Le numéro de téléphone sert uniquement d'identifiant de connexion — il n'est **pas vérifié par SMS**, ce n'est pas une authentification à deux facteurs, juste un nom d'utilisateur au format familier. Un petit lien "déjà un compte ? se connecter" bascule le même formulaire en mode connexion (téléphone + mot de passe seulement). Si une session valide existe déjà sur l'appareil (`letest_account_token` dans `localStorage`), le formulaire est sauté automatiquement au chargement de la page — `tryResumeSession()` vérifie le token auprès du backend avant de faire sauter l'étape.
+Depuis la refonte du compte obligatoire, **le formulaire de connexion/inscription est le tout premier écran** : impossible de voir le menu (badges, partager, classement, paramètres) sans être connecté. Créer un profil demande prénom, nom, un **pseudo public** (3 à 20 caractères, lettres/chiffres/underscore — c'est ce pseudo, jamais le vrai nom, qui apparaît dans le classement), un numéro de téléphone (identifiant de connexion) et un mot de passe. Un petit lien "déjà un compte ? se connecter" bascule le même formulaire en mode connexion (téléphone + mot de passe seulement). Si une session valide existe déjà sur l'appareil (`letest_account_token` dans `localStorage`), le formulaire est sauté automatiquement au chargement de la page — `tryResumeSession()` vérifie le token auprès du backend avant de révéler l'écran-titre.
 
-**Le jeu reste jouable sans configurer quoi que ce soit.** Si le backend n'est pas configuré (ou injoignable), la création de compte échoue silencieusement côté serveur (503) et le client bascule sur l'ancien comportement local (juste prénom/nom, comme avant) — voir `handleLaunchClick()` dans le script. Aucune donnée n'est perdue ni bloquée par l'absence de backend.
+**Filet de sécurité, pas une porte de sortie.** Si le backend est injoignable ou mal configuré au moment de l'inscription, le client bascule exceptionnellement sur un mode local (comme avant la refonte du compte) plutôt que de bloquer complètement le jeu — voir `handleLaunchClick()`. Ce n'est pas un bouton "jouer sans compte" visible ; ça ne sert qu'à éviter de rendre le jeu injouable si l'hébergeur est en panne.
 
-**Architecture retenue : Cloudflare Pages Functions + Upstash Redis.** Cloudflare Pages ne fait tourner que du code compatible avec le runtime Workers (pas de connexion TCP persistante), donc pas de Postgres/MySQL classique sans passerelle. Upstash Redis expose une API REST HTTP, ce qui le rend directement utilisable depuis les Functions. Chaque compte est stocké sous une clé `letest:account:<téléphone>` (JSON : prénom, nom, hash + sel du mot de passe, préférence notifications, sauvegarde de partie, trace). Les sessions sont des clés `letest:session:<token>` (expirent après 90 jours) qui pointent vers le numéro de téléphone du compte.
+**Architecture retenue : Cloudflare Pages Functions + Upstash Redis.** Cloudflare Pages ne fait tourner que du code compatible avec le runtime Workers (pas de connexion TCP persistante), donc pas de Postgres/MySQL classique sans passerelle. Upstash Redis expose une API REST HTTP, ce qui le rend directement utilisable depuis les Functions. Chaque compte est stocké sous une clé `letest:account:<téléphone>` (JSON : prénom, nom, pseudo, hash + sel du mot de passe, préférence notifications, sauvegarde de partie, trace, nombre de badges). Les sessions sont des clés `letest:session:<token>` (expirent après 90 jours) qui pointent vers le numéro de téléphone du compte. Le pseudo est réservé via une clé séparée (`letest:pseudo:<pseudo>`, insensible à la casse) pour garantir l'unicité.
 
-Le mot de passe n'est jamais stocké en clair : dérivation PBKDF2-SHA256 (100 000 itérations, le maximum autorisé par le runtime Cloudflare Workers, sel aléatoire par compte), comparaison en temps constant à la connexion. Reste honnête à dire : ce n'est pas un système de sécurité de niveau bancaire (pas de limitation de débit sur les tentatives de connexion, pas de vérification du téléphone) — largement suffisant pour un jeu personnel, pas approprié pour protéger des données sensibles.
+Le mot de passe n'est jamais stocké en clair : dérivation PBKDF2-SHA256 (100 000 itérations, le maximum autorisé par le runtime Cloudflare Workers, sel aléatoire par compte), comparaison en temps constant à la connexion. Reste honnête à dire : ce n'est pas un système de sécurité de niveau bancaire (pas de limitation de débit sur les tentatives de connexion) — largement suffisant pour un jeu personnel, pas approprié pour protéger des données sensibles.
 
 **Pour activer le compte en ligne, une seule fois :**
 
@@ -131,7 +136,22 @@ Le mot de passe n'est jamais stocké en clair : dérivation PBKDF2-SHA256 (100 0
 
 Une fois ces variables posées, les inscriptions/connexions fonctionnent sans rien changer côté code.
 
-**Badges.** Un bouton "badges" sur l'écran-titre ouvre une grille de badges à débloquer (`BADGES` + `renderBadges()` dans le script), calculés à la volée à partir de `save`/`trace`/l'état de connexion — jamais stockés séparément. Les badges non débloqués s'affichent en `???`, sans description, pour garder un peu de mystère sur ce qu'il reste à découvrir.
+**Mot de passe oublié, par SMS (Twilio) — nécessite un compte à part et un budget.** Contrairement à Upstash, ce n'est **pas gratuit** : Twilio facture à l'usage (quelques centimes par SMS envoyé). Pour l'activer :
+
+1. Crée un compte sur [twilio.com](https://www.twilio.com) et achète un numéro de téléphone Twilio (quelques dollars, pay-as-you-go).
+2. Récupère **Account SID** et **Auth Token** depuis le tableau de bord Twilio.
+3. Dans Cloudflare Pages, ajoute trois variables d'environnement : **TWILIO_ACCOUNT_SID**, **TWILIO_AUTH_TOKEN**, **TWILIO_FROM_NUMBER** (le numéro Twilio acheté, format international `+33...`).
+4. Redéploie.
+
+Sans ces variables, le bouton "mot de passe oublié ?" du formulaire de connexion affiche une erreur propre (`L'envoi de SMS n'est pas encore configuré...`) plutôt que de planter — voir `sendSms()` dans `functions/_lib/auth.js`.
+
+**Badges.** Une icône ★ sur l'écran-titre ouvre une grille de badges à débloquer (`BADGES` + `renderBadges()` dans le script), calculés à la volée à partir de `save`/`trace`/l'état de connexion — jamais stockés séparément. Les badges non débloqués s'affichent en `???`, sans description, pour garder un peu de mystère sur ce qu'il reste à découvrir.
+
+**Classement.** Une icône ▲ ouvre un classement à trois onglets (badges / temps joué / parties), réservé aux joueurs connectés — l'API `/api/leaderboard` vérifie elle-même la session, pas seulement l'interface. Seul le pseudo apparaît, jamais le prénom/nom. Un joueur sans pseudo (compte créé avant cette fonctionnalité) reçoit une invite à en choisir un à sa prochaine connexion, avec possibilité de reporter à plus tard depuis "changer mes infos".
+
+**Paramètres.** Une icône ⚙ regroupe ce qui touche au compte et à l'appareil : effets réduits (réglage d'accessibilité, autrefois une icône lune en jeu — retirée, personne ne comprenait à quoi elle servait), version, actualiser, changer mes infos (prénom, nom, pseudo, mot de passe), se déconnecter, et tout oublier.
+
+**Abandonner une partie.** Pendant le test, un petit bouton discret (✕, en haut à gauche, à la place de l'ancienne icône lune) permet d'interrompre le test en cours et de revenir au menu, après confirmation — rien n'est compté comme une fin.
 
 ## Lancer en local
 
@@ -146,7 +166,7 @@ Sur l'écran-titre, un petit bouton "actualiser" force le rechargement de la der
 
 Pendant la partie, un petit bouton "⏭" discret en haut à droite (à côté des réglages) permet de passer immédiatement à la question suivante — utile pour spammer et arriver vite au moment qu'on veut tester, sans attendre le texte ou les délais.
 
-Sur l'écran-titre, un bouton rond "···" en bas ouvre un menu unique regroupant "version", "badges", "partager", "actualiser" et "tout oublier" (auparavant une rangée de liens séparés). Le bouton "version" ouvre une petite fenêtre indiquant le numéro de version (`1.65`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes. Règle stricte pour toute nouvelle entrée : jamais de mécanisme secret explicité (ex. le déclencheur du dossier caché), jamais d'explication complète d'un système caché — vague et atmosphérique plutôt que technique.
+Sur l'écran-titre, quatre icônes rondes en bas donnent accès à : badges (★), partager (↗), classement (▲) et paramètres (⚙ — version, actualiser, tout oublier, changer mes infos, se déconnecter, effets réduits). Le sous-écran "version" (dans les paramètres) indique le numéro de version (`1.68`, suit le cache `CACHE` de `sw.js`), un rappel que le jeu est en bêta, et un historique déroulant avec un résumé par version (`APP_VERSION` et `VERSION_LOG`, en haut du script — les deux sont à mettre à jour ensemble à chaque déploiement). Les entrées 1.1 à 1.24 sont reconstruites après coup à partir de l'historique de développement ; à partir de 1.25 elles sont exactes. Règle stricte pour toute nouvelle entrée : jamais de mécanisme secret explicité (ex. le déclencheur du dossier caché), jamais d'explication complète d'un système caché — vague et atmosphérique plutôt que technique.
 
 Sur l'écran-titre, un bouton "partager" ouvre une fenêtre avec deux boutons (iPhone / Android) : chacun copie dans le presse-papiers un message prêt à envoyer, avec le lien du jeu (`https://peur.pages.dev`) et les instructions d'installation adaptées à la plateforme (ajout à l'écran d'accueil via Safari ou Chrome). Constantes `SHARE_URL`, `SHARE_MSG_IOS`, `SHARE_MSG_ANDROID` dans le script.
 
@@ -161,9 +181,9 @@ Il existe aussi un "dossier" caché, jamais indiqué à l'écran : un appui long
 
 ## Vie privée
 
-Pas d'analytics, pas de tracking, aucune donnée envoyée à un tiers. Par défaut (formulaire rempli sans créer de compte, ou backend non configuré), rien ne quitte l'appareil : le prénom et le nom saisis restent locaux (`localStorage`), tout comme le nombre de tests passés, la dernière visite, le détail des fins obtenues, les préférences d'affichage, et la trace persistante (`letest_trace_v1` — fins déjà vues, resets, profil cumulé, habitudes de visite).
+Pas d'analytics, pas de tracking, aucune donnée envoyée à un tiers en dehors de l'hébergeur choisi (Cloudflare, Upstash, et Twilio si activé). Le prénom et le nom saisis restent privés — ils ne sont jamais montrés à d'autres joueurs. Seul le **pseudo public**, choisi à l'inscription, apparaît dans le classement.
 
-Si un compte est créé (prénom, nom, téléphone, mot de passe), ces informations ainsi que la sauvegarde de partie sont envoyées au backend du jeu (Cloudflare Pages Functions + Upstash Redis, hébergé par toi) pour permettre de retrouver sa progression sur un autre appareil ou après un nettoyage du navigateur — voir la section "Compte" plus haut pour le détail technique. Le mot de passe n'est jamais stocké en clair (PBKDF2-SHA256 salé). Aucune de ces données n'est partagée avec un tiers ni utilisée à d'autres fins que la sauvegarde du jeu lui-même. Le profil psychologique (les quatre axes) n'est, lui, jamais sauvegardé tel quel pendant une partie — il est recalculé de zéro à chaque partie ; seul son cumul rétrospectif (`traitTotals`) est conservé, local ou synchronisé selon le même principe que le reste.
+Un compte (prénom, nom, pseudo, téléphone, mot de passe) est nécessaire pour jouer. Ces informations, ainsi que la sauvegarde de partie, sont envoyées au backend du jeu (Cloudflare Pages Functions + Upstash Redis, hébergé par toi) pour permettre de retrouver sa progression sur un autre appareil ou après un nettoyage du navigateur — voir la section "Compte" plus haut pour le détail technique. Le mot de passe n'est jamais stocké en clair (PBKDF2-SHA256 salé). Si la récupération de mot de passe par SMS est activée, le numéro de téléphone est aussi transmis à Twilio au moment de l'envoi d'un code, uniquement pour cette action. Aucune de ces données n'est partagée avec un tiers ni utilisée à d'autres fins que la sauvegarde du jeu lui-même. Le profil psychologique (les quatre axes) n'est, lui, jamais sauvegardé tel quel pendant une partie — il est recalculé de zéro à chaque partie ; seul son cumul rétrospectif (`traitTotals`) est conservé, synchronisé selon le même principe que le reste.
 
 ## Historique
 

@@ -6,6 +6,9 @@
 // Session valable 90 jours.
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 90;
 
+// Code de récupération de mot de passe valable 10 minutes.
+const RESET_CODE_TTL_SECONDS = 60 * 10;
+
 // Appelle l'API REST d'Upstash Redis avec une commande (tableau).
 // Doc : https://upstash.com/docs/redis/features/restapi
 async function redis(env, command) {
@@ -53,6 +56,7 @@ function errorCode(e) {
   const reqFail = msg.match(/^UPSTASH_REQUEST_FAILED_(\d+)/);
   if (reqFail) return "REQ-" + reqFail[1];
   if (msg.startsWith("UPSTASH_ERROR")) return "DB";
+  if (msg.startsWith("SMS_")) return "SMS";
   return "UNK";
 }
 
@@ -68,6 +72,28 @@ function sessionKey(token) {
   return "letest:session:" + token;
 }
 
+// pseudo public, unique — clé séparée pour vérifier/réserver l'unicité
+// (insensible à la casse : "Clovis" et "clovis" sont le même pseudo)
+function pseudoKey(pseudo) {
+  return "letest:pseudo:" + String(pseudo || "").trim().toLowerCase();
+}
+
+function resetCodeKey(phone) {
+  return "letest:resetcode:" + normalizePhone(phone);
+}
+
+// classements — un sorted set par critère, jamais indexé par téléphone
+// (le pseudo public sert de membre, jamais le numéro)
+const LB_KEYS = {
+  badges: "letest:lb:badges",
+  playtime: "letest:lb:playtime",
+  games: "letest:lb:games",
+};
+
+function validatePseudo(pseudo) {
+  return /^[a-zA-Z0-9_]{3,20}$/.test(String(pseudo || ""));
+}
+
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
@@ -77,6 +103,11 @@ function jsonResponse(obj, status) {
 
 function randomToken() {
   return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+}
+
+// code numérique à 6 chiffres pour la récupération de mot de passe par SMS
+function randomCode6() {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 function bufToHex(buf) {
@@ -135,10 +166,56 @@ async function saveAccount(env, phone, account) {
   await redis(env, ["SET", accountKey(phone), JSON.stringify(account)]);
 }
 
+// met à jour les 3 classements pour un compte donné (silencieux si pas de
+// pseudo — un compte sans pseudo n'apparaît jamais dans un classement)
+async function updateLeaderboards(env, account) {
+  if (!account.pseudo) return;
+  const badgeCount = Number(account.badgeCount || 0);
+  const totalPlayMs = Number((account.trace && account.trace.totalPlayMs) || 0);
+  const gamesRecorded = Number((account.trace && account.trace.gamesRecorded) || 0);
+  await Promise.all([
+    redis(env, ["ZADD", LB_KEYS.badges, String(badgeCount), account.pseudo]),
+    redis(env, ["ZADD", LB_KEYS.playtime, String(totalPlayMs), account.pseudo]),
+    redis(env, ["ZADD", LB_KEYS.games, String(gamesRecorded), account.pseudo]),
+  ]);
+}
+
+// envoie un SMS via l'API Twilio — nécessite TWILIO_ACCOUNT_SID,
+// TWILIO_AUTH_TOKEN et TWILIO_FROM_NUMBER en variables d'environnement
+async function sendSms(env, toPhone, body) {
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_FROM_NUMBER) {
+    throw new Error("SMS_NOT_CONFIGURED");
+  }
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Messages.json`;
+  const form = new URLSearchParams();
+  form.set("From", env.TWILIO_FROM_NUMBER);
+  form.set("To", toPhone);
+  form.set("Body", body);
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: "Basic " + btoa(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: form.toString(),
+    });
+  } catch (e) {
+    throw new Error("SMS_FETCH_FAILED: " + e.message);
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error("SMS_SEND_FAILED_" + res.status + ": " + text.slice(0, 200));
+  }
+}
+
 function publicAccount(account) {
   return {
     prenom: account.prenom,
     nom: account.nom,
+    pseudo: account.pseudo || null,
+    needsPseudo: !account.pseudo,
     notif: !!account.notif,
     save: account.save || null,
     trace: account.trace || null,
@@ -147,17 +224,25 @@ function publicAccount(account) {
 
 export {
   SESSION_TTL_SECONDS,
+  RESET_CODE_TTL_SECONDS,
   redis,
   errorCode,
   normalizePhone,
   accountKey,
   sessionKey,
+  pseudoKey,
+  resetCodeKey,
+  LB_KEYS,
+  validatePseudo,
   jsonResponse,
   randomToken,
+  randomCode6,
   hashPassword,
   verifyPassword,
   getSessionPhone,
   getAccount,
   saveAccount,
+  updateLeaderboards,
+  sendSms,
   publicAccount,
 };

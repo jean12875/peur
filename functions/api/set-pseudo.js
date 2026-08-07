@@ -1,4 +1,14 @@
-import { getSessionPhone, getAccount, saveAccount, jsonResponse, publicAccount, updateLeaderboards, errorCode } from "../_lib/auth.js";
+import {
+  redis,
+  errorCode,
+  pseudoKey,
+  validatePseudo,
+  jsonResponse,
+  getSessionPhone,
+  getAccount,
+  saveAccount,
+  publicAccount,
+} from "../_lib/auth.js";
 
 function tokenFromRequest(request) {
   const auth = request.headers.get("Authorization") || "";
@@ -6,6 +16,8 @@ function tokenFromRequest(request) {
   return m ? m[1] : null;
 }
 
+// utilisé pour les comptes créés avant l'introduction du pseudo public
+// (permet aussi de changer son pseudo plus tard, depuis "changer mes infos")
 export async function onRequestPost(context) {
   const { request, env } = context;
   const token = tokenFromRequest(request);
@@ -18,23 +30,32 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: "Requête invalide." }, 400);
   }
 
+  const pseudo = String(body.pseudo || "").trim();
+  if (!validatePseudo(pseudo)) {
+    return jsonResponse({ error: "Le pseudo doit faire 3 à 20 caractères (lettres, chiffres, underscore)." }, 400);
+  }
+
   try {
     const phone = await getSessionPhone(env, token);
     if (!phone) return jsonResponse({ error: "Session expirée." }, 401);
     const account = await getAccount(env, phone);
     if (!account) return jsonResponse({ error: "Compte introuvable." }, 404);
 
-    // le client envoie sa sauvegarde + trace locales — on écrase simplement
-    // côté serveur (le serveur ne fait pas de fusion intelligente, c'est
-    // volontairement simple pour un usage mono-appareil ou occasionnel)
-    if (body.save !== undefined) account.save = body.save;
-    if (body.trace !== undefined) account.trace = body.trace;
-    if (body.notif !== undefined) account.notif = !!body.notif;
-    if (body.badgeCount !== undefined) account.badgeCount = Number(body.badgeCount) || 0;
+    if (account.pseudo && account.pseudo.toLowerCase() === pseudo.toLowerCase()) {
+      return jsonResponse({ ok: true, account: publicAccount(account) });
+    }
 
+    const claimed = await redis(env, ["SET", pseudoKey(pseudo), phone, "NX"]);
+    if (claimed !== "OK") {
+      return jsonResponse({ error: "Ce pseudo est déjà pris." }, 409);
+    }
+    // libère l'ancien pseudo, s'il y en avait un — non bloquant
+    if (account.pseudo) {
+      try { await redis(env, ["DEL", pseudoKey(account.pseudo)]); } catch (e) {}
+    }
+    account.pseudo = pseudo;
     await saveAccount(env, phone, account);
-    // classements — silencieux si pas de pseudo, jamais bloquant pour le joueur
-    try { await updateLeaderboards(env, account); } catch (e) {}
+
     return jsonResponse({ ok: true, account: publicAccount(account) });
   } catch (e) {
     if (String(e.message).startsWith("UPSTASH_NOT_CONFIGURED")) {
