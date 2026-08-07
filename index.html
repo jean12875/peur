@@ -223,9 +223,46 @@
     color:#d8d8d8; font-size:0.85rem; letter-spacing:0.25em; text-transform:uppercase; cursor:pointer; font-family:inherit;
   }
   .startbtn:active{ background:rgba(255,255,255,0.08); }
-  .miniline{ position:absolute; bottom:calc(2.6em + env(safe-area-inset-bottom, 0px)); left:0; right:0; text-align:center; font-size:0.7rem; color:#4a4a4a; letter-spacing:0.15em; }
-  .miniline button{ background:none;border:none;color:#4a4a4a;font-size:0.7rem;letter-spacing:0.15em; text-decoration:underline; cursor:pointer; padding:0.6em; font-family:inherit; }
-  .minisep{ opacity:0.35; }
+  /* ---------- bouton "menu" (écran-titre) + panneau associé ---------- */
+  #menuBtn{
+    position:absolute; bottom:calc(1.6em + env(safe-area-inset-bottom, 0px)); left:50%; transform:translateX(-50%);
+    background:none; border:1px solid rgba(220,232,251,0.18); border-radius:50%;
+    width:2.6em; height:2.6em; color:#5c7093; font-size:1rem; letter-spacing:0.1em;
+    cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center;
+    transition:border-color .25s ease, color .25s ease;
+  }
+  #menuBtn:active{ border-color:rgba(220,232,251,0.4); color:#9db3d6; }
+
+  #menuModal{
+    position:fixed; inset:0; z-index:80;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.72);
+    opacity:0; pointer-events:none; transition:opacity 0.35s ease;
+    padding:6vw;
+  }
+  #menuModal.show{ opacity:1; pointer-events:auto; }
+  #menuBox{
+    width:100%; max-width:24em; padding:1.8em 1.6em 1.4em;
+    background:#0d1420; border:1px solid rgba(255,255,255,0.12);
+    color:#dce8fb; letter-spacing:0.04em; text-align:center;
+  }
+  #menuList{ display:flex; flex-direction:column; margin-bottom:1.2em; }
+  #menuList button{
+    display:flex; flex-direction:column; align-items:flex-start; gap:0.2em; text-align:left;
+    background:none; border:none; border-bottom:1px solid rgba(255,255,255,0.1);
+    color:#dce8fb; font-family:inherit; padding:0.9em 0.3em; cursor:pointer; width:100%;
+    transition:background-color .2s ease;
+  }
+  #menuList button:last-child{ border-bottom:none; }
+  #menuList button:active{ background:rgba(255,255,255,0.05); }
+  .menuItemLabel{ font-size:0.88rem; letter-spacing:0.06em; }
+  .menuItemHint{ font-size:0.68rem; color:#5c7093; letter-spacing:0.02em; }
+  #menuBox > button{
+    background:transparent; border:1px solid rgba(255,255,255,0.25); color:#d8d8d8;
+    font-size:0.78rem; letter-spacing:0.2em; text-transform:uppercase; padding:0.7em 2em;
+    cursor:pointer; font-family:inherit;
+  }
+  #menuBox > button:active{ background:rgba(255,255,255,0.08); }
 
   /* petite fenêtre "version" — accessible depuis l'écran-titre, explique que
      le jeu est encore en bêta et peut changer sans prévenir */
@@ -564,7 +601,21 @@
     <div class="flavor" id="flavorText">assieds-toi. ce protocole existe depuis longtemps. réponds sincèrement, ça ne prendra pas longtemps.</div>
     <div class="stat" id="statText"></div>
     <button class="startbtn" id="startBtn">commencer</button>
-    <div class="miniline"><button id="resetBtn">tout oublier</button> <span class="minisep">·</span> <button id="refreshBtn">actualiser</button> <span class="minisep">·</span> <button id="versionBtn">version</button> <span class="minisep">·</span> <button id="shareBtn">partager</button> <span class="minisep">·</span> <button id="badgesBtn">badges</button></div>
+    <button id="menuBtn" aria-label="menu">···</button>
+  </div>
+
+  <div id="menuModal">
+    <div id="menuBox">
+      <div class="vTitle">MENU</div>
+      <div id="menuList">
+        <button id="versionBtn"><span class="menuItemLabel">version</span><span class="menuItemHint">historique des mises à jour</span></button>
+        <button id="badgesBtn"><span class="menuItemLabel">badges</span><span class="menuItemHint">ce que tu as débloqué</span></button>
+        <button id="shareBtn"><span class="menuItemLabel">partager</span><span class="menuItemHint">envoyer le lien à quelqu'un</span></button>
+        <button id="refreshBtn"><span class="menuItemLabel">actualiser</span><span class="menuItemHint">forcer le rechargement</span></button>
+        <button id="resetBtn"><span class="menuItemLabel">tout oublier</span><span class="menuItemHint">effacer la sauvegarde de cet appareil</span></button>
+      </div>
+      <button id="menuCloseBtn">fermer</button>
+    </div>
   </div>
 
   <div id="shareModal">
@@ -650,11 +701,12 @@
 const SAVE_KEY = "letest_save_v1";
 // version affichée dans la fenêtre "version" de l'écran-titre — le nombre après le
 // point suit le cache du service worker (sw.js, CACHE), à bumper ensemble à chaque déploiement
-const APP_VERSION = "1.64";
+const APP_VERSION = "1.65";
 // historique, du plus récent au plus ancien — un résumé par version déployée.
 // v1 à v24 sont reconstruites à partir de l'historique de développement (le détail
 // exact de chaque déploiement d'origine n'a pas été conservé) ; v25 et plus sont exactes.
 const VERSION_LOG = [
+  ["1.65", "Menu de l'écran-titre repensé (un seul bouton, tout est rangé dedans). Quelques répliques retravaillées."],
   ["1.64", "Les erreurs du profil en ligne affichent maintenant un petit code au lieu d'un message technique brut, plus propre à l'écran."],
   ["1.63", "Correctif de la création de profil : le nombre d'itérations utilisé pour protéger le mot de passe dépassait la limite autorisée par l'hébergeur, ce qui empêchait tous les comptes de se créer."],
   ["1.62", "Diagnostic temporaire sur les erreurs de création de profil, pour trouver pourquoi certaines connexions au compte échouent."],
@@ -1848,7 +1900,7 @@ let shownCount = 0;
 // longueur approximative d'une partie complète (varie légèrement selon les
 // branches choisies) — sert uniquement à faire monter la jauge de malaise
 // à un rythme régulier, peu importe quelles branches sont tirées
-const EXPECTED_SHOWN_TOTAL = 128;
+const EXPECTED_SHOWN_TOTAL = 126;
 
 const QUESTIONS = [
   /* -1 mise en situation — le protocole s'ouvre, avant la première question */
@@ -2114,8 +2166,9 @@ const QUESTIONS = [
   { text:"Si tout ceci s'arrêtait d'un coup, sans prévenir, est-ce que ça te ferait quelque chose, vraiment ?",
     skipIf: ()=> branch1!=="dissociation", weight: (y)=>({ dissociation: y?0.3:0 }) },
 
-  /* reconvergence — les branches se referment ici, sans jamais être nommées */
-  { text:"On se retrouve toujours ici, à ce stade, quoi qu'il arrive.", auto:true, holdFor:2400, effect: ()=>triggerAmbientGlitch() },
+  /* reconvergence — les branches se referment ici, sans jamais être nommées ni
+     commentées : aucune ligne ne signale que les chemins se rejoignent, pour
+     ne pas trahir la mécanique (et parce que ça n'apportait rien à la lecture). */
 
   /* 26 palier — le test relâche la pression, brièvement */
   { text:"Veuillez patienter. Le test va reprendre sous peu.", auto:true, holdFor:3400 },
@@ -2413,8 +2466,7 @@ const QUESTIONS = [
   { text:"Il ne reste presque plus rien à effacer, chez toi, à ce stade. Le sens-tu ?", skipIf: ()=> branch2!=="dissociation",
     weight: (y)=>({ dissociation: y?0.4:0 }) },
 
-  /* reconvergence finale */
-  { text:"Encore une fois : on se retrouve ici, comme toujours.", auto:true, holdFor:2200 },
+  /* reconvergence finale — silencieuse, même logique que la première */
 
   /* 44 dossier complet — juste avant la fin */
   { text:"Le dossier à ton nom contient maintenant plus de pages qu'au début. Le savais-tu ?", auto:true, holdFor:2600 },
@@ -3103,6 +3155,7 @@ document.getElementById("startBtn").addEventListener("click", (e)=>{
 });
 document.getElementById("resetBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
+  document.getElementById("menuModal").classList.remove("show");
   try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
   // "tout oublier" n'efface QUE ça (+ déconnecte le compte de cet appareil) —
   // la trace, séparée, garde le compte des resets ; le compte lui-même,
@@ -3127,6 +3180,7 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
 });
 document.getElementById("refreshBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
+  document.getElementById("menuModal").classList.remove("show");
   const btn = e.currentTarget;
   btn.textContent = "…";
   const done = ()=> location.reload();
@@ -3153,6 +3207,7 @@ function renderVersionLog(){
 }
 document.getElementById("versionBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
+  document.getElementById("menuModal").classList.remove("show");
   document.getElementById("versionNum").textContent = "version " + APP_VERSION + " · bêta";
   renderVersionLog();
   document.getElementById("versionLog").scrollTop = 0;
@@ -3200,6 +3255,7 @@ function flashCopied(btn){
 }
 document.getElementById("shareBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
+  document.getElementById("menuModal").classList.remove("show");
   document.getElementById("shareModal").classList.add("show");
 });
 document.getElementById("shareCloseBtn").addEventListener("click", (e)=>{
@@ -3381,6 +3437,7 @@ document.getElementById("dossierModal").addEventListener("click", (e)=>{
 });
 document.getElementById("badgesBtn").addEventListener("click", (e)=>{
   e.stopPropagation();
+  document.getElementById("menuModal").classList.remove("show");
   renderBadges();
   document.getElementById("badgesModal").classList.add("show");
 });
@@ -3390,6 +3447,17 @@ document.getElementById("badgesCloseBtn").addEventListener("click", (e)=>{
 });
 document.getElementById("badgesModal").addEventListener("click", (e)=>{
   if(e.target.id === "badgesModal") document.getElementById("badgesModal").classList.remove("show");
+});
+document.getElementById("menuBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("menuModal").classList.add("show");
+});
+document.getElementById("menuCloseBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  document.getElementById("menuModal").classList.remove("show");
+});
+document.getElementById("menuModal").addEventListener("click", (e)=>{
+  if(e.target.id === "menuModal") document.getElementById("menuModal").classList.remove("show");
 });
 
 function updateGearState(){
